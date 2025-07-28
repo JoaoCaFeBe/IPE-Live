@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Níveis de Áudio OBS com Autenticação</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        #audio-meter-container {
+            width: 100%;
+            max-width: 600px;
+            height: 50px;
+            background-color: #ccc;
+            margin: 20px auto;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #audio-meter {
+            height: 100%;
+            width: 0%; /* Inicia em 0% */
+            background-color: green;
+            transition: width 0.1s ease-in-out;
+        }
+    </style>
+    <!-- Inclua a biblioteca CryptoJS para hashing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>	
+</head>
+<body>
+    <h1>Monitor de Níveis de Áudio OBS com Autenticação</h1>
+    <div id="audio-meter-container">
+        <div id="audio-meter"></div>
+    </div>
+    <script>
+        const wsUrl = 'ws://localhost:4455'; // Ajuste para a URL correta do WebSocket OBS
+        const password = 'ipe123'; // A senha do WebSocket OBS
+        let ws;
+
+        function connectWebSocket() {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('Conectado ao WebSocket');
+            };
+
+            ws.onmessage = (event) => {
+                const response = JSON.parse(event.data);
+                console.log('Mensagem recebida:', response);
+
+                switch (response.op) {
+                    case 0:
+                        // Mensagem inicial do OBS WebSocket, contém challenge e salt para autenticação
+                        const challenge = response.d.authentication.challenge;
+                        const salt = response.d.authentication.salt;
+                        const authHash = generateAuthHash(password, challenge, salt);
+
+                        const authMessage = {
+                            "op": 1, // Código de operação para autenticação
+                            "d": {
+                                "rpcVersion": 1,
+                                "authentication": authHash
+                            }
+                        };
+                        ws.send(JSON.stringify(authMessage));
+                        break;
+                    
+                    case 1:
+                        // Autenticação bem-sucedida
+                        console.log('Autenticação bem-sucedida');
+                        // Subscrever aos eventos de nível de áudio
+                        const subscribeMessage = {
+                            "op": 5, // Código de operação para subscrição de eventos
+                            "d": {
+                                "eventSubscriptions": [
+                                    "InputVolumeMeters" // Tipo de evento a ser subscrito
+                                ]
+                            }
+                        };
+                        ws.send(JSON.stringify(subscribeMessage));
+                        break;
+                    
+                    case 7:
+                        if (response.d.eventType === 'InputVolumeMeters') {
+                            // Evento de mudança de volume recebido
+                            const inputs = response.d.inputs;
+                            if (inputs && inputs.length > 0) {
+                                const volume = inputs[0].inputPeak; // Volume medido do som
+                                updateAudioMeter(volume);
+                            }
+                        }
+                        break;
+
+                    case 9:
+                        // Erro de autenticação ou outro erro
+                        console.error('Erro:', response.d);
+                        break;
+
+                    default:
+                        console.warn('Código de operação desconhecido:', response.op);
+                        break;
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('Erro no WebSocket:', error);
+            };
+
+            ws.onclose = () => {
+                console.log('Conexão WebSocket fechada');
+                setTimeout(connectWebSocket, 3000); // Tenta reconectar após um atraso
+            };
+        }
+
+        function generateAuthHash(password, challenge, salt) {
+            // Função para gerar o hash de autenticação necessário
+            const passwordHash = CryptoJS.SHA256(password + salt).toString(CryptoJS.enc.Base64);
+            const authHash = CryptoJS.SHA256(passwordHash + challenge).toString(CryptoJS.enc.Base64);
+            return authHash;
+        }
+
+        function updateAudioMeter(volume) {
+            const audioMeter = document.getElementById('audio-meter');
+            const volumePercent = Math.min(Math.max((volume + 26) / 26, 0), 1) * 100; // Converte para porcentagem, -26 dB a 0 dB
+            audioMeter.style.width = `${volumePercent}%`;
+
+            // Alterar cor com base no nível de volume
+            if (volumePercent > 80) {
+                audioMeter.style.backgroundColor = 'red';
+            } else if (volumePercent > 50) {
+                audioMeter.style.backgroundColor = 'yellow';
+            } else {
+                audioMeter.style.backgroundColor = 'green';
+            }
+        }
+
+        // Inicia a conexão WebSocket
+        connectWebSocket();
+    </script>
+</body>
+</html>
