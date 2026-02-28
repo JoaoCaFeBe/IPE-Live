@@ -29,6 +29,7 @@ Painel.php (controle) ──socket.emit──▶ Chat.JS/index.js (Socket.IO ser
 Todos os eventos usam o padrão: `socket.emit("IPE.Transmissão", nomeEvento, dados)`.
 
 Eventos principais:
+
 | Evento | Direção | Propósito |
 |---|---|---|
 | `hino` / `louvor` / `passagem` / `mensagem` | Painel → Telas | Exibir conteúdo (payload: `{tipo, titulo, corpo}`) |
