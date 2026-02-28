@@ -1,3 +1,6 @@
+# Variáveis de ambiente
+.env
+
 # Dependências
 Chat.JS/node_modules/
 

@@ -1,3 +1,4 @@
+<?php include_once "config.php"; ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -28,6 +29,10 @@
     <script src='Bibliotecas\v4-shims.min.js'></script>
 
     <script src='Bibliotecas\socket.io.min.js'></script>
+    <script>
+        var servidor = "<?= $SOCKET_SERVER ?>",
+            empresa = "<?= $SOCKET_NAMESPACE ?>";
+    </script>
     <!-- ---------------------------------------------------------------------------------- -->
     <title>Projetor</title>
     <link rel="stylesheet" href="Projetor.css">

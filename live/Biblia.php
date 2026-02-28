@@ -1,4 +1,5 @@
 <?php
+include_once "config.php";
 include_once "dados.php";
 $nomeLivro = $_GET['nomeLivro'];
 $livro = $_GET['livro'];
@@ -27,6 +28,10 @@ $capitulo = $_GET['capitulo'];
     <script src='Bibliotecas\v4-shims.min.js'></script>
 
     <script src='Bibliotecas\socket.io.min.js'></script>
+    <script>
+        var servidor = "<?= $SOCKET_SERVER ?>",
+            empresa = "<?= $SOCKET_NAMESPACE ?>";
+    </script>
     <!-- ---------------------------------------------------------------------------------- -->
     <title><?php echo $nomeLivro . ' ' . $capitulo ?></title>
     <link rel="stylesheet" href="Painel.css">

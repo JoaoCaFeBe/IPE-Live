@@ -1,4 +1,5 @@
 <?php
+include_once "config.php";
 include_once "dados.php";
 ?>
 <!DOCTYPE html>
@@ -29,6 +30,10 @@ include_once "dados.php";
     <script src='Bibliotecas\v4-shims.min.js'></script>
 
     <script src='Bibliotecas\socket.io.min.js'></script>
+    <script>
+        var servidor = "<?= $SOCKET_SERVER ?>",
+            empresa = "<?= $SOCKET_NAMESPACE ?>";
+    </script>
     <!-- ---------------------------------------------------------------------------------- -->
     <title>Painel</title>
     <link rel="stylesheet" href="Painel.css">
@@ -61,17 +66,17 @@ include_once "dados.php";
         </select>
         <select id="versao" class="form-select form-select-sm" style="max-width: 12ch;" aria-label="Small select">
             <?php
-                $versoes = [
-                    ["id" => "ARA", "nome" => 'Almeida Revista e Atualizada - ARA.sqlite'],
-                    ["id" => "NAA", "nome" => 'Nova Almeida Atualizada - NAA.sqlite'],
-                    ["id" => "NVI", "nome" => 'Nova Versão Internacional - NVI.sqlite'],
-                ];
+            $versoes = [
+                ["id" => "ARA", "nome" => 'Almeida Revista e Atualizada - ARA.sqlite'],
+                ["id" => "NAA", "nome" => 'Nova Almeida Atualizada - NAA.sqlite'],
+                ["id" => "NVI", "nome" => 'Nova Versão Internacional - NVI.sqlite'],
+            ];
 
-                $selecionado = 'selected';
-                foreach ($versoes as $versao) {
-                    echo "<option value='{$versao['nome']}' $selecionado>{$versao['id']}</option>";
-                    $selecionado = '';
-                }
+            $selecionado = 'selected';
+            foreach ($versoes as $versao) {
+                echo "<option value='{$versao['nome']}' $selecionado>{$versao['id']}</option>";
+                $selecionado = '';
+            }
             ?>
         </select>
         <input class="input-group-text" style="width: 50px;" type="number" id="capitulo" min='1' value='1' max='50' onblur="if (parseInt(this.value) > parseInt(this.max)) this.value=this.max; listaVersiculos(livro.value, this.value, versao.value);">

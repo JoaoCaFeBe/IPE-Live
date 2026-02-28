@@ -3,8 +3,6 @@ var query = document.querySelector.bind(document),
     queryAll = document.querySelectorAll.bind(document),
     queryId = document.getElementById.bind(document),
     queryName = document.getElementsByName.bind(document),
-    servidor = "10.0.0.253:3000",
-    empresa = "IPE.Transmissão",
     socket = io(servidor, { transports: ["polling", "websocket"] }),
     tzoffset = (new Date()).getTimezoneOffset() * 60000,
     arquivo = (new Date(Date.now() - tzoffset)).toISOString().split('T')[0],
@@ -14,7 +12,7 @@ socket.onAny((aplicativo, eventName, args) => {
     if (aplicativo === empresa) {
         if (eventName === "pegarDadosMensagem") {
             socket.emit(empresa, "dadosMensagem", culto);
-        } else if ((painelOBS)&&(eventName === "obsSceneChanged")) {
+        } else if ((painelOBS) && (eventName === "obsSceneChanged")) {
             $('body>div:not(.form-check):not(.biblia)').hide();
             $('.accordion-button:not(.collapsed)').addClass('collapsed');
             $('.accordion-collapse.show').removeClass('show');
@@ -32,12 +30,12 @@ socket.onAny((aplicativo, eventName, args) => {
 });
 // -----------------------------------------------------------------------------------------
 const inicio = () => {
-	
-				mensagem.addEventListener('keyup', function(e){
-				if (e.key === 'Enter' || e.keyCode === 13) {
-					socket.emit(empresa, 'Alerta', mensagem.value);
-				}
-			});
+
+    mensagem.addEventListener('keyup', function (e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            socket.emit(empresa, 'Alerta', mensagem.value);
+        }
+    });
 
 
     $.getJSON(`../cultos/${arquivo}.json`)
@@ -197,7 +195,7 @@ const inicio = () => {
 
             queryAll('.accordion:not(#mensagens) .btn-group-vertical>input[type="radio"]').forEach(button => {
                 button.addEventListener('change', function () {
-					this.nextElementSibling.style.color = 'yellow';
+                    this.nextElementSibling.style.color = 'yellow';
                     if (this.nextElementSibling.innerHTML === 'Título') {
                         socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: this.getAttribute('titulo'), corpo: '' });
                     } else {
@@ -238,7 +236,7 @@ const inicio = () => {
                     socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: 'topico', corpo: this.getAttribute('titulo'), indice: index, status: this.checked });
                 })
             });
-			
+
         });
 }
 

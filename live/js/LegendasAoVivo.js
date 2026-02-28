@@ -2,8 +2,6 @@ var query = document.querySelector.bind(document),
     queryAll = document.querySelectorAll.bind(document),
     queryId = document.getElementById.bind(document),
     queryName = document.getElementsByName.bind(document),
-	servidor = "10.0.0.253:3000",
-    empresa = "IPE.Transmissão",
     socket = io(servidor, { transports: ["polling", "websocket"] }),
     atual;
 
@@ -14,41 +12,41 @@ socket.on("connect", () => {
 socket.onAny((aplicativo, eventName, args) => {
     if (aplicativo === empresa) {
 
-		if (eventName === "fecharJanela") {
-			$(`body>*:visible`).fadeOut(200, function () {
-				// this.querySelectorAll("*").forEach(obj => obj.innerhtml = "");
-				$(`body>*:visible>*`).html('');
-			});
-		} else if (eventName === "fecharBiblia") {
-			if (atual === 'Mensagem') {
-				if ($(`mensagem>rodape`).html(mensagem.corpo).css('display') !== 'none') $(`mensagem>rodape`).fadeOut(200);
-			} else {
-				$(`body>*:visible`).fadeOut(200, function () {
-					// this.querySelectorAll("*").forEach(obj => obj.innerhtml = "");
-					$(`body>*:visible>*`).html('');
-				});
-			}
-		} else if (eventName === "obsSceneChanged") {
-			atual = args;
-			if (args !== 'Mensagem') {
-				$(`body>*:visible`).fadeOut(200, function () {
-					// this.querySelectorAll("*").forEach(obj => obj.innerhtml = "");
-					$(`body>*:visible>*`).html('');
-				});
-			}
-		} else if (eventName === "pegarDadosMensagem") {
-		} else if (eventName === "dadosMensagem") {
-			$('mensagem>titulo').html(args.titulo);
-			$('mensagem>corpo').html("");
-			$('mensagem>corpo').append(`<ol></ol>`);
-			args.topicos.forEach((topico, indice) => {
-				$('mensagem>corpo>ol').append(`<li>${topico}</li>`);
-				if (indice + 1 === args.topicos.length) $('mensagem>corpo>ol>li').fadeOut();
-			});
-		} else {
-			mensagem(args);
-		}
-		
+        if (eventName === "fecharJanela") {
+            $(`body>*:visible`).fadeOut(200, function () {
+                // this.querySelectorAll("*").forEach(obj => obj.innerhtml = "");
+                $(`body>*:visible>*`).html('');
+            });
+        } else if (eventName === "fecharBiblia") {
+            if (atual === 'Mensagem') {
+                if ($(`mensagem>rodape`).html(mensagem.corpo).css('display') !== 'none') $(`mensagem>rodape`).fadeOut(200);
+            } else {
+                $(`body>*:visible`).fadeOut(200, function () {
+                    // this.querySelectorAll("*").forEach(obj => obj.innerhtml = "");
+                    $(`body>*:visible>*`).html('');
+                });
+            }
+        } else if (eventName === "obsSceneChanged") {
+            atual = args;
+            if (args !== 'Mensagem') {
+                $(`body>*:visible`).fadeOut(200, function () {
+                    // this.querySelectorAll("*").forEach(obj => obj.innerhtml = "");
+                    $(`body>*:visible>*`).html('');
+                });
+            }
+        } else if (eventName === "pegarDadosMensagem") {
+        } else if (eventName === "dadosMensagem") {
+            $('mensagem>titulo').html(args.titulo);
+            $('mensagem>corpo').html("");
+            $('mensagem>corpo').append(`<ol></ol>`);
+            args.topicos.forEach((topico, indice) => {
+                $('mensagem>corpo>ol').append(`<li>${topico}</li>`);
+                if (indice + 1 === args.topicos.length) $('mensagem>corpo>ol>li').fadeOut();
+            });
+        } else {
+            mensagem(args);
+        }
+
     }
 });
 // ----------------------------------------------------------------------------------
