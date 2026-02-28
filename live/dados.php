@@ -15,6 +15,8 @@ if (!class_exists('dados')) {
 
         public static function open()
         {
+            if (self::$conn !== null) return;
+
             $conn = new PDO("sqlite:Biblias/" . $_SESSION['biblia']);
 
             $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -44,24 +46,12 @@ if (!class_exists('dados')) {
             return self::$conn->query($sql)->fetchAll(PDO::FETCH_OBJ);
         }
 
-        public static function tabela($sql, ...$parametros)
+        public static function tabela($sql, $limite = 0)
         {
-            $registros = 0;
-            foreach ($parametros as $value) {
-                if (is_integer($value)) {
-                    $registros = $value;
-                }
-            }
             $query = self::executaSQL($sql);
-            $retorno = [];
-            $processados = 0;
-            foreach ($query as $row) {
-                $retorno[] = $row;
-                if ($registros === 1) $retorno = $row;
-                if ($registros && $processados++ === $registros) break;
-            }
-
-            return $retorno;
+            if ($limite === 1) return $query[0] ?? null;
+            if ($limite > 0) return array_slice($query, 0, $limite);
+            return $query;
         }
 
         public static function close()

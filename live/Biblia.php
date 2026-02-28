@@ -1,9 +1,9 @@
 <?php
 include_once "config.php";
 include_once "dados.php";
-$nomeLivro = $_GET['nomeLivro'];
-$livro = $_GET['livro'];
-$capitulo = $_GET['capitulo'];
+$nomeLivro = htmlspecialchars($_GET['nomeLivro'] ?? '', ENT_QUOTES, 'UTF-8');
+$livro = (int)($_GET['livro'] ?? 0);
+$capitulo = (int)($_GET['capitulo'] ?? 0);
 
 ?>
 <!DOCTYPE html>
@@ -13,25 +13,7 @@ $capitulo = $_GET['capitulo'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- ---------------------------------------------------------------------------------- -->
-    <script src='Bibliotecas\jquery.min.js'></script>
-
-    <link rel='stylesheet' type='text/css' href="Bibliotecas\bootstrap.min.css">
-    <script src='Bibliotecas\bootstrap.min.js'></script>
-
-    <link rel="stylesheet" href="Bibliotecas\animate.min.css">
-
-    <link rel='stylesheet' type='text/css' href="Bibliotecas\fontawesome.min.css">
-    <link rel='stylesheet' type='text/css' href="Bibliotecas\all.min.css">
-    <link rel='stylesheet' type='text/css' href="Bibliotecas\v4-shims.min.css">
-    <script src='Bibliotecas\fontawesome.min.js'></script>
-    <script src='Bibliotecas\all.min.js'></script>
-    <script src='Bibliotecas\v4-shims.min.js'></script>
-
-    <script src='Bibliotecas\socket.io.min.js'></script>
-    <script>
-        var servidor = "<?= $SOCKET_SERVER ?>",
-            empresa = "<?= $SOCKET_NAMESPACE ?>";
-    </script>
+    <?php include 'includes/bibliotecas.php'; ?>
     <!-- ---------------------------------------------------------------------------------- -->
     <title><?php echo $nomeLivro . ' ' . $capitulo ?></title>
     <link rel="stylesheet" href="Painel.css">

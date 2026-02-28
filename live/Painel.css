@@ -27,7 +27,7 @@ mulheres {
 }
 
 .scrollJC {
-    overflow-y: overlay;
+    overflow-y: auto;
 }
 
 .scrollJC::-webkit-scrollbar {

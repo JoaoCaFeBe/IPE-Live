@@ -13,27 +13,9 @@ include_once "dados.php";
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, shrink-to-fit=no" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta names="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <!-- ---------------------------------------------------------------------------------- -->
-    <script src='Bibliotecas\jquery.min.js'></script>
-
-    <link rel='stylesheet' type='text/css' href="Bibliotecas\bootstrap.min.css">
-    <script src='Bibliotecas\bootstrap.min.js'></script>
-
-    <link rel="stylesheet" href="Bibliotecas\animate.min.css">
-
-    <link rel='stylesheet' type='text/css' href="Bibliotecas\fontawesome.min.css">
-    <link rel='stylesheet' type='text/css' href="Bibliotecas\all.min.css">
-    <link rel='stylesheet' type='text/css' href="Bibliotecas\v4-shims.min.css">
-    <script src='Bibliotecas\fontawesome.min.js'></script>
-    <script src='Bibliotecas\all.min.js'></script>
-    <script src='Bibliotecas\v4-shims.min.js'></script>
-
-    <script src='Bibliotecas\socket.io.min.js'></script>
-    <script>
-        var servidor = "<?= $SOCKET_SERVER ?>",
-            empresa = "<?= $SOCKET_NAMESPACE ?>";
-    </script>
+    <?php include 'includes/bibliotecas.php'; ?>
     <!-- ---------------------------------------------------------------------------------- -->
     <title>Painel</title>
     <link rel="stylesheet" href="Painel.css">
@@ -58,11 +40,10 @@ include_once "dados.php";
 
             $selecionado = 'selected';
             foreach ($livros as $livro) {
-                echo "<option value='$livro->id' capitulos='$livro->capitulos' $selected>$livro->name</option>";
+                echo "<option value='$livro->id' capitulos='$livro->capitulos' $selecionado>$livro->name</option>";
                 $selecionado = '';
             }
             ?>
-        </select>
         </select>
         <select id="versao" class="form-select form-select-sm" style="max-width: 12ch;" aria-label="Small select">
             <?php

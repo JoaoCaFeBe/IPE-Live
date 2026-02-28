@@ -186,6 +186,10 @@ const inicio = () => {
                         console.log(`Codigo errado em ${definicao.tipo}`);
                 }
             });
+        }).fail((jqXHR, textStatus, errorThrown) => {
+            $("body").append(`<div class="alert alert-danger m-3" role="alert">
+                <i class="fa-solid fa-triangle-exclamation"></i> Erro ao carregar o culto do dia (${arquivo}.json): ${textStatus}
+            </div>`);
         }).always(() => {
             queryAll(".accordion-item").forEach(item => {
                 item.addEventListener('hide.bs.collapse', function () {

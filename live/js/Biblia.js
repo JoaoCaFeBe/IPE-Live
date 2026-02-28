@@ -5,7 +5,7 @@ var query = document.querySelector.bind(document),
     socket = io(servidor, { transports: ["polling", "websocket"] });
 // -----------------------------------------------------------------------------------------
 const inicio = () => {
-    botoes = queryAll('input[type="radio"]');
+    let botoes = queryAll('input[type="radio"]');
     botoes.forEach((button) => {
         button.addEventListener('change', function () {
             socket.emit(empresa, 'passagem', { tipo: 'passagem', titulo: this.getAttribute('titulo'), corpo: encodeURI(this.nextElementSibling.innerHTML) });
