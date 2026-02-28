@@ -50,3 +50,48 @@ input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
+
+/* ---- Cores por tipo de seção ---- */
+#hinos .accordion-button {
+    background-color: #3d1f6d;
+    color: #e0d0ff;
+}
+
+#hinos .accordion-button:not(.collapsed) {
+    background-color: #5b2d99;
+    color: #fff;
+}
+
+#louvores .accordion-button {
+    background-color: #1a5632;
+    color: #c8f0d4;
+}
+
+#louvores .accordion-button:not(.collapsed) {
+    background-color: #23784a;
+    color: #fff;
+}
+
+#passagens .accordion-button {
+    background-color: #14506e;
+    color: #c4e3f5;
+}
+
+#passagens .accordion-button:not(.collapsed) {
+    background-color: #1a6d96;
+    color: #fff;
+}
+
+#mensagens .accordion-button {
+    background-color: #7a2517;
+    color: #fdd8d2;
+}
+
+#mensagens .accordion-button:not(.collapsed) {
+    background-color: #a43220;
+    color: #fff;
+}
+
+.accordion-button::after {
+    filter: invert(1);
+}

@@ -4,7 +4,7 @@
  */
 inicializarTela({
     elementoConteudo: 'corpo',
-    temAlerta: true,
+    temAlerta: false,
     delayEventos: 0,
     limparNaMensagem: true,
     callbackFadeIn: null,

@@ -1,0 +1,24 @@
+# Dependências
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# Dados de cultos (conteúdo gerado em produção)
+cultos/*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

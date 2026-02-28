@@ -40,7 +40,7 @@ const inicio = () => {
 
     $.getJSON(`../cultos/${arquivo}.json`)
         .done(definicoes => {
-            let hino = louvor = passagem = mensagem = extra = 0;
+            let hino = 0, louvor = 0, passagem = 0, contMensagem = 0, extra = 0;
             definicoes.forEach(definicao => {
                 switch (definicao.tipo) {
                     case 'hino':
@@ -142,41 +142,41 @@ const inicio = () => {
                         );
                         break;
                     case 'mensagem':
-                        mensagem++;
+                        contMensagem++;
                         culto = definicao;
                         socket.emit(empresa, "dadosMensagem", culto);
-                        if (mensagem == 1) $("body").append(`<div id="mensagens" class="accordion accordion-flush"></div>`);
+                        if (contMensagem == 1) $("body").append(`<div id="mensagens" class="accordion accordion-flush"></div>`);
                         $("#mensagens").append(`<div class="accordion-item" tipo="mensagem">
-                                                            <h2 class="accordion-header" id="mensagem${mensagem}">
-                                                                <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseMensagem${mensagem}" aria-expanded="true" aria-controls="colapseMensagem${mensagem}">
+                                                            <h2 class="accordion-header" id="mensagem${contMensagem}">
+                                                                <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseMensagem${contMensagem}" aria-expanded="true" aria-controls="colapseMensagem${contMensagem}">
                                                                     <i class="fa-solid fa-cross"></i>&nbsp;${definicao.titulo}
                                                                 </button>
                                                             </h2>
-                                                            <div id="colapseMensagem${mensagem}" class="accordion-collapse collapse" aria-labelledby="${mensagem}" data-bs-parent="#mensagens">
+                                                            <div id="colapseMensagem${contMensagem}" class="accordion-collapse collapse" aria-labelledby="${contMensagem}" data-bs-parent="#mensagens">
                                                                 <div class="accordion-body p-1">
                                                                     
                                                                 </div>
                                                             </div>
                                                         </div>`);
 
-                        $(`#colapseMensagem${mensagem} .accordion-body`).append(`<div class="btn-group-vertical w-100" role="group" aria-label="Vertical button group" id="mensagemTopicos"></div>`);
-                        definicao.topicos.forEach((valor, indice) => $(`#colapseMensagem${mensagem} .accordion-body #mensagemTopicos`)
+                        $(`#colapseMensagem${contMensagem} .accordion-body`).append(`<div class="btn-group-vertical w-100" role="group" aria-label="Vertical button group" id="mensagemTopicos"></div>`);
+                        definicao.topicos.forEach((valor, indice) => $(`#colapseMensagem${contMensagem} .accordion-body #mensagemTopicos`)
                             .append(`
-                                        <input type="checkbox" class="btn-check" name="btnMensagemTopico${mensagem}" id="btnMensagemTopico${mensagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-secondary" for="btnMensagemTopico${mensagem}${indice}">${valor}</label>
+                                        <input type="checkbox" class="btn-check" name="btnMensagemTopico${contMensagem}" id="btnMensagemTopico${contMensagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
+                                        <label class="btn btn-secondary" for="btnMensagemTopico${contMensagem}${indice}">${valor}</label>
                                     `)
                         );
 
-                        $(`#colapseMensagem${mensagem} .accordion-body`).append(`<div class="btn-group-vertical w-100" role="group" aria-label="Vertical button group" id="mensagemPassagens"></div>`);
-                        $(`#colapseMensagem${mensagem} .accordion-body #mensagemPassagens`)
+                        $(`#colapseMensagem${contMensagem} .accordion-body`).append(`<div class="btn-group-vertical w-100" role="group" aria-label="Vertical button group" id="mensagemPassagens"></div>`);
+                        $(`#colapseMensagem${contMensagem} .accordion-body #mensagemPassagens`)
                             .append(`
-                                        <input type="radio" class="btn-check" name="btnMensagemPassagem${mensagem}" id="btnMensagemPassagem${mensagem}" titulo="" autocomplete="off">
-                                        <label class="btn btn-warning" for="btnMensagemPassagem${mensagem}">${definicao.passagem}</label>
+                                        <input type="radio" class="btn-check" name="btnMensagemPassagem${contMensagem}" id="btnMensagemPassagem${contMensagem}" titulo="" autocomplete="off">
+                                        <label class="btn btn-warning" for="btnMensagemPassagem${contMensagem}">${definicao.passagem}</label>
                                     `);
-                        definicao.texto.forEach((valor, indice) => $(`#colapseMensagem${mensagem} .accordion-body #mensagemPassagens`)
+                        definicao.texto.forEach((valor, indice) => $(`#colapseMensagem${contMensagem} .accordion-body #mensagemPassagens`)
                             .append(`
-                                        <input type="radio" class="btn-check" name="btnMensagemPassagem${mensagem}" id="btnMensagemPassagem${mensagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-secondary" for="btnMensagemPassagem${mensagem}${indice}">${valor}</label>
+                                        <input type="radio" class="btn-check" name="btnMensagemPassagem${contMensagem}" id="btnMensagemPassagem${contMensagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
+                                        <label class="btn btn-secondary" for="btnMensagemPassagem${contMensagem}${indice}">${valor}</label>
                                     `)
                         );
                         break;

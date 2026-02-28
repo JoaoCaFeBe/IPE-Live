@@ -22,11 +22,8 @@ var query = document.querySelector.bind(document),
     socket = io(servidor, { transports: ["polling", "websocket"] }),
     atual;
 
-// Detecta atributo telaPrincipal no script que chamou (Projetor/Televisao)
+// telaPrincipal será detectado em inicio() quando o DOM estiver completo
 let telaPrincipal = false;
-document.querySelectorAll('script[telaPrincipal]').forEach(s => {
-    if (s.getAttribute('telaPrincipal') === 'telaPrincipal') telaPrincipal = true;
-});
 
 // Configuração padrão
 var telaCfg = window.telaCfg || {
@@ -62,7 +59,7 @@ function _fecharBiblia() {
 }
 
 function _alerta(args) {
-    if (telaPrincipal && telaCfg.temAlerta) {
+    if (telaCfg.temAlerta) {
         if (!$('body').hasClass('modal-open')) {
             var dialog = bootbox.dialog({
                 message: args,
@@ -205,6 +202,11 @@ function processarConteudo(conteudo) {
 // -----------------------------------------------------------------------------------------
 
 const inicio = () => {
+    // Detecta atributo telaPrincipal agora que o DOM está completo
+    document.querySelectorAll('script[telaPrincipal]').forEach(s => {
+        if (s.getAttribute('telaPrincipal') === 'telaPrincipal') telaPrincipal = true;
+    });
+
     // Integração direta com OBS (Legendas)
     if (telaCfg.integracaoOBS && typeof window.obsstudio !== "undefined") {
         window.addEventListener('obsSceneChanged', function (event) {

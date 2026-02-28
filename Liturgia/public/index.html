@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="cache-control" content="no-cache">
+    <title>IPE-Liturgia</title>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="/lib/js/font-awesome/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/lib/js/font-awesome/css/all.css">
+    <link rel="stylesheet" href="/lib/js/font-awesome/css/v4-shims.css">
+
+    <!-- Bootstrap 5 -->
+    <link rel="stylesheet" href="/lib/js/twitter-bootstrap/css/bootstrap.min.css">
+
+    <!-- CSS próprio da aplicação -->
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+
+<body class="Principal">
+
+    <!-- ── NAVBAR ─────────────────────────────────────────────────────────── -->
+    <nav class="navbar p-2 navbar-dark bg-dark vidro-dark">
+        <a class="navbar-brand text-nowrap" id="logomarca">
+            <img class="img-fluid" src="/img/Logomarca.png" style="height:38px;">
+            <titulo>IPE-Liturgia</titulo>
+        </a>
+        <ul id="Menu" class="nav navbar-text">
+            <li class="nav-item d-none" id="itemBaixar">
+                <a class="nav-link" onclick="baixarArquivo()">
+                    <i class="fa-solid fa-download"></i>&nbsp;Baixar liturgia
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- ── ÁREA DE TRABALHO ───────────────────────────────────────────────── -->
+    <div class="janela" style="grid-template-columns:129px auto 1fr;gap:.25rem;">
+
+        <!-- Lista de cultos -->
+        <div class="card" id="cardLiturgias" style="z-index:3;">
+            <div class="card-header" id="headerLiturgias">
+                <titulo><i class="fas fa-church"></i>Liturgias</titulo>
+                <barra class="btn-toolbar btn-group-sm">
+                    <i id="incluirLiturgias" class="fa fa-plus" onclick="novaLiturgia();"></i>
+                </barra>
+            </div>
+            <div class="card-body" id="bodyLiturgias" style="overflow-y:auto;">
+                <ul class="ulMenu selecionavel text-center" id="listaLiturgias">
+                    <!-- preenchida via JS ao carregar -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Itens do culto selecionado -->
+        <div class="card d-none" id="cardLiturgia" style="z-index:2;">
+            <div class="card-header" id="headerLiturgia">
+                <titulo><i class="fas fa-folder-open"></i>Liturgia</titulo>
+                <barra class="btn-toolbar btn-group-sm">
+                    <div class="dropdown">
+                        <i class="fa fa-plus dropdown-toggle" id="dropdownMenu1" data-bs-toggle="dropdown"
+                            aria-haspopup="true" aria-expanded="false"></i>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="dropdownMenu1">
+                            <li><a class="dropdown-item" onclick="novaSelecao('Passagem');"><i
+                                        class="fas fa-bible"></i>&nbsp;Passagem</a></li>
+                            <li><a class="dropdown-item" onclick="hinoLocal();"><i
+                                        class="fas fa-music"></i>&nbsp;Hino</a></li>
+                            <li><a class="dropdown-item" onclick="louvorLocal();"><i
+                                        class="fas fa-guitar"></i>&nbsp;Louvor</a></li>
+                            <li><a class="dropdown-item" onclick="novaSelecao('Mensagem');"><i
+                                        class="fas fa-cross"></i>&nbsp;Mensagem</a></li>
+                            <li><a class="dropdown-item" onclick="novaSelecao('Extra');"><i
+                                        class="fas fa-photo-video"></i>&nbsp;Extra</a></li>
+                        </ul>
+                    </div>
+                </barra>
+            </div>
+            <div class="card-body" id="bodyLiturgia" style="overflow-y:auto;">
+                <ul class="ulMenu selecionavel vidro-light"></ul>
+            </div>
+        </div>
+
+        <!-- Corpo do item selecionado -->
+        <div class="card d-none" id="cardCorpo" style="z-index:1;">
+            <div class="card-header" id="headerCorpo">
+                <titulo><i class="fa fa-file"></i>Corpo</titulo>
+                <barra class="btn-toolbar btn-group-sm">
+                    <button id="up" class="btn btn-primary" type="button" onclick="up()" data-bs-toggle="tooltip"
+                        data-bs-placement="bottom" title="Subir">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                    <button id="down" class="btn btn-primary" type="button" onclick="down()" data-bs-toggle="tooltip"
+                        data-bs-placement="bottom" title="Descer">
+                        <i class="fas fa-arrow-down"></i>
+                    </button>
+                </barra>
+            </div>
+            <div class="card-body" id="bodyCorpo"
+                style="display:grid;grid-template-rows:auto 1fr;grid-row-gap:.25rem;padding:.25rem;">
+            </div>
+            <div class="card-footer" id="botoesLiturgia">
+                <button type="button" class="btn btn-primary float-end" onclick="salvar()">
+                    <i class="fas fa-save"></i>&nbsp;Salvar
+                </button>
+                <button id="excluir" type="button" class="btn btn-danger float-end d-none me-1" onclick="excluir()">
+                    <i class="fas fa-trash"></i>&nbsp;Excluir
+                </button>
+            </div>
+        </div>
+
+    </div><!-- /.janela -->
+
+    <!-- ── SCRIPTS ────────────────────────────────────────────────────────── -->
+    <script src="/lib/js/jquery/jquery.min.js"></script>
+    <script src="/lib/js/twitter-bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/lib/js/bootbox.js/bootbox.min.js"></script>
+
+    <!-- Utilitários da aplicação -->
+    <script src="/js/app.js"></script>
+    <!-- Lógica principal de liturgia -->
+    <script src="/js/capa.js"></script>
+</body>
+
+</html>

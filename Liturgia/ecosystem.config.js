@@ -1,7 +1,7 @@
 module.exports = {
     apps: [{
-        name: 'IPE-Chat',
-        script: 'index.js',
+        name: 'IPE-Liturgia',
+        script: 'server.js',
         watch: false,
         instances: 1,
         autorestart: true,

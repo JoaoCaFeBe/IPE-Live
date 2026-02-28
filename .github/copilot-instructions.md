@@ -7,6 +7,9 @@ Sistema de projeção e legendas ao vivo para cultos da Igreja Presbiteriana da 
 ## Arquitetura
 
 ```
+[Liturgia/] Editor de liturgia ──grava JSON──▶ IPE/.liturgia/cultos/YYYY-MM-DD.json
+                                                         │
+                            (arquivo copiado/acessado)  ▼
 Painel.php (controle) ──socket.emit──▶ Chat.JS/index.js (Socket.IO server :3000) ──broadcast──▶ Projetor.php / Televisao.php / Legendas.php / LegendasAoVivo.php
 ```
 
@@ -18,6 +21,7 @@ Painel.php (controle) ──socket.emit──▶ Chat.JS/index.js (Socket.IO ser
 - **live/Biblia.php** — Popup aberto pelo Painel para selecionar versículos bíblicos.
 - **live/dados.php** — Classe PHP `dados` (abstrata/estática) que abre bancos SQLite das Bíblias/Hinários via PDO.
 - **Audio/index.html** — (Experimental) Monitor de níveis de áudio OBS via WebSocket (`ws://localhost:4455`). Usa autenticação com CryptoJS. Ainda não integrado ao fluxo principal.
+- **Liturgia/** — Aplicação Node.js/Express standalone para **criação e edição** de liturgias (ver seção dedicada abaixo).
 
 ## Dados e Bancos
 
@@ -76,6 +80,70 @@ O endereço do servidor Socket.IO é definido pela variável `servidor` nos arqu
 ```
 
 - Prefixo `refrao:` em `letra[]` indica refrão (renderizado com cor diferente `btn-info` no Painel).
+
+## Módulo Liturgia (Editor)
+
+Aplicação **Node.js/Express** independente localizada em `Liturgia/`. Seu propósito é criar e editar os arquivos JSON de liturgia que o `live/Painel.php` consome.
+
+### Iniciar
+
+```bash
+cd Liturgia && npm install && node server.js
+# Acesso: http://localhost:3000
+```
+
+### Estrutura
+
+```
+Liturgia/
+  server.js          — Servidor Express (porta 3000)
+  package.json
+  public/
+    index.html       — SPA com layout de 3 colunas
+    css/app.css
+    js/
+      app.js         — Utilitários (jQuery extensions, helpers de string/data)
+      capa.js        — Lógica principal da aplicação
+```
+
+### Rotas do servidor (`server.js`)
+
+| Método | Rota | Propósito |
+|---|---|---|
+| `GET` | `/cultos` | Lista todos os arquivos de liturgia (ordem decrescente) |
+| `GET` | `/cultos/:arquivo` | Retorna o JSON de uma liturgia específica |
+| `POST` | `/dados/nova-liturgia` | Cria arquivo `YYYY-MM-DD.json` vazio |
+| `POST` | `/dados/salvar-liturgia` | Persiste o conteúdo JSON de uma liturgia |
+| `POST` | `/formularios/:tipo` | Retorna fragmento HTML do formulário de cada tipo (`passagem`, `hino`, `louvor`, `mensagem`, `extra`) |
+| `GET` | `/formularios/pesquisar-louvor` | Busca música por título (modal de pesquisa externa) |
+| `GET` | `/formularios/pesquisar-louvor-local` | Retorna lista de louvores ya existentes nos cultos + HTML da UI |
+| `GET` | `/formularios/pesquisar-hino-local` | Retorna lista de hinos já existentes nos cultos + HTML da UI |
+
+### Armazenamento de dados
+
+Os JSONs de liturgia são gravados em **`IPE/.liturgia/cultos/`** — um diretório no projeto PHP irmão (`IPE`), não dentro do workspace `IPE Live`. O caminho base é configurado via constante `IPE_DIR` no `server.js`. Ao mudar de ambiente, ajustar `IPE_DIR`.
+
+### Compartilhamento de bibliotecas
+
+- `/lib` → `IPE/lib/` (Bootstrap, jQuery, Font Awesome, Bootbox — mesmas versões do `live/Bibliotecas/`)
+- `/img` → `IPE/.img/` (logomarca etc.)
+
+### Interface (`public/`)
+
+Layout SPA em 3 colunas:
+
+1. **Lista de liturgias** — arquivos JSON existentes. Botão `+` cria nova liturgia com prompt de data.
+2. **Itens da liturgia** — lista dos itens do culto selecionado. Dropdown `+` permite adicionar `Passagem`, `Hino`, `Louvor`, `Mensagem` ou `Extra`.
+3. **Formulário de edição** — carregado via AJAX (`/formularios/:tipo`); exibe campos adequados ao tipo selecionado.
+
+### Convenções do módulo
+
+- Usa as mesmas extensões jQuery definidas em `app.js` (`$.filtra`, `$.downloadObj`, etc.).
+- Formulários são fragmentos HTML retornados pelo servidor e inseridos no DOM via AJAX — não são páginas completas.
+- A função `carregarItens(tipo)` no `server.js` varre todos os JsonS de culto e retorna itens únicos por título, usada para as buscas locais de hinos e louvores.
+- As transformações de texto (formatar passagens, letras de hinos/louvores, mensagens) ocorrem no cliente via funções `arrumar*()` em `capa.js`.
+
+---
 
 ## Ao Editar
 

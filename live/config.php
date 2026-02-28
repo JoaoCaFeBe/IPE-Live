@@ -16,5 +16,5 @@ if (file_exists($envPath)) {
     }
 }
 
-$SOCKET_SERVER = $_ENV['SOCKET_SERVER'] ?? 'localhost:3000';
+$SOCKET_SERVER = $_ENV['SOCKET_SERVER'] ?? 'localhost:3001';
 $SOCKET_NAMESPACE = $_ENV['SOCKET_NAMESPACE'] ?? 'IPE.Transmissão';

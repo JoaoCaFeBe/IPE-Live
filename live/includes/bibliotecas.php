@@ -16,6 +16,6 @@
 
     <script src='Bibliotecas\socket.io.min.js'></script>
     <script>
-        var servidor = "<?= $SOCKET_SERVER ?>",
+        var servidor = "http://<?= $SOCKET_SERVER ?>",
             empresa = "<?= $SOCKET_NAMESPACE ?>";
     </script>
