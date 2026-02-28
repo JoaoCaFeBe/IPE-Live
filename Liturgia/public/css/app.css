@@ -159,6 +159,35 @@ input::-webkit-inner-spin-button {
     margin: 0;
 }
 
+/* ── Cores por tipo (espelham live/Painel.css) ────────────────────────── */
+
+li.hino {
+    background-color: #3d1f6d;
+    color: #e0d0ff;
+}
+
+li.louvor {
+    background-color: #1a5632;
+    color: #c8f0d4;
+}
+
+li.passagem {
+    background-color: #14506e;
+    color: #c4e3f5;
+}
+
+li.mensagem {
+    background-color: #7a2517;
+    color: #fdd8d2;
+}
+
+li.extra {
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+}
+
+/* ── Ícones de tipo de item de liturgia ───────────────────────────────── */
+
 li.passagem::before {
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;

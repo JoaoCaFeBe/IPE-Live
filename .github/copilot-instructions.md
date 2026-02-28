@@ -140,8 +140,30 @@ Layout SPA em 3 colunas:
 
 - Usa as mesmas extensões jQuery definidas em `app.js` (`$.filtra`, `$.downloadObj`, etc.).
 - Formulários são fragmentos HTML retornados pelo servidor e inseridos no DOM via AJAX — não são páginas completas.
-- A função `carregarItens(tipo)` no `server.js` varre todos os JsonS de culto e retorna itens únicos por título, usada para as buscas locais de hinos e louvores.
+- A função `carregarItens(tipo)` no `server.js` varre todos os JSONs de culto e retorna itens únicos por título, usada para as buscas locais de hinos e louvores.
 - As transformações de texto (formatar passagens, letras de hinos/louvores, mensagens) ocorrem no cliente via funções `arrumar*()` em `capa.js`.
+
+### Identidade visual por tipo
+
+As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quanto nos accordions do `live/Painel.css`. Ao criar ou editar elementos visuais associados a tipos, manter esta paleta:
+
+| Tipo | Fundo (recolhido) | Fundo (expandido/ativo) | Texto |
+|---|---|---|---|
+| `hino` | `#3d1f6d` | `#5b2d99` | `#e0d0ff` |
+| `louvor` | `#1a5632` | `#23784a` | `#c8f0d4` |
+| `passagem` | `#14506e` | `#1a6d96` | `#c4e3f5` |
+| `mensagem` | `#7a2517` | `#a43220` | `#fdd8d2` |
+| `extra` | `#3a3a3a` | `#555555` | `#e0e0e0` |
+
+### Forma de trabalho no módulo Liturgia
+
+1. **Leia sempre os três arquivos principais antes de editar**: `server.js`, `public/js/capa.js` e `public/css/app.css`. O `index.html` raramente muda.
+2. **Alterações no servidor** (`server.js`): afetam rotas e geração de fragmentos HTML. Qualquer nova rota deve seguir o padrão REST já existente e retornar HTML (para `/formularios/*`) ou JSON (para `/cultos/*` e `/dados/*`).
+3. **Alterações no cliente** (`capa.js`): cada tipo tem um par de funções — `mostra<Tipo>(codigo)` carrega o formulário via AJAX e popula os campos; `arrumar<Tipo>()` lê os campos e monta o JSON final no `#final`. Ao adicionar um novo tipo, criar ambas as funções.
+4. **Fragmentos de formulário**: são HTML puro retornado pelo servidor e inserido com `insertAdjacentHTML('afterbegin', …)`. Usar as tags customizadas `<texto>` para o container editor, e `#titulo`, `#original`, `#final` como IDs padrão dos campos.
+5. **Salvar**: sempre via `$.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })`. O array `Liturgia` é a fonte única de verdade em memória.
+6. **Cores**: aplicar sempre a paleta da tabela acima nos elementos visuais associados a tipos. O item selecionado recebe `bg-warning` (Bootstrap) sobrepondo a cor do tipo.
+7. **Não usar CDN, bundlers ou TypeScript** — o frontend usa apenas as bibliotecas em `/lib` servidas pelo Express.
 
 ---
 
