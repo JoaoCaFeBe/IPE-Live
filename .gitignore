@@ -1,4 +1,23 @@
-Chat.JS/node_modules/*
+# Dependências
+Chat.JS/node_modules/
+
+# Cultos (JSONs diários)
 cultos/*
 !cultos/.gitkeep
+
+# Backups
 **/*.bak
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
