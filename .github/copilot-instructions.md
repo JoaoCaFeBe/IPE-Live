@@ -17,6 +17,7 @@ Painel.php (controle) ──socket.emit──▶ Chat.JS/index.js (Socket.IO ser
 - **live/Legendas.php** e **LegendasAoVivo.php** — Telas para legendas, usadas via OBS Browser Source; detectam `window.obsstudio` para integração com OBS.
 - **live/Biblia.php** — Popup aberto pelo Painel para selecionar versículos bíblicos.
 - **live/dados.php** — Classe PHP `dados` (abstrata/estática) que abre bancos SQLite das Bíblias/Hinários via PDO.
+- **Audio/index.html** — (Experimental) Monitor de níveis de áudio OBS via WebSocket (`ws://localhost:4455`). Usa autenticação com CryptoJS. Ainda não integrado ao fluxo principal.
 
 ## Dados e Bancos
 
@@ -55,7 +56,13 @@ Eventos principais:
 cd Chat.JS && npm install && node index.js
 ```
 
-O servidor escuta em `0.0.0.0:3000`. O IP hardcoded nos clientes é `10.0.0.253:3000` (variável `servidor` em cada JS). Para ambiente local, alterar para `localhost:3000`.
+O servidor escuta em `0.0.0.0:3000`.
+
+### Configuração do endereço do servidor
+
+O endereço do servidor Socket.IO é definido pela variável `servidor` nos arquivos JS (`Painel.js`, `Projetor.js`, `Televisao.js`, `Legendas.js`, `LegendasAoVivo.js`, `Biblia.js`). Atualmente está hardcoded como `10.0.0.253:3000`.
+
+**Meta**: migrar para variáveis de ambiente via arquivo `.env` na raiz do projeto, permitindo configurar o endereço sem editar código. Ao implementar essa migração, usar um `.env` com chave `SOCKET_SERVER` (ex.: `SOCKET_SERVER=10.0.0.253:3000`) e injetar o valor via PHP nos arquivos `.php` que carregam os scripts, ou via um endpoint JS de configuração. Não esquecer de adicionar `.env` ao `.gitignore`.
 
 ## Estrutura de um JSON de Culto
 
@@ -76,3 +83,4 @@ O servidor escuta em `0.0.0.0:3000`. O IP hardcoded nos clientes é `10.0.0.253:
 - O conteúdo do `corpo` é transmitido via `encodeURI()` e decodificado com `decodeURI()` nas telas.
 - A variável `atual` (cena OBS ativa) controla se passagens bíblicas aparecem como conteúdo principal ou como rodapé dentro de `<mensagem>`.
 - `Televisao.js` é praticamente idêntico a `Projetor.js`, mas adiciona relógio via `Hora.php`. `LegendasAoVivo.js` é idêntico a `Legendas.js` com integração OBS direta.
+- Ao adicionar ou alterar um comportamento em `Projetor.js`, verificar se a mesma alteração se aplica a `Televisao.js`, `Legendas.js` e `LegendasAoVivo.js` — eles compartilham a mesma lógica base com variações pontuais.
