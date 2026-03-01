@@ -71,17 +71,17 @@ const inicio = () => {
                             // Separar por <br/> e processar cada linha
                             const linhas = valor.split(/<br\s*\/?>/gi);
                             let grupoLinhas = [];
-                            
+
                             linhas.forEach((linha) => {
                                 linha = linha.trim();
                                 if (!linha) return; // ignorar linhas vazias
                                 grupoLinhas.push(linha);
                             });
-                            
+
                             // Agrupar linhas: quando encontra {st}, agrupa tudo até o próximo {st} como um botão
                             let grupos = [];
                             let grupoAtual = [];
-                            
+
                             grupoLinhas.forEach(linha => {
                                 const stMatch = linha.match(/^\{st\}(.+?)\{\/st\}$/);
                                 if (stMatch) {
@@ -95,13 +95,13 @@ const inicio = () => {
                                 }
                             });
                             if (grupoAtual.length > 0) grupos.push(grupoAtual);
-                            
+
                             // Criar um botão para cada grupo
                             grupos.forEach((grupo, grupoIdx) => {
                                 let cor = 'btn-secondary';
                                 let textoCompleto = [];
                                 let temCantor = false;
-                                
+
                                 grupo.forEach(item => {
                                     if (item.tipo === 'cantor') {
                                         textoCompleto.push(`<strong>${item.texto}</strong>`);
@@ -114,7 +114,7 @@ const inicio = () => {
                                         textoCompleto.push(item.texto);
                                     }
                                 });
-                                
+
                                 let botaoTexto = textoCompleto.join('<br/>');
                                 let botaoId = `btnHino${hino}_${indice}_${grupoIdx}`;
                                 $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
@@ -149,17 +149,17 @@ const inicio = () => {
                             // Separar por <br/> e processar cada linha
                             const linhas = valor.split(/<br\s*\/?>/gi);
                             let grupoLinhas = [];
-                            
+
                             linhas.forEach((linha) => {
                                 linha = linha.trim();
                                 if (!linha) return; // ignorar linhas vazias
                                 grupoLinhas.push(linha);
                             });
-                            
+
                             // Agrupar linhas: quando encontra {st}, agrupa tudo até o próximo {st} como um botão
                             let grupos = [];
                             let grupoAtual = [];
-                            
+
                             grupoLinhas.forEach(linha => {
                                 const stMatch = linha.match(/^\{st\}(.+?)\{\/st\}$/);
                                 if (stMatch) {
@@ -173,12 +173,12 @@ const inicio = () => {
                                 }
                             });
                             if (grupoAtual.length > 0) grupos.push(grupoAtual);
-                            
+
                             // Criar um botão para cada grupo
                             grupos.forEach((grupo, grupoIdx) => {
                                 let cor = 'btn-secondary';
                                 let textoCompleto = [];
-                                
+
                                 grupo.forEach(item => {
                                     if (item.tipo === 'cantor') {
                                         textoCompleto.push(`<strong>${item.texto}</strong>`);
@@ -190,7 +190,7 @@ const inicio = () => {
                                         textoCompleto.push(item.texto);
                                     }
                                 });
-                                
+
                                 let botaoTexto = textoCompleto.join('<br/>');
                                 let botaoId = `btnLouvor${louvor}_${indice}_${grupoIdx}`;
                                 $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)

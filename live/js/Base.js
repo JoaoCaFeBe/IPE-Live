@@ -153,7 +153,7 @@ function processarConteudo(conteudo) {
     let cb = telaCfg.callbackFadeIn;     // callback opcional
 
     if ((tipo === 'louvor') || (tipo === 'passagem')) {
-        conteudo.corpo = decodeURI(conteudo.corpo).replace(/\{st\}[^}]*\{\/st\}/g, '').trim();
+        conteudo.corpo = decodeURI(conteudo.corpo).replace(/\{st\}([^}]*)\{\/st\}/g, '<span style="color: #ffc107; font-weight: bold;">$1</span>').trim();
         if (tipo === 'passagem') conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2 - ');
 
         new Promise((resolve) => {
