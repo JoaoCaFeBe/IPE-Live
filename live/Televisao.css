@@ -2,3 +2,9 @@ html,
 body>*>corpo {
     font-size: 120%;
 }
+
+body>*>corpo span,
+body>*>corpo strong {
+    color: #ffc107 !important;
+    font-weight: bold;
+}

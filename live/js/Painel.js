@@ -104,7 +104,7 @@ const inicio = () => {
 
                                 grupo.forEach(item => {
                                     if (item.tipo === 'cantor') {
-                                        textoCompleto.push(`<strong>${item.texto}</strong>`);
+                                        textoCompleto.push(`<strong style="color: #ffc107 !important;">${item.texto}</strong>`);
                                         temCantor = true;
                                     } else {
                                         if (item.texto.includes('refrao:')) {
@@ -181,7 +181,7 @@ const inicio = () => {
 
                                 grupo.forEach(item => {
                                     if (item.tipo === 'cantor') {
-                                        textoCompleto.push(`<strong>${item.texto}</strong>`);
+                                        textoCompleto.push(`<strong style="color: #ffc107 !important;">${item.texto}</strong>`);
                                     } else {
                                         if (item.texto.includes('refrao:')) {
                                             cor = 'btn-info';

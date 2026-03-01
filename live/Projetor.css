@@ -47,7 +47,8 @@ body>*>corpo {
     font-weight: bolder;
 }
 
-body>*>corpo span {
+body>*>corpo span,
+body>*>corpo strong {
     color: #ffc107 !important;
     font-weight: bold;
 }
