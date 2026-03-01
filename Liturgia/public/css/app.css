@@ -9,6 +9,11 @@ body {
     height: 100%;
     padding: 0;
     margin: 0;
+    background-image: url('/img/Background.jpg');
+    background-size: cover;
+    background-position: center top;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
 }
 
 a,
@@ -36,7 +41,8 @@ td>i::after {
     display: grid;
     grid-template-rows: auto 1fr auto;
     height: 100%;
-    background-color: #f8f9fa;
+    background-color: rgba(248, 249, 250, 0.82);
+    backdrop-filter: blur(2px);
 }
 
 .janela {
@@ -147,8 +153,46 @@ td>i::after {
 }
 
 .ulMenu>li:hover:not(.bg-warning) {
-    backdrop-filter: invert(0.5);
+    backdrop-filter: brightness(1.3);
     text-shadow: 0 0 1px black;
+}
+
+/* ── Seleção por tipo (sobrescreve bg-warning do Bootstrap) ───────────── */
+
+.ulMenu>li.bg-warning {
+    /* fallback para itens sem tipo (lista de datas) */
+    background-color: #e6a817 !important;
+    color: #1a1a1a !important;
+}
+
+li.hino.bg-warning {
+    background-color: #5b2d99 !important;
+    color: #fff !important;
+    border-left: 4px solid #f0d000;
+}
+
+li.louvor.bg-warning {
+    background-color: #23784a !important;
+    color: #fff !important;
+    border-left: 4px solid #f0d000;
+}
+
+li.passagem.bg-warning {
+    background-color: #1a6d96 !important;
+    color: #fff !important;
+    border-left: 4px solid #f0d000;
+}
+
+li.mensagem.bg-warning {
+    background-color: #a43220 !important;
+    color: #fff !important;
+    border-left: 4px solid #f0d000;
+}
+
+li.extra.bg-warning {
+    background-color: #555555 !important;
+    color: #fff !important;
+    border-left: 4px solid #f0d000;
 }
 
 /* ── Ícones de tipo de item de liturgia ───────────────────────────────── */
@@ -188,34 +232,43 @@ li.extra {
 
 /* ── Ícones de tipo de item de liturgia ───────────────────────────────── */
 
-li.passagem::before {
-    font-family: 'Font Awesome 5 Free';
-    font-weight: 900;
-    content: "\f647\00a0";
-}
-
-li.mensagem::before {
-    font-family: 'Font Awesome 5 Free';
-    font-weight: 900;
-    content: "\f654\00a0";
-}
-
-li.hino::before {
-    font-family: 'Font Awesome 5 Free';
-    font-weight: 900;
-    content: "\f001\00a0";
-}
-
-li.louvor::before {
-    font-family: 'Font Awesome 5 Free';
-    font-weight: 900;
-    content: "\f7a6\00a0";
-}
-
+li.passagem::before,
+li.mensagem::before,
+li.hino::before,
+li.louvor::before,
 li.extra::before {
     font-family: 'Font Awesome 5 Free';
     font-weight: 900;
-    content: "\f87c\00a0";
+    margin-right: .25rem;
+}
+
+li.passagem::before {
+    content: "\f647";
+}
+
+li.mensagem::before {
+    content: "\f654";
+}
+
+li.hino::before {
+    content: "\f001";
+}
+
+li.louvor::before {
+    content: "\f7a6";
+}
+
+li.extra::before {
+    content: "\f87c";
+}
+
+/* ── Ícones inline (títulos, botões com texto) ────────────────────────── */
+
+titulo i.fas,
+titulo i.fa,
+titulo i.far,
+titulo i.fab {
+    margin-right: .25rem;
 }
 
 /* ── Bootbox ──────────────────────────────────────────────────────────── */

@@ -2,7 +2,7 @@ module.exports = {
     apps: [{
         name: 'IPE-Chat',
         script: 'index.js',
-        watch: false,
+        watch: true,
         instances: 1,
         autorestart: true,
         max_memory_restart: '200M'

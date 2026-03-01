@@ -1,3 +1,4 @@
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <script src='Bibliotecas\jquery.min.js'></script>
 
     <link rel='stylesheet' type='text/css' href="Bibliotecas\bootstrap.min.css">
@@ -17,5 +18,6 @@
     <script src='Bibliotecas\socket.io.min.js'></script>
     <script>
         var servidor = "http://<?= $SOCKET_SERVER ?>",
-            empresa = "<?= $SOCKET_NAMESPACE ?>";
+            empresa = "<?= $SOCKET_NAMESPACE ?>",
+            cultosUrl = "<?= $CULTOS_URL ?>";
     </script>

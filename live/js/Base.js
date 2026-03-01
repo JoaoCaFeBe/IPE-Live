@@ -88,6 +88,7 @@ function _obsSceneChanged(args) {
 }
 
 function _dadosMensagem(args) {
+    if (args == null || typeof args !== 'object') return;
     $('mensagem>titulo').html(args.titulo);
     $('mensagem>corpo').html("");
     $('mensagem>corpo').append('<ol></ol>');
@@ -153,6 +154,7 @@ function processarConteudo(conteudo) {
 
     if ((tipo === 'louvor') || (tipo === 'passagem')) {
         conteudo.corpo = decodeURI(conteudo.corpo);
+        if (tipo === 'passagem') conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2 - ');
 
         new Promise((resolve) => {
             if ($(`body>${tipo}>titulo`).html() !== conteudo.titulo) {

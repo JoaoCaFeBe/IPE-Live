@@ -95,3 +95,9 @@ input::-webkit-inner-spin-button {
 .accordion-button::after {
     filter: invert(1);
 }
+
+/* Evita salto de scroll ao focar o input invisível do btn-check */
+.btn-check {
+    position: fixed !important;
+    pointer-events: none !important;
+}

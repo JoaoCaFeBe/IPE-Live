@@ -1,17 +1,91 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const Database = require('better-sqlite3');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Diretório raiz do projeto PHP IPE (onde ficam lib/, .img/ e .liturgia/)
+// Diretório raiz do projeto PHP IPE (onde ficam lib/, .img/)
 const IPE_DIR = path.resolve(
   '/Users/joaocfb/Library/Mobile Documents/com~apple~CloudDocs/Desenvol/php/IPEncruzilhada/IPE'
 );
 
 // Diretório onde ficam os arquivos JSON de cultos
-const CULTOS_DIR = path.join(IPE_DIR, '.liturgia', 'cultos');
+// Padrão: Liturgia/cultos/ (pasta local). Sobreposto por CULTOS_DIR no ambiente.
+const CULTOS_DIR = process.env.CULTOS_DIR
+  ? path.resolve(process.env.CULTOS_DIR)
+  : path.join(__dirname, 'cultos');
+
+// Diretório dos bancos SQLite das Bíblias
+const BIBLIAS_DIR = path.join(__dirname, 'Biblias');
+
+// Diretório dos bancos SQLite dos Hinários
+const HINARIOS_DIR = path.join(__dirname, 'Hinarios');
+
+// Mapa código → arquivo: { HNC: 'Hinário Novo Cântico.sqlite', ... }
+let HINARIOS_MAP = null;
+function carregarMapaHinarios() {
+  if (HINARIOS_MAP) return HINARIOS_MAP;
+  HINARIOS_MAP = {};
+  fs.readdirSync(HINARIOS_DIR).filter(f => f.endsWith('.sqlite')).forEach(f => {
+    try {
+      const db = new Database(path.join(HINARIOS_DIR, f), { readonly: true });
+      const s = db.prepare('SELECT title FROM songs ORDER BY id LIMIT 1').get();
+      db.close();
+      if (s && s.title) {
+        const m = s.title.match(/^([A-Z]+)\s*\d+/);
+        if (m) HINARIOS_MAP[m[1]] = f;
+      }
+    } catch (_) { }
+  });
+  return HINARIOS_MAP;
+}
+function abrirHinario(codigo) {
+  const map = carregarMapaHinarios();
+  const file = map[(codigo || 'HNC').toUpperCase()];
+  if (!file) throw new Error('Hinário não encontrado: ' + codigo);
+  return new Database(path.join(HINARIOS_DIR, file), { readonly: true });
+}
+
+/** Extrai número e nome do título armazenado no SQLite.
+ * Formatos: "HNC 001 - Doxologia", "CC 001 Antífona", "HC001 - Chuvas", "HCC 001 Oh!" */
+function parseTituloHino(title) {
+  const m = title.match(/^[A-Z]+\s*(\d+)\s*[-–]?\s*(.*)$/);
+  if (!m) return { num: title, nome: title };
+  return { num: String(Number(m[1])).padStart(3, '0'), nome: m[2].trim() || title };
+}
+
+/** Parseia XML de letras do OpenLyrics para array no formato do sistema.
+ * type="v" → verso; type="c" → refrão (prefixado com "refrao:") */
+function parseLyricsXml(xml) {
+  const re = /<verse[^>]*type="([vc])"[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/verse>/g;
+  const verses = [];
+  let m;
+  while ((m = re.exec(xml)) !== null) {
+    const texto = m[2].trim().replace(/\n/g, '<br/>');
+    if (texto) verses.push(m[1] === 'c' ? 'refrao:' + texto : texto);
+  }
+  return verses;
+}
+
+/**
+ * Abre o banco SQLite de uma versão da Bíblia.
+ * Aceita o código curto (ex: 'ARA') e localiza o arquivo correspondente.
+ */
+function abrirBiblia(versao) {
+  const codigo = (versao || 'ARA').toUpperCase().trim();
+  const files = fs.readdirSync(BIBLIAS_DIR).filter(f => f.endsWith('.sqlite'));
+  // Tenta match exato: "ARA.sqlite"
+  let file = files.find(f => f === `${codigo}.sqlite`);
+  // Tenta padrão "Nome - ARA.sqlite"
+  if (!file) file = files.find(f => {
+    const m = f.match(/- ([A-Z0-9]+)\.sqlite$/);
+    return m && m[1] === codigo;
+  });
+  if (!file) throw new Error(`Versão '${codigo}' não encontrada`);
+  return new Database(path.join(BIBLIAS_DIR, file), { readonly: true });
+}
 
 // ---------------------------------------------------------------------------
 // Middleware
@@ -32,6 +106,110 @@ app.use('/img', express.static(path.join(IPE_DIR, '.img')));
 if (!fs.existsSync(CULTOS_DIR)) {
   fs.mkdirSync(CULTOS_DIR, { recursive: true });
 }
+
+// ===========================================================================
+// BÍBLIA
+// ===========================================================================
+
+/** Lista todas as versões disponíveis (arquivos em Liturgia/Biblias/) */
+app.get('/biblia/versoes', (_req, res) => {
+  try {
+    const files = fs.readdirSync(BIBLIAS_DIR).filter(f => f.endsWith('.sqlite'));
+    const versoes = files.map(f => {
+      const nome = f.replace('.sqlite', '');
+      const m = nome.match(/- ([A-Z0-9]+)$/);
+      const codigo = m ? m[1] : nome;
+      return { codigo, nome };
+    }).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    res.json(versoes);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Lista os livros de uma versão: GET /biblia/livros?versao=ARA */
+app.get('/biblia/livros', (req, res) => {
+  try {
+    const db = abrirBiblia(req.query.versao || 'ARA');
+    const livros = db.prepare('SELECT id, name FROM book ORDER BY id').all();
+    db.close();
+    res.json(livros);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Total de capítulos de um livro: GET /biblia/capitulos?versao=ARA&livro=1 */
+app.get('/biblia/capitulos', (req, res) => {
+  try {
+    const db = abrirBiblia(req.query.versao || 'ARA');
+    const row = db.prepare('SELECT MAX(chapter) AS total FROM verse WHERE book_id = ?')
+      .get(Number(req.query.livro));
+    db.close();
+    res.json({ total: row ? row.total : 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Total de versículos de um capítulo: GET /biblia/versiculos-count?versao=ARA&livro=1&capitulo=1 */
+app.get('/biblia/versiculos-count', (req, res) => {
+  try {
+    const db = abrirBiblia(req.query.versao || 'ARA');
+    const row = db.prepare('SELECT MAX(verse) AS total FROM verse WHERE book_id = ? AND chapter = ?')
+      .get(Number(req.query.livro), Number(req.query.capitulo));
+    db.close();
+    res.json({ total: row ? row.total : 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Busca versículos: GET /biblia/versiculos?versao=ARA&livro=1&capInicio=1&capFim=2&inicio=5&fim=3 */
+app.get('/biblia/versiculos', (req, res) => {
+  try {
+    const db = abrirBiblia(req.query.versao || 'ARA');
+    const livroId = Number(req.query.livro);
+    // Suporte a parâmetro legado 'capitulo' e novo 'capInicio/capFim'
+    const capInicio = Number(req.query.capInicio || req.query.capitulo || 1);
+    const capFim = Number(req.query.capFim || req.query.capitulo || capInicio);
+    const inicio = req.query.inicio ? Number(req.query.inicio) : null;
+    const fim = req.query.fim ? Number(req.query.fim) : null;
+    const livro = db.prepare('SELECT name FROM book WHERE id = ?').get(livroId);
+    const nomeLivro = livro ? livro.name : '';
+
+    let rows = [];
+    if (capInicio === capFim) {
+      // Mesmo capítulo
+      if (inicio !== null && fim !== null) {
+        rows = db.prepare('SELECT chapter, verse, text FROM verse WHERE book_id=? AND chapter=? AND verse>=? AND verse<=? ORDER BY chapter, verse')
+          .all(livroId, capInicio, inicio, fim);
+      } else {
+        rows = db.prepare('SELECT chapter, verse, text FROM verse WHERE book_id=? AND chapter=? ORDER BY chapter, verse')
+          .all(livroId, capInicio);
+      }
+    } else {
+      // Intervalo multi-capítulo
+      rows = db.prepare(`
+        SELECT chapter, verse, text FROM verse
+        WHERE book_id = ?
+          AND (
+            (chapter = ? AND verse >= ?) OR
+            (chapter > ? AND chapter < ?) OR
+            (chapter = ? AND verse <= ?)
+          )
+        ORDER BY chapter, verse`)
+        .all(livroId,
+          capInicio, inicio ?? 1,
+          capInicio, capFim,
+          capFim, fim ?? 999);
+    }
+    db.close();
+    res.json({ livro: nomeLivro, capInicio, capFim, versiculos: rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ===========================================================================
 // CULTOS
@@ -83,31 +261,101 @@ app.post('/dados/salvar-liturgia', (req, res) => {
   }
 });
 
+/** Renomeia (troca a data de) uma liturgia */
+app.post('/dados/renomear-liturgia', (req, res) => {
+  const antigo = path.basename((req.body.antigo || '').replace(/^cultos\//, ''));
+  const novo = path.basename((req.body.novo || '').replace(/^cultos\//, ''));
+  if (!antigo || !novo) return res.status(400).json({ error: 'Dados inválidos' });
+  const caminhoAntigo = path.join(CULTOS_DIR, antigo);
+  const caminhoNovo = path.join(CULTOS_DIR, novo);
+  if (!fs.existsSync(caminhoAntigo)) return res.status(404).json({ error: 'Arquivo não encontrado' });
+  if (fs.existsSync(caminhoNovo)) return res.status(409).json({ error: 'Já existe uma liturgia nessa data' });
+  try {
+    fs.renameSync(caminhoAntigo, caminhoNovo);
+    res.json({ ok: true, arquivo: novo });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
+// HINÁRIO
+// ===========================================================================
+
+/** Lista todos os hinários disponíveis */
+app.get('/hinario/lista', (_req, res) => {
+  const map = carregarMapaHinarios();
+  const result = Object.entries(map)
+    .map(([codigo, file]) => ({ codigo, nome: file.replace('.sqlite', '') }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  res.json(result);
+});
+
+/** Busca hinos por número ou título: GET /hinario/buscar?hinario=HNC&q=amor */
+app.get('/hinario/buscar', (req, res) => {
+  const codigo = req.query.hinario || 'HNC';
+  const q = (req.query.q || '').toLowerCase().trim();
+  try {
+    const db = abrirHinario(codigo);
+    const todos = db.prepare('SELECT id, title FROM songs ORDER BY title').all();
+    db.close();
+    const filtrados = todos
+      .map(s => {
+        const { num, nome } = parseTituloHino(s.title);
+        return { id: s.id, num, nome, tituloForm: `${nome} (${codigo} ${num})` };
+      })
+      .filter(s => !q || s.nome.toLowerCase().includes(q) || s.num.includes(q));
+    res.json(filtrados.slice(0, q ? 80 : 500));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/** Retorna dados completos de um hino: GET /hinario/hino?hinario=HNC&id=3 */
+app.get('/hinario/hino', (req, res) => {
+  const codigo = req.query.hinario || 'HNC';
+  try {
+    const db = abrirHinario(codigo);
+    const song = db.prepare('SELECT id, title, lyrics FROM songs WHERE id = ?')
+      .get(Number(req.query.id));
+    db.close();
+    if (!song) return res.status(404).json({ error: 'Hino não encontrado' });
+    const { num, nome } = parseTituloHino(song.title);
+    const letra = parseLyricsXml(song.lyrics);
+    res.json({ id: song.id, num, nome, tituloForm: `${nome} (${codigo} ${num})`, letra });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ===========================================================================
 // FORMULÁRIOS — retornam fragmentos HTML inseridos no DOM via AJAX
 // ===========================================================================
 
 app.post('/formularios/passagem', (_req, res) => {
   res.send(/* html */`
-<input type="text" class="form-control" id="titulo" placeholder="Digite o título"
-  style="background-color:bisque;" onchange="arrumarPassagem();">
-<texto style="display:grid;grid-template-rows:1fr 40%;grid-row-gap:.25rem;">
-  <textarea class="form-control" id="original"
-    placeholder="Cole o texto a formatar aqui&#10;Formato: [Livro.cap.v] texto"
-    onchange="arrumarPassagem();" style="resize:none;"></textarea>
-  <textarea class="form-control text-nowrap" id="final" style="resize:none;"></textarea>
+<div class="d-flex align-items-center gap-2 mb-1">
+  <strong id="tituloPass" class="flex-grow-1 px-2 py-1"
+    style="background:bisque;border-radius:.25rem;min-height:2.1rem;font-size:1.05rem;display:block;"></strong>
+  <button class="btn btn-sm btn-secondary" onclick="passagemAlterar()">
+    <i class="fas fa-exchange-alt me-1"></i>Alterar
+  </button>
+</div>
+<texto style="overflow-y:auto;padding:.5rem .75rem;">
+  <div id="textoPass" style="line-height:2;"></div>
+  <textarea id="final" style="display:none;"></textarea>
 </texto>`);
 });
 
+
 app.post('/formularios/hino', (_req, res) => {
   res.send(/* html */`
-<input type="text" class="form-control" id="titulo" placeholder="Digite o título"
-  style="background-color:bisque;" onchange="arrumarHino();">
-<texto style="display:grid;grid-template-rows:1fr 40%;grid-row-gap:.25rem;">
-  <textarea class="form-control" id="original"
-    placeholder="Cole a letra aqui&#10;Estrofes separadas por linha em branco"
-    onchange="arrumarHino();" style="resize:none;"></textarea>
-  <textarea class="form-control text-nowrap" id="final" style="resize:none;"></textarea>
+<div class="d-flex align-items-center gap-2 mb-1">
+  <strong id="tituloHino" class="flex-grow-1 px-2 py-1"
+    style="background:bisque;border-radius:.25rem;min-height:2.1rem;font-size:1.05rem;display:block;"></strong>
+  <button class="btn btn-sm btn-secondary" onclick="hinoAlterar()">
+    <i class="fas fa-exchange-alt me-1"></i>Alterar
+  </button>
+</div>
+<texto style="overflow-y:auto;padding:.5rem .75rem;">
+  <div id="letraHino" style="line-height:2;"></div>
+  <textarea id="final" style="display:none;"></textarea>
 </texto>`);
 });
 

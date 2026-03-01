@@ -7,9 +7,9 @@ Sistema de projeção e legendas ao vivo para cultos da Igreja Presbiteriana da 
 ## Arquitetura
 
 ```
-[Liturgia/] Editor de liturgia ──grava JSON──▶ IPE/.liturgia/cultos/YYYY-MM-DD.json
+[Liturgia/] Editor de liturgia ──grava JSON──▶ Liturgia/cultos/YYYY-MM-DD.json
                                                          │
-                            (arquivo copiado/acessado)  ▼
+                              (lido via cultosUrl)       ▼
 Painel.php (controle) ──socket.emit──▶ Chat.JS/index.js (Socket.IO server :3000) ──broadcast──▶ Projetor.php / Televisao.php / Legendas.php / LegendasAoVivo.php
 ```
 
@@ -27,7 +27,7 @@ Painel.php (controle) ──socket.emit──▶ Chat.JS/index.js (Socket.IO ser
 
 - **`live/Biblias/*.sqlite`** — 14 versões da Bíblia. Tabelas: `book(id, name)`, `verse(book_id, chapter, verse, text)`. A versão ativa é guardada em `$_SESSION['biblia']`.
 - **`live/Hinarios/*.sqlite`** — 4 hinários (Cantor Cristão, Harpa Cristã, etc.).
-- **`cultos/YYYY-MM-DD.json`** — Definição do culto do dia. Array de objetos com `tipo` (`hino`, `louvor`, `passagem`, `mensagem`, `extra`) e campos como `titulo`, `letra[]`, `texto[]`, `topicos[]`, `passagem`. Ignorados pelo Git (apenas `.gitkeep`).
+- **`Liturgia/cultos/YYYY-MM-DD.json`** — Definição do culto do dia (localização canônica). Array de objetos com `tipo` (`hino`, `louvor`, `passagem`, `mensagem`, `extra`) e campos como `titulo`, `letra[]`, `texto[]`, `topicos[]`, `passagem`. Ignorados pelo Git (apenas `.gitkeep`). O PHP acessa via variável `$CULTOS_URL` do `.env`; o JS acessa via `cultosUrl` injetado por `bibliotecas.php`.
 
 ## Comunicação Socket.IO
 
@@ -62,11 +62,21 @@ cd Chat.JS && npm install && node index.js
 
 O servidor escuta em `0.0.0.0:3000`.
 
-### Configuração do endereço do servidor
+### Configuração via `.env`
 
-O endereço do servidor Socket.IO é definido pela variável `servidor` nos arquivos JS (`Painel.js`, `Projetor.js`, `Televisao.js`, `Legendas.js`, `LegendasAoVivo.js`, `Biblia.js`). Atualmente está hardcoded como `10.0.0.253:3000`.
+Todas as variáveis de ambiente ficam em **`live/.env`** (ignorado pelo Git; commitar apenas `live/.env.example`). O arquivo é lido por `live/config.php` (usa `vlucas/phpdotenv` ou `parse_ini_file`) e os valores são injetados como variáveis JS globais por `live/includes/bibliotecas.php`.
 
-**Meta**: migrar para variáveis de ambiente via arquivo `.env` na raiz do projeto, permitindo configurar o endereço sem editar código. Ao implementar essa migração, usar um `.env` com chave `SOCKET_SERVER` (ex.: `SOCKET_SERVER=10.0.0.253:3000`) e injetar o valor via PHP nos arquivos `.php` que carregam os scripts, ou via um endpoint JS de configuração. Não esquecer de adicionar `.env` ao `.gitignore`.
+Variáveis disponíveis:
+
+| Variável | Uso | Exemplo |
+|---|---|---|
+| `SOCKET_SERVER` | Endereço `host:porta` do servidor Socket.IO | `10.0.0.253:3000` |
+| `SOCKET_NAMESPACE` | Namespace Socket.IO | `IPE.Transmissão` |
+| `CULTOS_URL` | Caminho (relativo ao `live/`) dos JSONs de culto | `../Liturgia/cultos` |
+
+No PHP: `$SOCKET_SERVER`, `$SOCKET_NAMESPACE`, `$CULTOS_URL`. No JS (via `bibliotecas.php`): `servidor`, `empresa`, `cultosUrl`.
+
+O `Liturgia/server.js` usa `process.env.CULTOS_DIR` (com fallback para `path.join(__dirname, 'cultos')`) — não lê o mesmo `.env` do PHP.
 
 ## Estrutura de um JSON de Culto
 
@@ -114,6 +124,7 @@ Liturgia/
 | `GET` | `/cultos/:arquivo` | Retorna o JSON de uma liturgia específica |
 | `POST` | `/dados/nova-liturgia` | Cria arquivo `YYYY-MM-DD.json` vazio |
 | `POST` | `/dados/salvar-liturgia` | Persiste o conteúdo JSON de uma liturgia |
+| `POST` | `/dados/renomear-liturgia` | Renomeia o arquivo `YYYY-MM-DD.json` (use: `{ de, para }`) |
 | `POST` | `/formularios/:tipo` | Retorna fragmento HTML do formulário de cada tipo (`passagem`, `hino`, `louvor`, `mensagem`, `extra`) |
 | `GET` | `/formularios/pesquisar-louvor` | Busca música por título (modal de pesquisa externa) |
 | `GET` | `/formularios/pesquisar-louvor-local` | Retorna lista de louvores ya existentes nos cultos + HTML da UI |
@@ -121,7 +132,7 @@ Liturgia/
 
 ### Armazenamento de dados
 
-Os JSONs de liturgia são gravados em **`IPE/.liturgia/cultos/`** — um diretório no projeto PHP irmão (`IPE`), não dentro do workspace `IPE Live`. O caminho base é configurado via constante `IPE_DIR` no `server.js`. Ao mudar de ambiente, ajustar `IPE_DIR`.
+Os JSONs de liturgia são gravados em **`Liturgia/cultos/`** — dentro do próprio workspace `IPE Live`. O caminho é configurado via variável de ambiente `CULTOS_DIR` no processo Node.js (com fallback `path.join(__dirname, 'cultos')`). `IPE_DIR` permanece apenas para resolver `/lib` e `/img` estáticos.
 
 ### Compartilhamento de bibliotecas
 
@@ -138,10 +149,13 @@ Layout SPA em 3 colunas:
 
 ### Convenções do módulo
 
-- Usa as mesmas extensões jQuery definidas em `app.js` (`$.filtra`, `$.downloadObj`, etc.).
+- Usa as mesmas extensões jQuery definidas em `app.js` (`$.filtra`, `$.downloadObj`, `$.passarObjeto`, etc.).
 - Formulários são fragmentos HTML retornados pelo servidor e inseridos no DOM via AJAX — não são páginas completas.
 - A função `carregarItens(tipo)` no `server.js` varre todos os JSONs de culto e retorna itens únicos por título, usada para as buscas locais de hinos e louvores.
 - As transformações de texto (formatar passagens, letras de hinos/louvores, mensagens) ocorrem no cliente via funções `arrumar*()` em `capa.js`.
+- **Feedback visual**: `mostrarToast(mensagem, tipo)` exibe toast Bootstrap canto inferior direito (2,5 s). Usar em todas as operações assíncronas.
+- **Renomear liturgia**: duplo clique no item da lista abre `bootbox.prompt` → `POST /dados/renomear-liturgia`.
+- **Atalhos de teclado**: `Ctrl+S` → `salvar()`; `Delete` (fora de inputs) → `excluir()` com confirmação.
 
 ### Identidade visual por tipo
 

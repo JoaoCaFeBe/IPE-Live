@@ -11,7 +11,7 @@ var query = document.querySelector.bind(document),
 socket.onAny((aplicativo, eventName, args) => {
     if (aplicativo === empresa) {
         if (eventName === "pegarDadosMensagem") {
-            socket.emit(empresa, "dadosMensagem", culto);
+            if (culto) socket.emit(empresa, "dadosMensagem", culto);
         } else if ((painelOBS) && (eventName === "obsSceneChanged")) {
             $('body>div:not(.form-check):not(.biblia)').hide();
             $('.accordion-button:not(.collapsed)').addClass('collapsed');
@@ -38,7 +38,7 @@ const inicio = () => {
     });
 
 
-    $.getJSON(`../cultos/${arquivo}.json`)
+    $.getJSON(`${cultosUrl}/${arquivo}.json`)
         .done(definicoes => {
             let hino = 0, louvor = 0, passagem = 0, contMensagem = 0, extra = 0;
             definicoes.forEach(definicao => {
@@ -194,6 +194,23 @@ const inicio = () => {
             queryAll(".accordion-item").forEach(item => {
                 item.addEventListener('hide.bs.collapse', function () {
                     socket.emit(empresa, "fecharJanela");
+                    // Limpa seleção e cor amarela dos itens do accordion que fechou
+                    this.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+                        input.checked = false;
+                    });
+                    this.querySelectorAll('label').forEach(label => {
+                        label.style.color = '';
+                    });
+                });
+            });
+
+            // Fecha acordeons de outros grupos ao abrir um novo
+            document.addEventListener('show.bs.collapse', function (e) {
+                const grupoAtual = e.target.closest('.accordion');
+                document.querySelectorAll('.accordion-collapse.show').forEach(aberto => {
+                    if (aberto.closest('.accordion') !== grupoAtual) {
+                        bootstrap.Collapse.getOrCreateInstance(aberto).hide();
+                    }
                 });
             });
 
