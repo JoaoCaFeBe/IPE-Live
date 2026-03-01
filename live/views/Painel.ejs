@@ -43,9 +43,9 @@
                 <% }); %>
         </select>
         <input class="input-group-text" style="width: 50px;" type="number" id="capitulo" min='1' value='1' max='50'
-            onblur="if (parseInt(this.value) > parseInt(this.max)) this.value=this.max; listaVersiculos(livro.value, this.value, versao.value);">
+            onkeydown="if (event.key === 'Enter') { if (parseInt(this.value) > parseInt(this.max)) this.value=this.max; listaVersiculos(livro.value, this.value, versao.value); }">
         <button class="btn btn-warning" type="button" id="button-addon2"
-            onclick="socket.emit('IPE.Transmissão', 'fecharBiblia');">Limpar</button>
+            onclick="if (parseInt(capitulo.value) > parseInt(capitulo.max)) capitulo.value=capitulo.max; listaVersiculos(livro.value, capitulo.value, versao.value);">Abrir</button>
     </div>
     <input type="text" class="w-100 mb-1" id='mensagem' name='mensagem' placeholder="Mensagem para o pulpito">
 

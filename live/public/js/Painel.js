@@ -24,11 +24,33 @@ socket.onAny((aplicativo, eventName, args) => {
     }
 });
 
-const montarTextoComTruncamentoPorLinha = (linhas) => {
-    return linhas.map((linha, indice) => {
-        const quebra = (indice < linhas.length - 1) ? '<br/>' : '';
-        return `<span class="linha-truncate">${linha}</span>${quebra}`;
-    }).join('');
+// Agrupa as linhas de letra em slides de no máximo `max` linhas cada.
+// Cada item do array pode conter múltiplas linhas separadas por <br/> (formato OpenLyrics).
+const agruparEmSlides = (letra, max = 4) => {
+    // 1. Expande cada item em linhas individuais
+    const flat = [];
+    (letra || []).forEach(item => {
+        const str = (item || '').trim();
+        if (!str) return;
+        const isRefrao = str.startsWith('refrao:');
+        const conteudo = isRefrao ? str.slice('refrao:'.length).trim() : str;
+        conteudo.split(/<br\s*\/?>/i).map(l => l.trim()).filter(Boolean)
+            .forEach(l => flat.push({ linha: l, refrao: isRefrao }));
+    });
+
+    // 2. Agrupa em blocos de `max` linhas
+    const slides = [];
+    let bloco = { linhas: [], refrao: false };
+    flat.forEach(({ linha, refrao }) => {
+        if (bloco.linhas.length >= max) {
+            slides.push(bloco);
+            bloco = { linhas: [], refrao: false };
+        }
+        bloco.linhas.push(linha);
+        if (refrao) bloco.refrao = true;
+    });
+    if (bloco.linhas.length > 0) slides.push(bloco);
+    return slides;
 };
 
 const formatarVersiculoParaExibicao = (texto) => {
@@ -73,59 +95,12 @@ const inicio = () => {
                                         <input type="radio" class="btn-check" name="btnHino${hino}" id="btnHino${hino}" titulo="${definicao.titulo}" autocomplete="off">
                                         <label class="btn btn-warning text-truncate" for="btnHino${hino}">Título</label>
                                     `);
-                        definicao.letra.forEach((valor, indice) => {
-                            // Separar por <br/> e processar cada linha
-                            const linhas = valor.split(/<br\s*\/?>/gi);
-                            let grupoLinhas = [];
-
-                            linhas.forEach((linha) => {
-                                linha = linha.trim().replace(/\{it\}|\{\/it\}/g, '').trim();
-                                if (!linha) return; // ignorar linhas vazias
-                                grupoLinhas.push(linha);
-                            });
-
-                            // Agrupar linhas: quando encontra {st}, agrupa tudo até o próximo {st} como um botão
-                            let grupos = [];
-                            let grupoAtual = [];
-
-                            grupoLinhas.forEach(linha => {
-                                const stMatch = linha.match(/^\{st\}(.+?)\{\/st\}$/);
-                                if (stMatch) {
-                                    if (grupoAtual.length > 0) {
-                                        grupos.push(grupoAtual);
-                                        grupoAtual = [];
-                                    }
-                                    grupoAtual.push({ tipo: 'cantor', texto: stMatch[1] });
-                                } else {
-                                    grupoAtual.push({ tipo: 'verso', texto: linha });
-                                }
-                            });
-                            if (grupoAtual.length > 0) grupos.push(grupoAtual);
-
-                            // Criar um botão para cada grupo
-                            grupos.forEach((grupo, grupoIdx) => {
-                                let cor = 'btn-secondary';
-                                let textoCompleto = [];
-                                let temCantor = false;
-
-                                grupo.forEach(item => {
-                                    if (item.tipo === 'cantor') {
-                                        textoCompleto.push(`<strong style="color: #ffc107 !important;">${item.texto}</strong>`);
-                                        temCantor = true;
-                                    } else {
-                                        if (item.texto.includes('refrao:')) {
-                                            cor = 'btn-info';
-                                            item.texto = item.texto.replace('refrao:', '');
-                                        }
-                                        textoCompleto.push(item.texto);
-                                    }
-                                });
-
-                                let botaoTexto = montarTextoComTruncamentoPorLinha(textoCompleto);
-                                let botaoId = `btnHino${hino}_${indice}_${grupoIdx}`;
-                                $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
-                                    .append(`<input type="radio" class="btn-check" name="btnHino${hino}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor} text-truncate" for="${botaoId}">${botaoTexto}</label>`);
-                            });
+                        agruparEmSlides(definicao.letra).forEach((slide, idx) => {
+                            const cor = slide.refrao ? 'btn-info' : 'btn-secondary';
+                            const texto = slide.linhas.map(l => `<span class="linha-truncate">${l}</span>`).join('');
+                            const id = `btnHino${hino}_${idx}`;
+                            $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
+                                .append(`<input type="radio" class="btn-check" name="btnHino${hino}" id="${id}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor}" for="${id}">${texto}</label>`);
                         });
                         break;
                     case 'coral':
@@ -153,44 +128,12 @@ const inicio = () => {
                                         <input type="radio" class="btn-check" name="btnCoral${louvor}" id="btnCoral${louvor}" titulo="${definicao.titulo}" autocomplete="off">
                                         <label class="btn btn-warning text-truncate" for="btnCoral${louvor}">Título</label>
                                     `);
-                        definicao.letra.forEach((valor, indice) => {
-                            const linhas = valor.split(/<br\s*\/?>/gi);
-                            let grupoLinhas = [];
-                            linhas.forEach((linha) => {
-                                linha = linha.trim().replace(/\{it\}|\{\/it\}/g, '').trim();
-                                if (!linha) return;
-                                grupoLinhas.push(linha);
-                            });
-                            let grupos = [], grupoAtual = [];
-                            grupoLinhas.forEach(linha => {
-                                const stMatch = linha.match(/^\{st\}(.+?)\{\/st\}$/);
-                                if (stMatch) {
-                                    if (grupoAtual.length > 0) { grupos.push(grupoAtual); grupoAtual = []; }
-                                    grupoAtual.push({ tipo: 'cantor', texto: stMatch[1] });
-                                } else {
-                                    grupoAtual.push({ tipo: 'verso', texto: linha });
-                                }
-                            });
-                            if (grupoAtual.length > 0) grupos.push(grupoAtual);
-                            grupos.forEach((grupo, grupoIdx) => {
-                                let cor = 'btn-secondary';
-                                let textoCompleto = [];
-                                grupo.forEach(item => {
-                                    if (item.tipo === 'cantor') {
-                                        textoCompleto.push(`<strong style="color: #ffc107 !important;">${item.texto}</strong>`);
-                                    } else {
-                                        if (item.texto.includes('refrao:')) {
-                                            cor = 'btn-info';
-                                            item.texto = item.texto.replace('refrao:', '');
-                                        }
-                                        textoCompleto.push(item.texto);
-                                    }
-                                });
-                                let botaoTexto = montarTextoComTruncamentoPorLinha(textoCompleto);
-                                let botaoId = `btnCoral${louvor}_${indice}_${grupoIdx}`;
-                                $(`#colapseCoral${louvor} .accordion-body .btn-group-vertical`)
-                                    .append(`<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor} text-truncate" for="${botaoId}">${botaoTexto}</label>`);
-                            });
+                        agruparEmSlides(definicao.letra).forEach((slide, idx) => {
+                            const cor = slide.refrao ? 'btn-info' : 'btn-secondary';
+                            const texto = slide.linhas.map(l => `<span class="linha-truncate">${l}</span>`).join('');
+                            const id = `btnCoral${louvor}_${idx}`;
+                            $(`#colapseCoral${louvor} .accordion-body .btn-group-vertical`)
+                                .append(`<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${id}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor}" for="${id}">${texto}</label>`);
                         });
                         break;
                     case 'louvor':
@@ -216,57 +159,12 @@ const inicio = () => {
                                         <input type="radio" class="btn-check" name="btnLouvor${louvor}" id="btnLouvor${louvor}" titulo="${definicao.titulo}" autocomplete="off">
                                         <label class="btn btn-warning text-truncate" for="btnLouvor${louvor}">Título</label>
                                     `);
-                        definicao.letra.forEach((valor, indice) => {
-                            // Separar por <br/> e processar cada linha
-                            const linhas = valor.split(/<br\s*\/?>/gi);
-                            let grupoLinhas = [];
-
-                            linhas.forEach((linha) => {
-                                linha = linha.trim().replace(/\{it\}|\{\/it\}/g, '').trim();
-                                if (!linha) return; // ignorar linhas vazias
-                                grupoLinhas.push(linha);
-                            });
-
-                            // Agrupar linhas: quando encontra {st}, agrupa tudo até o próximo {st} como um botão
-                            let grupos = [];
-                            let grupoAtual = [];
-
-                            grupoLinhas.forEach(linha => {
-                                const stMatch = linha.match(/^\{st\}(.+?)\{\/st\}$/);
-                                if (stMatch) {
-                                    if (grupoAtual.length > 0) {
-                                        grupos.push(grupoAtual);
-                                        grupoAtual = [];
-                                    }
-                                    grupoAtual.push({ tipo: 'cantor', texto: stMatch[1] });
-                                } else {
-                                    grupoAtual.push({ tipo: 'verso', texto: linha });
-                                }
-                            });
-                            if (grupoAtual.length > 0) grupos.push(grupoAtual);
-
-                            // Criar um botão para cada grupo
-                            grupos.forEach((grupo, grupoIdx) => {
-                                let cor = 'btn-secondary';
-                                let textoCompleto = [];
-
-                                grupo.forEach(item => {
-                                    if (item.tipo === 'cantor') {
-                                        textoCompleto.push(`<strong style="color: #ffc107 !important;">${item.texto}</strong>`);
-                                    } else {
-                                        if (item.texto.includes('refrao:')) {
-                                            cor = 'btn-info';
-                                            item.texto = item.texto.replace('refrao:', '');
-                                        }
-                                        textoCompleto.push(item.texto);
-                                    }
-                                });
-
-                                let botaoTexto = montarTextoComTruncamentoPorLinha(textoCompleto);
-                                let botaoId = `btnLouvor${louvor}_${indice}_${grupoIdx}`;
-                                $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)
-                                    .append(`<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor} text-truncate" for="${botaoId}">${botaoTexto}</label>`);
-                            });
+                        agruparEmSlides(definicao.letra).forEach((slide, idx) => {
+                            const cor = slide.refrao ? 'btn-info' : 'btn-secondary';
+                            const texto = slide.linhas.map(l => `<span class="linha-truncate">${l}</span>`).join('');
+                            const id = `btnLouvor${louvor}_${idx}`;
+                            $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)
+                                .append(`<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${id}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor}" for="${id}">${texto}</label>`);
                         });
                         break;
                     case 'passagem':
@@ -355,11 +253,26 @@ const capitulos = cap => {
     capitulo.setAttribute('max', livro.querySelector(`option[value='${cap}']`).getAttribute('capitulos'));
 }
 
+let _bibliaWin = null, _bibliaWinTimer = null;
+
 const listaVersiculos = (livro_id, capitulo, versao) => {
     let nomeLivro = livro.options[livro.selectedIndex].text,
         left = (screen.width - 350) / 2,
         top = (screen.height - 800) / 4;
-    window.open(`Biblia?nomeLivro=${nomeLivro}&livro=${livro_id}&capitulo=${capitulo}&biblia=${versao}`, `${nomeLivro}${capitulo}`, `toolbar=no,
+
+    // Fecha todos os accordions abertos (hino, louvor, passagem, coral)
+    document.querySelectorAll('.accordion-collapse.show').forEach(el => {
+        bootstrap.Collapse.getOrCreateInstance(el).hide();
+    });
+
+    // Se já há uma janela aberta, foca ela em vez de abrir outra
+    if (_bibliaWin && !_bibliaWin.closed) {
+        _bibliaWin.location.href = `Biblia?nomeLivro=${encodeURIComponent(nomeLivro)}&livro=${livro_id}&capitulo=${capitulo}&biblia=${versao}`;
+        _bibliaWin.focus();
+        return;
+    }
+
+    _bibliaWin = window.open(`Biblia?nomeLivro=${nomeLivro}&livro=${livro_id}&capitulo=${capitulo}&biblia=${versao}`, `${nomeLivro}${capitulo}`, `toolbar=no,
                                     location=no,
                                     status=no,
                                     menubar=no,
@@ -369,4 +282,15 @@ const listaVersiculos = (livro_id, capitulo, versao) => {
 									height=800,
                                     top=${top},
                                     left=${left}`);
+
+    // Monitora o fechamento da janela e emite fecharBiblia automaticamente
+    if (_bibliaWinTimer) clearInterval(_bibliaWinTimer);
+    _bibliaWinTimer = setInterval(() => {
+        if (_bibliaWin && _bibliaWin.closed) {
+            clearInterval(_bibliaWinTimer);
+            _bibliaWinTimer = null;
+            _bibliaWin = null;
+            socket.emit(empresa, 'fecharBiblia');
+        }
+    }, 500);
 }

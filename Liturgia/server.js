@@ -81,7 +81,9 @@ function parseLyricsXml(xml) {
   const verses = [];
   let m;
   while ((m = re.exec(xml)) !== null) {
-    const texto = m[2].trim().replace(/\n/g, "<br/>");
+    const texto = m[2].trim()
+      .replace(/\{\/?\w+\}/g, "")   // remove tags OpenLyrics: {it}, {/it}, {b}, {/b}, etc.
+      .replace(/\n/g, "<br/>");
     if (texto) verses.push(m[1] === "c" ? "refrao:" + texto : texto);
   }
   return verses;
