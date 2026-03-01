@@ -636,6 +636,34 @@ app.post("/formularios/coral", (_req, res) => {
 </texto>`);
 });
 
+// ---------------------------------------------------------------------------
+// Proxy Vagalume (evita bloqueio CORS no browser)
+// ---------------------------------------------------------------------------
+const https = require("https");
+
+function vagalumeGet(url, res) {
+  https.get(url, (remote) => {
+    let data = "";
+    remote.on("data", (chunk) => { data += chunk; });
+    remote.on("end", () => {
+      try { res.json(JSON.parse(data)); }
+      catch (_) { res.status(502).json({ error: "Resposta inválida da Vagalume" }); }
+    });
+  }).on("error", () => res.status(502).json({ error: "Falha ao conectar à Vagalume" }));
+}
+
+app.get("/api/vagalume/buscar", (req, res) => {
+  const q = encodeURIComponent((req.query.q || "").trim());
+  if (!q) return res.status(400).json({ error: "Parâmetro q obrigatório" });
+  vagalumeGet(`https://api.vagalume.com.br/search.mus?q=${q}&apikey=c1563d6845dc6623fe573ef39989d329`, res);
+});
+
+app.get("/api/vagalume/letra", (req, res) => {
+  const musid = encodeURIComponent((req.query.musid || "").trim());
+  if (!musid) return res.status(400).json({ error: "Parâmetro musid obrigatório" });
+  vagalumeGet(`https://api.vagalume.com.br/search.php?musid=${musid}&apikey=c1563d6845dc6623fe573ef39989d329`, res);
+});
+
 app.post("/formularios/pesquisar-louvor", (req, res) => {
   const titulo = escHtml(req.body.titulo || "");
   res.send(/* html */ `

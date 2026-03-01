@@ -665,7 +665,7 @@ function pesquisarLouvor(titulo) {
 }
 
 function pesquisaMusica(titulo) {
-    $.getJSON('https://api.vagalume.com.br/search.mus?q=' + encodeURIComponent(titulo) + '&apikey=c1563d6845dc6623fe573ef39989d329')
+    $.getJSON('/api/vagalume/buscar?q=' + encodeURIComponent(titulo))
         .done(musicas => {
             $('#listaMusicas').html('');
             const docs = musicas?.response?.docs;
@@ -678,7 +678,7 @@ function pesquisaMusica(titulo) {
                     );
                 });
                 $('#listaMusicas>li').off('click').on('click', function () {
-                    $.getJSON('https://api.vagalume.com.br/search.php?musid=' + $(this).attr('id') + '&apikey=c1563d6845dc6623fe573ef39989d329')
+                    $.getJSON('/api/vagalume/letra?musid=' + $(this).attr('id'))
                         .done(musica => {
                             $('#pesquisaTitulo').val(musica.mus[0].name);
                             $('#letra').val(musica.mus[0].text);
