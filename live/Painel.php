@@ -48,16 +48,15 @@ include_once "dados.php";
         </select>
         <select id="versao" class="form-select form-select-sm" style="max-width: 12ch;" aria-label="Small select">
             <?php
-            $versoes = [
-                ["id" => "ARA", "nome" => 'Almeida Revista e Atualizada - ARA.sqlite'],
-                ["id" => "NAA", "nome" => 'Nova Almeida Atualizada - NAA.sqlite'],
-                ["id" => "NVI", "nome" => 'Nova Versão Internacional - NVI.sqlite'],
-            ];
-
-            $selecionado = 'selected';
-            foreach ($versoes as $versao) {
-                echo "<option value='{$versao['nome']}' $selecionado>{$versao['id']}</option>";
-                $selecionado = '';
+            $arquivos = glob(__DIR__ . '/Biblias/*.sqlite');
+            sort($arquivos);
+            foreach ($arquivos as $arquivo) {
+                $nome = basename($arquivo);
+                // Extrai a sigla: texto após o último " - " e antes de ".sqlite"
+                preg_match('/- ([^-]+)\.sqlite$/', $nome, $m);
+                $sigla = $m[1] ?? $nome;
+                $selecionado = ($_SESSION['biblia'] === $nome) ? 'selected' : '';
+                echo "<option value='$nome' $selecionado>$sigla</option>";
             }
             ?>
         </select>

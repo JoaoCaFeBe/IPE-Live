@@ -52,67 +52,88 @@ function _obterLarguraUtilElemento(elementoAlvo) {
     const larguraViewport = window.innerWidth || document.documentElement.clientWidth || 0;
     if (larguraViewport <= 0) return 0;
 
-    return Math.max(0, (larguraViewport - margemX - paddingX) * 0.98);
+    // Fallback conservador: desconta margens/paddings e aplica fator de segurança de 80%
+    // para evitar aceitar pares de linhas que na prática causam quebra de linha
+    return Math.max(0, (larguraViewport - margemX - paddingX) * 0.80);
 }
 
 function _linhaCabeNoContainer(linhaHtml, elementoAlvo, larguraMaxima) {
     if (!elementoAlvo || !larguraMaxima) return false;
 
-    let medidor = document.getElementById('medidor-linha-legenda');
-    if (!medidor) {
-        medidor = document.createElement('span');
-        medidor.id = 'medidor-linha-legenda';
-        medidor.style.position = 'fixed';
-        medidor.style.left = '-99999px';
-        medidor.style.top = '-99999px';
-        medidor.style.visibility = 'hidden';
-        medidor.style.whiteSpace = 'nowrap';
-        medidor.style.pointerEvents = 'none';
-        document.body.appendChild(medidor);
-    }
-
-    const estilo = window.getComputedStyle(elementoAlvo);
-    medidor.style.font = estilo.font;
-    medidor.style.fontSize = estilo.fontSize;
-    medidor.style.fontFamily = estilo.fontFamily;
-    medidor.style.fontWeight = estilo.fontWeight;
-    medidor.style.letterSpacing = estilo.letterSpacing;
-    medidor.style.textTransform = estilo.textTransform;
-    medidor.style.lineHeight = estilo.lineHeight;
+    // Cria medidor DENTRO do elementoAlvo para herdar todos os estilos (fonte, tamanho, etc.)
+    // naturalmente via CSS, sem precisar copiar propriedades manualmente.
+    const medidor = document.createElement('span');
+    medidor.style.position = 'absolute';
+    medidor.style.left = '-99999px';
+    medidor.style.visibility = 'hidden';
+    medidor.style.whiteSpace = 'nowrap';
+    medidor.style.pointerEvents = 'none';
     medidor.innerHTML = linhaHtml;
+    elementoAlvo.appendChild(medidor);
 
     const larguraLinha = medidor.getBoundingClientRect().width;
+    elementoAlvo.removeChild(medidor);
+
     return larguraLinha <= larguraMaxima;
 }
 
 function agruparLinhasEmPares(html, elementoAlvo) {
     if (!html || typeof html !== 'string') return html;
 
+    // Expor temporariamente o elemento e seus ancestrais ocultos para medição precisa.
+    // Usa visibility:hidden para que nada apareça na tela durante a medição.
+    const ocultos = [];
+    if (elementoAlvo) {
+        let el = elementoAlvo;
+        while (el && el !== document.body) {
+            if (window.getComputedStyle(el).display === 'none') {
+                ocultos.push({ el, display: el.style.display, visibility: el.style.visibility });
+                el.style.display = 'block';
+                el.style.visibility = 'hidden';
+            }
+            el = el.parentElement;
+        }
+    }
+
     const larguraMaxima = _obterLarguraUtilElemento(elementoAlvo);
-    if (!larguraMaxima) return html;
+
+    if (!larguraMaxima) {
+        ocultos.forEach(({ el, display, visibility }) => { el.style.display = display; el.style.visibility = visibility; });
+        return html;
+    }
 
     const linhas = html
         .split(/<br\s*\/?\s*>/gi)
         .map(linha => linha.trim())
         .filter(linha => linha.length > 0);
 
-    if (linhas.length < 2) return html;
+    if (linhas.length < 2) {
+        ocultos.forEach(({ el, display, visibility }) => { el.style.display = display; el.style.visibility = visibility; });
+        return html;
+    }
 
     const resultado = [];
     let buffer = [];
 
     const descarregarBuffer = () => {
-        for (let i = 0; i < buffer.length; i += 2) {
+        // Algoritmo sequencial: tenta juntar a linha atual com a próxima.
+        // Se couber → junta e avança 2. Se não couber → linha atual fica só e
+        // a próxima concorre com a subsequente na iteração seguinte.
+        let i = 0;
+        while (i < buffer.length) {
             if (i + 1 < buffer.length) {
-                const linhaCombinada = `${buffer[i]} ${buffer[i + 1]}`;
+                const separador = '<span class="sep-par"> · </span>';
+                const linhaCombinada = `${buffer[i]}${separador}${buffer[i + 1]}`;
                 if (_linhaCabeNoContainer(linhaCombinada, elementoAlvo, larguraMaxima)) {
                     resultado.push(linhaCombinada);
+                    i += 2;
                 } else {
                     resultado.push(buffer[i]);
-                    resultado.push(buffer[i + 1]);
+                    i += 1;
                 }
             } else {
                 resultado.push(buffer[i]);
+                i += 1;
             }
         }
         buffer = [];
@@ -129,6 +150,10 @@ function agruparLinhasEmPares(html, elementoAlvo) {
     });
 
     descarregarBuffer();
+
+    // Restaurar estado original de todos os elementos temporariamente expostos
+    ocultos.forEach(({ el, display, visibility }) => { el.style.display = display; el.style.visibility = visibility; });
+
     return resultado.join('<br/>');
 }
 
@@ -245,12 +270,8 @@ function processarConteudo(conteudo) {
     let cb = telaCfg.callbackFadeIn;     // callback opcional
 
     if ((tipo === 'louvor') || (tipo === 'passagem')) {
-        conteudo.corpo = decodeURI(conteudo.corpo).replace(/\{st\}([^}]*)\{\/st\}/g, '<span style="color: #ffc107 !important; font-weight: bold;">$1</span>').trim();
+        conteudo.corpo = decodeURI(conteudo.corpo).replace(/\{st\}([^}]*)\{\/st\}/g, '<span style="color: #ffc107 !important; font-weight: bold;">$1</span>').replace(/\{it\}|\{\/it\}/g, '').trim();
         if (tipo === 'passagem') conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
-        if (telaCfg.juntarLinhasEmPares) {
-            const elementoAlvo = document.querySelector(`body>${tipo}>${elem}`);
-            conteudo.corpo = agruparLinhasEmPares(conteudo.corpo, elementoAlvo);
-        }
 
         new Promise((resolve) => {
             if ($(`body>${tipo}>titulo`).html() !== conteudo.titulo) {
@@ -258,15 +279,21 @@ function processarConteudo(conteudo) {
             } else resolve(false);
         }).then(() => {
             return new Promise((resolve) => {
-                if ($(`body>${tipo}>${elem}`).html() !== conteudo.corpo) {
-                    $(`body>${tipo}>${elem}`).fadeOut(200, () => resolve(true));
-                } else resolve(false);
+                $(`body>${tipo}>${elem}`).fadeOut(200, () => resolve(true));
             });
         }).then(() => {
             $(`body>*:not(${tipo})`).fadeOut(200, function () {
                 $(`body>${tipo}>titulo`).html(conteudo.titulo);
-                $(`body>${tipo}>${elem}`).html(conteudo.corpo);
-                $(`body>${tipo}>${elem}`).fadeIn(200);
+                // Inserir conteúdo primeiro para que a medição use o texto real
+                const elementoAlvo = document.querySelector(`body>${tipo}>${elem}`);
+                elementoAlvo.innerHTML = conteudo.corpo;
+                if (conteudo.corpo && telaCfg.juntarLinhasEmPares) {
+                    elementoAlvo.innerHTML = agruparLinhasEmPares(conteudo.corpo, elementoAlvo);
+                }
+                // Só exibe o elem se houver conteúdo
+                if (elementoAlvo.innerHTML.trim()) {
+                    $(`body>${tipo}>${elem}`).fadeIn(200);
+                }
                 $(`body>${tipo}`).fadeIn(200, cb);
             });
         });
@@ -285,11 +312,13 @@ function processarConteudo(conteudo) {
         } else if (conteudo.titulo === 'passagem') {
             conteudo.corpo = decodeURI(conteudo.corpo);
             conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
+            const rodapeMsg = document.querySelector('mensagem>rodape');
+            // Inserir conteúdo antes de agrupar para medir com o texto real
+            rodapeMsg.innerHTML = conteudo.corpo;
             if (telaCfg.juntarLinhasEmPares) {
-                const elementoAlvo = document.querySelector('mensagem>rodape');
-                conteudo.corpo = agruparLinhasEmPares(conteudo.corpo, elementoAlvo);
+                rodapeMsg.innerHTML = agruparLinhasEmPares(conteudo.corpo, rodapeMsg);
             }
-            if ($('mensagem>rodape').html(conteudo.corpo).css('display') === 'none') {
+            if ($('mensagem>rodape').css('display') === 'none') {
                 $('mensagem>rodape').fadeIn(200, cb);
             }
         } else if (conteudo.titulo === 'limpaPassagem') {

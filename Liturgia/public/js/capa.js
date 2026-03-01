@@ -484,7 +484,7 @@ function mostraHino(codigo) {
                 div.innerHTML = '';
                 hino.letra.forEach(l => {
                     const isRefrao = l.startsWith('refrao:');
-                    const texto = l.replace(/^refrao:/, '').replace(/<br\/?>/gi, '\n');
+                    const texto = l.replace(/^refrao:/, '').replace(/\{it\}|\{\/it\}/g, '').replace(/<br\/?>/gi, '\n');
                     div.innerHTML += `<p class="mb-2${isRefrao ? ' fst-italic text-primary' : ''}">${texto.replace(/\n/g, '<br>')}</p>`;
                 });
             }
@@ -557,7 +557,7 @@ function hinarioSelecionarHino(id) {
             $('#titulo').val(hino.tituloForm);
             $('#original').val('');
             hino.letra.forEach(l => {
-                $('#original').val($('#original').val() + l.replace(/<br[/]>/gi, '\n') + '\n\n');
+                $('#original').val($('#original').val() + l.replace(/\{it\}|\{\/it\}/g, '').replace(/<br[/]>/gi, '\n') + '\n\n');
             });
             arrumarHino();
             $('#resultadosHino').empty();
@@ -588,7 +588,7 @@ function mostraLouvor(codigo) {
             $('#final').text(JSON.stringify(louvor, undefined, 4));
             $('#original').val('');
             louvor.letra.forEach(l => {
-                $('#original').val($('#original').val() + l.replace(/<br[/]>/gi, '\n') + '\n\n');
+                $('#original').val($('#original').val() + l.replace(/\{it\}|\{\/it\}/g, '').replace(/<br[/]>/gi, '\n') + '\n\n');
             });
             $('#excluir').toggleClass('d-none', codigo < 0);
         });

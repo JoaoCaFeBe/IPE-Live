@@ -10,7 +10,7 @@
     <?php include 'includes/bibliotecas.php'; ?>
     <!-- ---------------------------------------------------------------------------------- -->
     <title>Legendas</title>
-    <link rel="stylesheet" href="Legendas.css">
+    <link rel="stylesheet" href="Legendas.css?v=<?php echo filemtime(__DIR__ . '/Legendas.css'); ?>">
     <script src="js\Base.js?v=<?php echo filemtime(__DIR__ . '/js/Base.js'); ?>"></script>
     <script src="js\LegendasAoVivo.js?v=<?php echo filemtime(__DIR__ . '/js/LegendasAoVivo.js'); ?>"></script>
     <!-- ---------------------------------------------------------------------------------- -->

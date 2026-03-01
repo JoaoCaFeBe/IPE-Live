@@ -84,7 +84,7 @@ const inicio = () => {
                             let grupoLinhas = [];
 
                             linhas.forEach((linha) => {
-                                linha = linha.trim();
+                                linha = linha.trim().replace(/\{it\}|\{\/it\}/g, '').trim();
                                 if (!linha) return; // ignorar linhas vazias
                                 grupoLinhas.push(linha);
                             });
@@ -162,7 +162,7 @@ const inicio = () => {
                             let grupoLinhas = [];
 
                             linhas.forEach((linha) => {
-                                linha = linha.trim();
+                                linha = linha.trim().replace(/\{it\}|\{\/it\}/g, '').trim();
                                 if (!linha) return; // ignorar linhas vazias
                                 grupoLinhas.push(linha);
                             });
