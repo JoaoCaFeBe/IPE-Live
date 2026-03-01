@@ -97,9 +97,3 @@ mulheres {
     float: right !important;
     width: 50% !important;
 }
-
-body>*>corpo span,
-body>*>corpo strong {
-    color: #ffc107 !important;
-    font-weight: bold;
-}

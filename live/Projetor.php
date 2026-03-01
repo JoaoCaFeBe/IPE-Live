@@ -17,6 +17,7 @@
     <!-- ---------------------------------------------------------------------------------- -->
     <title>Projetor</title>
     <link rel="stylesheet" href="Projetor.css">
+    <link rel="stylesheet" href="Televisao.css">
     <script src="js\Base.js"></script>
     <script src="js\Projetor.js" telaPrincipal="<?php echo array_key_first($_GET) ?? ''; ?>"></script>
     <!-- ---------------------------------------------------------------------------------- -->

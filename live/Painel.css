@@ -11,10 +11,22 @@ body {
 }
 
 .btn-group-vertical>label {
+    display: block;
+    width: 100%;
+    max-width: 100%;
     overflow: hidden;
-    text-overflow: ellipsis;
     white-space: normal !important;
     word-wrap: break-word;
+}
+
+.btn-group-vertical>label .linha-truncate {
+    display: inline-block;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    vertical-align: bottom;
 }
 
 homens {
@@ -81,6 +93,14 @@ input::-webkit-inner-spin-button {
 #passagens .accordion-button:not(.collapsed) {
     background-color: #1a6d96;
     color: #fff;
+}
+
+#passagens .btn-group-vertical>label.btn,
+#passagens .btn-group-vertical>.btn,
+.accordion-item[tipo="passagem"] .btn-group-vertical>label.btn,
+#mensagemPassagens>label.btn {
+    text-align: left !important;
+    justify-content: flex-start;
 }
 
 #mensagens .accordion-button {

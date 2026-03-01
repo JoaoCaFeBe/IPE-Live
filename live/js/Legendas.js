@@ -8,5 +8,6 @@ inicializarTela({
     delayEventos: 1500,
     limparNaMensagem: false,
     callbackFadeIn: null,
-    integracaoOBS: true
+    integracaoOBS: true,
+    juntarLinhasEmPares: true
 });

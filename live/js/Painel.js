@@ -28,6 +28,17 @@ socket.onAny((aplicativo, eventName, args) => {
         }
     }
 });
+
+const montarTextoComTruncamentoPorLinha = (linhas) => {
+    return linhas.map((linha, indice) => {
+        const quebra = (indice < linhas.length - 1) ? '<br/>' : '';
+        return `<span class="linha-truncate">${linha}</span>${quebra}`;
+    }).join('');
+};
+
+const formatarVersiculoParaExibicao = (texto) => {
+    return texto.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
+};
 // -----------------------------------------------------------------------------------------
 const inicio = () => {
 
@@ -65,7 +76,7 @@ const inicio = () => {
                         $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
                             .append(`
                                         <input type="radio" class="btn-check" name="btnHino${hino}" id="btnHino${hino}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-warning" for="btnHino${hino}">Título</label>
+                                        <label class="btn btn-warning text-truncate" for="btnHino${hino}">Título</label>
                                     `);
                         definicao.letra.forEach((valor, indice) => {
                             // Separar por <br/> e processar cada linha
@@ -115,10 +126,10 @@ const inicio = () => {
                                     }
                                 });
 
-                                let botaoTexto = textoCompleto.join('<br/>');
+                                let botaoTexto = montarTextoComTruncamentoPorLinha(textoCompleto);
                                 let botaoId = `btnHino${hino}_${indice}_${grupoIdx}`;
                                 $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
-                                    .append(`<input type="radio" class="btn-check" name="btnHino${hino}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor}" for="${botaoId}">${botaoTexto}</label>`);
+                                    .append(`<input type="radio" class="btn-check" name="btnHino${hino}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor} text-truncate" for="${botaoId}">${botaoTexto}</label>`);
                             });
                         });
                         break;
@@ -143,7 +154,7 @@ const inicio = () => {
                         $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)
                             .append(`
                                         <input type="radio" class="btn-check" name="btnLouvor${louvor}" id="btnLouvor${louvor}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-warning" for="btnLouvor${louvor}">Título</label>
+                                        <label class="btn btn-warning text-truncate" for="btnLouvor${louvor}">Título</label>
                                     `);
                         definicao.letra.forEach((valor, indice) => {
                             // Separar por <br/> e processar cada linha
@@ -191,10 +202,10 @@ const inicio = () => {
                                     }
                                 });
 
-                                let botaoTexto = textoCompleto.join('<br/>');
+                                let botaoTexto = montarTextoComTruncamentoPorLinha(textoCompleto);
                                 let botaoId = `btnLouvor${louvor}_${indice}_${grupoIdx}`;
                                 $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)
-                                    .append(`<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor}" for="${botaoId}">${botaoTexto}</label>`);
+                                    .append(`<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor} text-truncate" for="${botaoId}">${botaoTexto}</label>`);
                             });
                         });
                         break;
@@ -216,12 +227,14 @@ const inicio = () => {
                                                                 </div>
                                                             </div>
                                                         </div>`);
-                        definicao.texto.forEach((valor, indice) => $(`#colapsePassagem${passagem} .accordion-body .btn-group-vertical`)
-                            .append(`
+                        definicao.texto.forEach((valor, indice) => {
+                            const versiculoExibicao = formatarVersiculoParaExibicao(valor);
+                            $(`#colapsePassagem${passagem} .accordion-body .btn-group-vertical`)
+                                .append(`
                                         <input type="radio" class="btn-check" name="btnPassagem${passagem}" id="btnPassagem${passagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-secondary" for="btnPassagem${passagem}${indice}">${valor}</label>
-                                    `)
-                        );
+                                        <label class="btn btn-secondary text-truncate" for="btnPassagem${passagem}${indice}">${versiculoExibicao}</label>
+                                    `);
+                        });
                         break;
                     case 'mensagem':
                         contMensagem++;
@@ -245,7 +258,7 @@ const inicio = () => {
                         definicao.topicos.forEach((valor, indice) => $(`#colapseMensagem${contMensagem} .accordion-body #mensagemTopicos`)
                             .append(`
                                         <input type="checkbox" class="btn-check" name="btnMensagemTopico${contMensagem}" id="btnMensagemTopico${contMensagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-secondary" for="btnMensagemTopico${contMensagem}${indice}">${valor}</label>
+                                        <label class="btn btn-secondary text-truncate" for="btnMensagemTopico${contMensagem}${indice}">${valor}</label>
                                     `)
                         );
 
@@ -253,14 +266,16 @@ const inicio = () => {
                         $(`#colapseMensagem${contMensagem} .accordion-body #mensagemPassagens`)
                             .append(`
                                         <input type="radio" class="btn-check" name="btnMensagemPassagem${contMensagem}" id="btnMensagemPassagem${contMensagem}" titulo="" autocomplete="off">
-                                        <label class="btn btn-warning" for="btnMensagemPassagem${contMensagem}">${definicao.passagem}</label>
+                                        <label class="btn btn-warning text-truncate" for="btnMensagemPassagem${contMensagem}">${definicao.passagem}</label>
                                     `);
-                        definicao.texto.forEach((valor, indice) => $(`#colapseMensagem${contMensagem} .accordion-body #mensagemPassagens`)
-                            .append(`
+                        definicao.texto.forEach((valor, indice) => {
+                            const versiculoExibicao = formatarVersiculoParaExibicao(valor);
+                            $(`#colapseMensagem${contMensagem} .accordion-body #mensagemPassagens`)
+                                .append(`
                                         <input type="radio" class="btn-check" name="btnMensagemPassagem${contMensagem}" id="btnMensagemPassagem${contMensagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-secondary" for="btnMensagemPassagem${contMensagem}${indice}">${valor}</label>
-                                    `)
-                        );
+                                        <label class="btn btn-secondary text-truncate" for="btnMensagemPassagem${contMensagem}${indice}">${versiculoExibicao}</label>
+                                    `);
+                        });
                         break;
                     case 'extra':
                         break;
@@ -302,14 +317,16 @@ const inicio = () => {
                     if (this.nextElementSibling.innerHTML === 'Título') {
                         socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: this.getAttribute('titulo'), corpo: '' });
                     } else {
-                        socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: this.getAttribute('titulo'), corpo: encodeURI(this.nextElementSibling.innerHTML) });
+                        const corpoCompleto = this.getAttribute('corpo') ? decodeURIComponent(this.getAttribute('corpo')) : this.nextElementSibling.innerHTML;
+                        socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: this.getAttribute('titulo'), corpo: encodeURI(corpoCompleto) });
                     }
                 })
                 button.addEventListener('dblclick', function () {
                     if (this.nextElementSibling.innerHTML === 'Título') {
                         socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: this.getAttribute('titulo'), corpo: '' });
                     } else {
-                        socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: this.getAttribute('titulo'), corpo: encodeURI(this.nextElementSibling.innerHTML) });
+                        const corpoCompleto = this.getAttribute('corpo') ? decodeURIComponent(this.getAttribute('corpo')) : this.nextElementSibling.innerHTML;
+                        socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: this.getAttribute('titulo'), corpo: encodeURI(corpoCompleto) });
                     }
                 })
             });

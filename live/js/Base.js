@@ -33,11 +33,103 @@ var telaCfg = window.telaCfg || {
     limparNaMensagem: true,
     callbackFadeIn: null,
     aoIniciar: null,
-    integracaoOBS: false
+    integracaoOBS: false,
+    juntarLinhasEmPares: false
 };
 
 function inicializarTela(config) {
     telaCfg = Object.assign(telaCfg, config);
+}
+
+function _obterLarguraUtilElemento(elementoAlvo) {
+    if (!elementoAlvo) return 0;
+    const estilo = window.getComputedStyle(elementoAlvo);
+    const paddingX = (parseFloat(estilo.paddingLeft) || 0) + (parseFloat(estilo.paddingRight) || 0);
+    const larguraUtil = elementoAlvo.clientWidth - paddingX;
+    if (larguraUtil > 0) return Math.max(0, larguraUtil);
+
+    const margemX = (parseFloat(estilo.marginLeft) || 0) + (parseFloat(estilo.marginRight) || 0);
+    const larguraViewport = window.innerWidth || document.documentElement.clientWidth || 0;
+    if (larguraViewport <= 0) return 0;
+
+    return Math.max(0, (larguraViewport - margemX - paddingX) * 0.98);
+}
+
+function _linhaCabeNoContainer(linhaHtml, elementoAlvo, larguraMaxima) {
+    if (!elementoAlvo || !larguraMaxima) return false;
+
+    let medidor = document.getElementById('medidor-linha-legenda');
+    if (!medidor) {
+        medidor = document.createElement('span');
+        medidor.id = 'medidor-linha-legenda';
+        medidor.style.position = 'fixed';
+        medidor.style.left = '-99999px';
+        medidor.style.top = '-99999px';
+        medidor.style.visibility = 'hidden';
+        medidor.style.whiteSpace = 'nowrap';
+        medidor.style.pointerEvents = 'none';
+        document.body.appendChild(medidor);
+    }
+
+    const estilo = window.getComputedStyle(elementoAlvo);
+    medidor.style.font = estilo.font;
+    medidor.style.fontSize = estilo.fontSize;
+    medidor.style.fontFamily = estilo.fontFamily;
+    medidor.style.fontWeight = estilo.fontWeight;
+    medidor.style.letterSpacing = estilo.letterSpacing;
+    medidor.style.textTransform = estilo.textTransform;
+    medidor.style.lineHeight = estilo.lineHeight;
+    medidor.innerHTML = linhaHtml;
+
+    const larguraLinha = medidor.getBoundingClientRect().width;
+    return larguraLinha <= larguraMaxima;
+}
+
+function agruparLinhasEmPares(html, elementoAlvo) {
+    if (!html || typeof html !== 'string') return html;
+
+    const larguraMaxima = _obterLarguraUtilElemento(elementoAlvo);
+    if (!larguraMaxima) return html;
+
+    const linhas = html
+        .split(/<br\s*\/?\s*>/gi)
+        .map(linha => linha.trim())
+        .filter(linha => linha.length > 0);
+
+    if (linhas.length < 2) return html;
+
+    const resultado = [];
+    let buffer = [];
+
+    const descarregarBuffer = () => {
+        for (let i = 0; i < buffer.length; i += 2) {
+            if (i + 1 < buffer.length) {
+                const linhaCombinada = `${buffer[i]} ${buffer[i + 1]}`;
+                if (_linhaCabeNoContainer(linhaCombinada, elementoAlvo, larguraMaxima)) {
+                    resultado.push(linhaCombinada);
+                } else {
+                    resultado.push(buffer[i]);
+                    resultado.push(buffer[i + 1]);
+                }
+            } else {
+                resultado.push(buffer[i]);
+            }
+        }
+        buffer = [];
+    };
+
+    linhas.forEach((linha) => {
+        const ehLinhaCantor = /<strong[^>]*>.*?<\/strong>/i.test(linha);
+        if (ehLinhaCantor) {
+            descarregarBuffer();
+            resultado.push(linha);
+        } else {
+            buffer.push(linha);
+        }
+    });
+
+    descarregarBuffer();
+    return resultado.join('<br/>');
 }
 
 // -----------------------------------------------------------------------------------------
@@ -154,7 +246,11 @@ function processarConteudo(conteudo) {
 
     if ((tipo === 'louvor') || (tipo === 'passagem')) {
         conteudo.corpo = decodeURI(conteudo.corpo).replace(/\{st\}([^}]*)\{\/st\}/g, '<span style="color: #ffc107 !important; font-weight: bold;">$1</span>').trim();
-        if (tipo === 'passagem') conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2 - ');
+        if (tipo === 'passagem') conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
+        if (telaCfg.juntarLinhasEmPares) {
+            const elementoAlvo = document.querySelector(`body>${tipo}>${elem}`);
+            conteudo.corpo = agruparLinhasEmPares(conteudo.corpo, elementoAlvo);
+        }
 
         new Promise((resolve) => {
             if ($(`body>${tipo}>titulo`).html() !== conteudo.titulo) {
@@ -188,6 +284,11 @@ function processarConteudo(conteudo) {
             }
         } else if (conteudo.titulo === 'passagem') {
             conteudo.corpo = decodeURI(conteudo.corpo);
+            conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
+            if (telaCfg.juntarLinhasEmPares) {
+                const elementoAlvo = document.querySelector('mensagem>rodape');
+                conteudo.corpo = agruparLinhasEmPares(conteudo.corpo, elementoAlvo);
+            }
             if ($('mensagem>rodape').html(conteudo.corpo).css('display') === 'none') {
                 $('mensagem>rodape').fadeIn(200, cb);
             }
