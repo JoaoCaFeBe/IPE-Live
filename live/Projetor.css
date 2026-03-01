@@ -47,6 +47,11 @@ body>*>corpo {
     font-weight: bolder;
 }
 
+body>*>corpo span {
+    color: #ffc107 !important;
+    font-weight: bold;
+}
+
 body>*>rodape {
     background-color: rgba(255, 255, 255, 0.2);
     padding: 1rem;
