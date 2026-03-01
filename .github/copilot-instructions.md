@@ -27,7 +27,7 @@ O fluxo de dados segue este ciclo:
                                                                 Telas de Exibição (Projetor / TVs / OBS)
 ```
 
-### O que cada pasta faz:
+### O que cada pasta faz
 
 - **`Liturgia/` (Editor Público Online)**
   - É uma aplicação web em Node.js independente que pode ser acessada externamente pela equipe.
@@ -124,7 +124,7 @@ O `Liturgia/server.js` usa `process.env.CULTOS_DIR` (com fallback para `path.joi
 
 ## Estrutura de um JSON de Culto e Tipos Atuais Suportados
 
-A base de dados temporária de um culto rodando no aplicativo é totalmente definida por um array JSON (ex: ` Liturgia/cultos/2026-03-01.json`).
+A base de dados temporária de um culto rodando no aplicativo é totalmente definida por um array JSON (ex: `Liturgia/cultos/2026-03-01.json`).
 
 > ⚠️ **INSTRUÇÃO OBRIGATÓRIA PARA A IA:** Qualquer inclusão de um novo `tipo` de card, ou alteração no funcionamento de um dos listados abaixo (como adição/remoção de keys dentro dos objetos), **DEVE ser obrigatoriamente documentada e atualizada nesta exata seção deste arquivo (`copilot-instructions.md`)**. Este arquivo é a ÚNICA fonte de verdade.
 
@@ -137,7 +137,7 @@ Hinos formatados e puxados primariamente dos bancos de dados SQLite (como Novo C
 ```json
 {
   "tipo": "hino",
-  "titulo": "HNC 001 - Doxologia",
+  "titulo": "Doxologia (HNC 001)",
   "letra": [
     "A Deus, supremo Benfeitor,",
     "refrao:A Deus, supremo Benfeitor",
@@ -146,7 +146,10 @@ Hinos formatados e puxados primariamente dos bancos de dados SQLite (como Novo C
 }
 ```
 
+- **Formato canônico do título**: `Nome do Hino (SIGLA NNN)` — ex.: `Avante, ó crentes (HNC 311)`. O código do hinário e o número ficam entre parênteses **ao final**, separados por espaço, com número de 3 dígitos com zero à esquerda. **NUNCA** usar o formato antigo `SIGLA NNN - Nome`.
+- **Hinários suportados e suas siglas**: `HNC` (Hinário Novo Cântico), `HCC` (Hinário Para o Culto Cristão), `CC` (Cantor Cristão), `HC` (Harpa Cristã). A sigla deve estar em maiúsculas.
 - **Detalhe Principal**: O campo `letra` é um array de estrofes (strings). Quando um item começa com a flag literal `refrao:`, o sistema entende como o refrão/coro. Isso faz o Painel pintar os botões com a classe `.btn-info` para visualização rápida.
+- **Busca no hinário**: A função `parseTituloHino(titulo)` em `Liturgia/server.js` suporta **ambos** os formatos (antigo e novo) ao parsear, retornando `{codigo, num, nome}`. Ao **gerar** novos títulos, usar **sempre** o formato `Nome (SIGLA NNN)`.
 
 ### 2. `louvor` (Músicas Avulsas)
 

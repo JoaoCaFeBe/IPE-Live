@@ -36,7 +36,7 @@ function carregarMapaHinarios() {
           const m = s.title.match(/^([A-Z]+)\s*\d+/);
           if (m) HINARIOS_MAP[m[1]] = f;
         }
-      } catch (_) {}
+      } catch (_) { }
     });
   return HINARIOS_MAP;
 }
@@ -47,14 +47,29 @@ function abrirHinario(codigo) {
   return new Database(path.join(HINARIOS_DIR, file), { readonly: true });
 }
 
-/** Extrai número e nome do título armazenado no SQLite.
- * Formatos: "HNC 001 - Doxologia", "CC 001 Antífona", "HC001 - Chuvas", "HCC 001 Oh!" */
+/** Extrai código, número e nome do título de hino.
+ * Formatos suportados:
+ * - "HNC 001 - Doxologia", "CC 001 Antífona", "HC001 - Chuvas", "HCC 001 Oh!"
+ * - "Avante, ó crentes (HNC 311)" */
 function parseTituloHino(title) {
-  const m = title.match(/^[A-Z]+\s*(\d+)\s*[-–]?\s*(.*)$/);
-  if (!m) return { num: title, nome: title };
+  const raw = String(title || "").trim();
+  if (!raw) return { codigo: "", num: "", nome: "" };
+
+  const formatoNomeCodigo = raw.match(/^(.*?)\s*\(([A-Z]+)\s*(\d{1,4})\)$/i);
+  if (formatoNomeCodigo) {
+    return {
+      codigo: formatoNomeCodigo[2].toUpperCase(),
+      num: String(Number(formatoNomeCodigo[3])).padStart(3, "0"),
+      nome: formatoNomeCodigo[1].trim() || raw,
+    };
+  }
+
+  const formatoCodigoNome = raw.match(/^([A-Z]+)\s*(\d+)\s*[-–]?\s*(.*)$/i);
+  if (!formatoCodigoNome) return { codigo: "", num: "", nome: raw };
   return {
-    num: String(Number(m[1])).padStart(3, "0"),
-    nome: m[2].trim() || title,
+    codigo: formatoCodigoNome[1].toUpperCase(),
+    num: String(Number(formatoCodigoNome[2])).padStart(3, "0"),
+    nome: formatoCodigoNome[3].trim() || raw,
   };
 }
 
@@ -270,21 +285,21 @@ app.get("/Cultos/:arquivo", (req, res) => {
     }
 
     let itens = JSON.parse(row.itens);
-    const getMusica = db.prepare(
-      "SELECT tipo, titulo, letra FROM musicas WHERE id = ?",
+    const getLouvor = db.prepare(
+      "SELECT tipo, titulo, letra FROM louvores WHERE id = ?",
     );
 
-    // Expande musicas através do musica_id ou resolvendo Hinos soltos que não foram/foram apagados da tabela de CULTOS_DB
+    // Expande louvores através do louvor_id ou resolvendo Hinos soltos que não foram/foram apagados da tabela de CULTOS_DB
     itens = itens.map((item) => {
       // Se for um item de música pre-salvo (como louvor ou hino recém adicionado)
-      if (item && item.musica_id) {
-        const m = getMusica.get(item.musica_id);
+      if (item && item.louvor_id) {
+        const m = getLouvor.get(item.louvor_id);
         if (m) {
           return { ...item, titulo: m.titulo, letra: JSON.parse(m.letra) };
         }
       }
 
-      // Se for hino "legacy" que perdeu a musica_id de cultos.sqlite (Porque limpamos na conversão)
+      // Se for hino "legacy" que perdeu a louvor_id de cultos.sqlite (Porque limpamos na conversão)
       if (
         item &&
         item.tipo === "hino" &&
@@ -292,23 +307,24 @@ app.get("/Cultos/:arquivo", (req, res) => {
         (!item.letra || item.letra.length === 0)
       ) {
         try {
-          const { num } = parseTituloHino(item.titulo);
-          const m = item.titulo.match(/^([A-Z]+)\s*\d+/);
-          if (m) {
-            const hdb = abrirHinario(m[1]);
+          const { codigo, num, nome } = parseTituloHino(item.titulo);
+          if (codigo && num) {
+            const hdb = abrirHinario(codigo);
             // Procura o hino pelo numero, como a tabela songs guarda
-            const row = hdb
+            let row = hdb
               .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
-              .get(`% ${Number(num)} %`);
+              .get(`${codigo}%${Number(num)}%`);
             if (!row) {
-              // Tentar wildcard sem o número exato
-              const fb = hdb
+              row = hdb
                 .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
-                .get(`${m[1]} ${num}%`);
-              if (fb) {
-                item.letra = parseLyricsXml(fb.lyrics);
-              }
-            } else {
+                .get(`%${codigo}%${Number(num)}%`);
+            }
+            if (!row && nome) {
+              row = hdb
+                .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
+                .get(`%${nome}%`);
+            }
+            if (row) {
               item.letra = parseLyricsXml(row.lyrics);
             }
             hdb.close();
@@ -364,24 +380,24 @@ app.post("/dados/salvar-liturgia", (req, res) => {
   try {
     let itens = JSON.parse(dados);
     const db = new Database(CULTOS_DB_PATH);
-    const insertMusica = db.prepare(
-      "INSERT INTO musicas (tipo, titulo, letra) VALUES (?, ?, ?) " +
-        "ON CONFLICT(tipo, titulo) DO UPDATE SET letra=excluded.letra RETURNING id",
+    const insertLouvor = db.prepare(
+      "INSERT INTO louvores (tipo, titulo, letra) VALUES (?, ?, ?) " +
+      "ON CONFLICT(tipo, titulo) DO UPDATE SET letra=excluded.letra RETURNING id",
     );
 
     itens = itens.map((item) => {
       if (!item) return item;
       // Se for louvor (que a gente gerencia localmente), inserimos na tabela Músicas
       if (item.tipo === "louvor" && Array.isArray(item.letra)) {
-        const result = insertMusica.get(
+        const result = insertLouvor.get(
           item.tipo,
           item.titulo || "Sem título",
           JSON.stringify(item.letra),
         );
-        return { tipo: item.tipo, musica_id: result.id };
+        return { tipo: item.tipo, louvor_id: result.id };
       }
 
-      // Se for hino (nós NUNCA salvamos Hinos na tabela musicas, pois eles são pegos diretamente de Hinarios.sqlite)
+      // Se for hino (nós NUNCA salvamos Hinos na tabela louvores, pois eles são pegos diretamente de Hinarios.sqlite)
       // Nós podemos apenas manter o item original (que já tem o `titulo` tipo "HNC 001 - Doxologia"), mas sem a array enorme let para poupar espaço
       if (item.tipo === "hino") {
         return { tipo: "hino", titulo: item.titulo };
@@ -660,14 +676,14 @@ app.get("/formularios/pesquisar-hino-local", (_req, res) => {
 // HELPERS
 // ===========================================================================
 
-/** Coleta todos os itens de um tipo disponíveis no banco (buscando da tabela musicas) */
+/** Coleta todos os itens de um tipo disponíveis no banco (buscando da tabela louvores) */
 function carregarItens(tipo) {
   try {
     const db = new Database(CULTOS_DB_PATH, { readonly: true });
     // NOCASE permite ignorar acentos/maiúsculas ao ordenar no SQLite
     const rows = db
       .prepare(
-        "SELECT titulo, letra FROM musicas WHERE tipo = ? ORDER BY titulo COLLATE NOCASE",
+        "SELECT titulo, letra FROM louvores WHERE tipo = ? ORDER BY titulo COLLATE NOCASE",
       )
       .all(tipo);
     db.close();

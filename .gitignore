@@ -1,12 +1,12 @@
 # Variáveis de ambiente
 .env
 
-# Dependências
-Chat.JS/node_modules/
+# Dependências Node
+**/node_modules/
 
-# Cultos (JSONs diários)
-cultos/*
-!cultos/.gitkeep
+# Cultos (JSONs diários — apenas o .gitkeep é rastreado)
+Liturgia/cultos/*
+!Liturgia/cultos/.gitkeep
 
 # Backups
 **/*.bak
@@ -17,6 +17,7 @@ cultos/*
 
 # IDEs e editores
 .vscode/
+!.vscode/launch.json
 .idea/
 *.swp
 *.swo
@@ -24,3 +25,6 @@ cultos/*
 
 # Logs
 *.log
+
+# favicon servido pelo Express em Live/public/
+favicon.ico

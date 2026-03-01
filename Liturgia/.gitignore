@@ -1,13 +1,13 @@
 # Dependências
 node_modules/
 
-# Ambientes Python (Se houver)
+# Ambientes Python (se houver)
 .venv/
 venv/
 env/
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -18,16 +18,21 @@ yarn-error.log*
 .env.local
 .env.*.local
 
-# macOS específicos
+# macOS
 .DS_Store
 .AppleDouble
 .LSOverride
 
-# Dados de Cultos e Bancos (Normalizados)
-Cultos/*
-*.sqlite
-*.sqlite3
-*.db
+# Cultos (JSONs diários — gerenciado também pelo .gitignore raiz)
+cultos/*
+!cultos/.gitkeep
+
+# Bancos de dados locais (não rastreados — obtidos via setup)
+database/Cultos.sqlite
+database/Louvores.sqlite
+database/*.sqlite
+database/*.sqlite3
+database/*.db
 
 # Editores e IDEs
 .vscode/
@@ -37,4 +42,3 @@ Cultos/*
 
 # PM2
 .pm2/
-ecosystem.config.js*
