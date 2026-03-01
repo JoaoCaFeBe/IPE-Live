@@ -586,21 +586,7 @@ app.post("/formularios/mensagem", (_req, res) => {
 </texto>`);
 });
 
-app.post("/formularios/extra", (_req, res) => {
-  res.send(/* html */ `
-<div>Extra</div>
-<texto style="display:grid;grid-template-rows:1fr 40%;grid-row-gap:.25rem;height:100%;">
-  <div style="display:grid;grid-template-columns:1fr 1fr;grid-column-gap:.25rem;">
-    <textarea class="form-control" id="originalImagem"
-      placeholder='Imagens — uma por linha:&#10;{"arquivo":"","titulo":""}'
-      onchange="arrumarExtra();" style="resize:none;"></textarea>
-    <textarea class="form-control" id="originalVideo"
-      placeholder='Vídeos — um por linha:&#10;{"arquivo":"","titulo":""}'
-      onchange="arrumarExtra();" style="resize:none;"></textarea>
-  </div>
-  <textarea class="form-control text-nowrap" id="final" style="resize:none;"></textarea>
-</texto>`);
-});
+
 
 app.post("/formularios/pesquisar-louvor", (req, res) => {
   const titulo = escHtml(req.body.titulo || "");

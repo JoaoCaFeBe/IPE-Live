@@ -51,7 +51,7 @@ const inicio = () => {
 
     $.getJSON(`${cultosUrl}/${arquivo}.json`)
         .done(definicoes => {
-            let hino = 0, louvor = 0, passagem = 0, contMensagem = 0, extra = 0;
+            let hino = 0, louvor = 0, passagem = 0, contMensagem = 0;
             definicoes.forEach(definicao => {
                 switch (definicao.tipo) {
                     case 'hino':
@@ -276,8 +276,6 @@ const inicio = () => {
                                         <label class="btn btn-secondary text-truncate" for="btnMensagemPassagem${contMensagem}${indice}">${versiculoExibicao}</label>
                                     `);
                         });
-                        break;
-                    case 'extra':
                         break;
                     default:
                         console.log(`Codigo errado em ${definicao.tipo}`);

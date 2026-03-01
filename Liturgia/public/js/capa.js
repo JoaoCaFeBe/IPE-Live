@@ -662,46 +662,6 @@ function pesquisaMusica(titulo) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
-   EXTRA
-   ──────────────────────────────────────────────────────────────────────── */
-
-function mostraExtra(codigo) {
-    codigo = codigo ?? $('#bodyLiturgia>ul>li.bg-warning').index();
-    movimentacao();
-    let extra = (codigo >= 0)
-        ? $.passarObjeto(Liturgia[codigo])
-        : { tipo: 'extra', titulo: 'Extra', imagens: [], videos: [] };
-
-    $.post('/formularios/extra', { extra: JSON.stringify(extra) })
-        .done(formulario => {
-            $('#bodyCorpo>*:not(#botoesLiturgia)').remove();
-            query('#bodyCorpo').insertAdjacentHTML('afterbegin', formulario);
-        })
-        .always(() => {
-            query('#cardCorpo').classList.remove('d-none');
-            $('#final').text(JSON.stringify(extra, undefined, 4));
-            $('#originalImagem').val('');
-            extra.imagens.forEach(l => {
-                $('#originalImagem').val($('#originalImagem').val() + JSON.stringify(l).replace(/<br[/]>/gi, '\n') + '\n');
-            });
-            $('#originalVideo').val('');
-            extra.videos.forEach(l => {
-                $('#originalVideo').val($('#originalVideo').val() + JSON.stringify(l).replace(/<br[/]>/gi, '\n') + '\n');
-            });
-            $('#excluir').toggleClass('d-none', codigo < 0);
-        });
-}
-
-function arrumarExtra() {
-    let extra = { tipo: 'extra', titulo: 'Extra', imagens: [], videos: [] };
-    $('#originalImagem').val().replace(/\n/g, '|').split('|')
-        .forEach(l => { if (l.trim()) { try { extra.imagens.push(JSON.parse(l)); } catch (_) { } } });
-    $('#originalVideo').val().replace(/\n/g, '|').split('|')
-        .forEach(l => { if (l.trim()) { try { extra.videos.push(JSON.parse(l)); } catch (_) { } } });
-    $('#final').val(JSON.stringify(extra, undefined, 4));
-}
-
-/* ────────────────────────────────────────────────────────────────────────
    PESQUISAR LOUVOR / HINO LOCAL
    ──────────────────────────────────────────────────────────────────────── */
 

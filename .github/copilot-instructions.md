@@ -71,7 +71,7 @@ Eles se completam. Não presuma que mudanças em um lado afetam o outro magicame
 
 - **`Live/Biblias/*.sqlite`** — 14 versões da Bíblia. Tabelas: `book(id, name)`, `verse(book_id, chapter, verse, text)`. A versão ativa é guardada em `$_SESSION['biblia']`.
 - **`Live/Hinarios/*.sqlite`** — 4 hinários (Cantor Cristão, Harpa Cristã, etc.).
-- **`Liturgia/cultos/YYYY-MM-DD.json`** — Definição do culto do dia (localização canônica). Array de objetos com `tipo` (`hino`, `louvor`, `passagem`, `mensagem`, `extra`) e campos como `titulo`, `letra[]`, `texto[]`, `topicos[]`, `passagem`. Ignorados pelo Git (apenas `.gitkeep`). O PHP acessa via variável `$CULTOS_URL` do `.env`; o JS acessa via `cultosUrl` injetado por `bibliotecas.php`.
+- **`Liturgia/cultos/YYYY-MM-DD.json`** — Definição do culto do dia (localização canônica). Array de objetos com `tipo` (`hino`, `louvor`, `passagem`, `mensagem`) e campos como `titulo`, `letra[]`, `texto[]`, `topicos[]`, `passagem`. Ignorados pelo Git (apenas `.gitkeep`). O PHP acessa via variável `$CULTOS_URL` do `.env`; o JS acessa via `cultosUrl` injetado por `bibliotecas.php`.
 
 ## Comunicação Socket.IO
 
@@ -202,31 +202,6 @@ Modelo mais híbrido do sistema, projetado para a hora da pregação.
 
 - Exibe o Título do Sermão, permite intercalar seus `topicos` principais e ter o texto bíblico-base (`passagem` e `texto`). Na interface da TV/Projetor eles se intercalam inteligentemente baseados na transição de foco guiada pelo pregador.
 
-### 5. `extra` (Vídeos e Imagens Customizadas)
-
-Última seção para colocar informações que não são texto propriamente dito.
-
-```json
-{
-  "tipo": "extra",
-  "titulo": "Avisos da Semana",
-  "imagem": [
-    {
-      "arquivo": "avisos_domingo.png",
-      "titulo": "Culto da Virada"
-    }
-  ],
-  "video": [
-    {
-      "arquivo": "missoes_2026.mp4",
-      "titulo": "Vídeo Baseado em João"
-    }
-  ]
-}
-```
-
-- Exige estruturação diferenciada onde imagens e vídeos possuem os caminhos relativos ao sistema principal (para o `live` buscar e exibir).
-
 ---
 
 ## Módulo Liturgia (Editor)
@@ -263,7 +238,7 @@ Liturgia/
 | `POST` | `/dados/nova-liturgia`                | Cria arquivo `YYYY-MM-DD.json` vazio                                                                  |
 | `POST` | `/dados/salvar-liturgia`              | Persiste o conteúdo JSON de uma liturgia                                                              |
 | `POST` | `/dados/renomear-liturgia`            | Renomeia o arquivo `YYYY-MM-DD.json` (use: `{ de, para }`)                                            |
-| `POST` | `/formularios/:tipo`                  | Retorna fragmento HTML do formulário de cada tipo (`passagem`, `hino`, `louvor`, `mensagem`, `extra`) |
+| `POST` | `/formularios/:tipo`                  | Retorna fragmento HTML do formulário de cada tipo (`passagem`, `hino`, `louvor`, `mensagem`) |
 | `GET`  | `/formularios/pesquisar-louvor`       | Busca música por título (modal de pesquisa externa)                                                   |
 | `GET`  | `/formularios/pesquisar-louvor-local` | Retorna lista de louvores ya existentes nos cultos + HTML da UI                                       |
 | `GET`  | `/formularios/pesquisar-hino-local`   | Retorna lista de hinos já existentes nos cultos + HTML da UI                                          |
@@ -282,7 +257,7 @@ Os JSONs de liturgia são gravados em **`Liturgia/cultos/`** — dentro do próp
 Layout SPA em 3 colunas:
 
 1. **Lista de liturgias** — arquivos JSON existentes. Botão `+` cria nova liturgia com prompt de data.
-2. **Itens da liturgia** — lista dos itens do culto selecionado. Dropdown `+` permite adicionar `Passagem`, `Hino`, `Louvor`, `Mensagem` ou `Extra`.
+2. **Itens da liturgia** — lista dos itens do culto selecionado. Dropdown `+` permite adicionar `Passagem`, `Hino`, `Louvor` ou `Mensagem`.
 3. **Formulário de edição** — carregado via AJAX (`/formularios/:tipo`); exibe campos adequados ao tipo selecionado.
 
 ### Convenções do módulo
@@ -305,7 +280,6 @@ As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quant
 | `louvor`   | `#1a5632`         | `#23784a`               | `#c8f0d4` |
 | `passagem` | `#14506e`         | `#1a6d96`               | `#c4e3f5` |
 | `mensagem` | `#7a2517`         | `#a43220`               | `#fdd8d2` |
-| `extra`    | `#3a3a3a`         | `#555555`               | `#e0e0e0` |
 
 ### Forma de trabalho no módulo Liturgia
 
