@@ -6,7 +6,6 @@ inicializarTela({
     elementoConteudo: 'rodape',
     temAlerta: false,
     delayEventos: 1500,
-    limparNaMensagem: false,
     callbackFadeIn: null,
     integracaoOBS: true,
     juntarLinhasEmPares: true

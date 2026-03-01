@@ -71,7 +71,7 @@ Eles se completam. Não presuma que mudanças em um lado afetam o outro magicame
 
 - **`Live/Biblias/*.sqlite`** — 14 versões da Bíblia. Tabelas: `book(id, name)`, `verse(book_id, chapter, verse, text)`. A versão ativa é guardada em `$_SESSION['biblia']`.
 - **`Live/Hinarios/*.sqlite`** — 4 hinários (Cantor Cristão, Harpa Cristã, etc.).
-- **`Liturgia/cultos/YYYY-MM-DD.json`** — Definição do culto do dia (localização canônica). Array de objetos com `tipo` (`hino`, `louvor`, `passagem`, `mensagem`) e campos como `titulo`, `letra[]`, `texto[]`, `topicos[]`, `passagem`. Ignorados pelo Git (apenas `.gitkeep`). O PHP acessa via variável `$CULTOS_URL` do `.env`; o JS acessa via `cultosUrl` injetado por `bibliotecas.php`.
+- **`Liturgia/cultos/YYYY-MM-DD.json`** — Definição do culto do dia (localização canônica). Array de objetos com `tipo` (`hino`, `louvor`, `passagem`, `coral`) e campos como `titulo`, `letra[]`, `texto[]`. Ignorados pelo Git (apenas `.gitkeep`). O PHP acessa via variável `$CULTOS_URL` do `.env`; o JS acessa via `cultosUrl` injetado por `bibliotecas.php`.
 
 ## Comunicação Socket.IO
 
@@ -81,17 +81,16 @@ Eventos principais:
 
 | Evento                                      | Direção              | Propósito                                                              |
 | ------------------------------------------- | -------------------- | ---------------------------------------------------------------------- |
-| `hino` / `louvor` / `passagem` / `mensagem` | Painel → Telas       | Exibir conteúdo (payload: `{tipo, titulo, corpo}`)                     |
+| `hino` / `louvor` / `passagem` | Painel → Telas       | Exibir conteúdo (payload: `{tipo, titulo, corpo}`)                     |
 | `fecharJanela`                              | Painel → Telas       | Ocultar todo conteúdo visível                                          |
-| `fecharBiblia`                              | Painel → Telas       | Ocultar passagem bíblica (no contexto de mensagem, oculta só o rodapé) |
+| `fecharBiblia`                              | Painel → Telas       | Ocultar passagem bíblica                                               |
 | `obsSceneChanged`                           | OBS/Legendas → Todos | Troca de cena OBS; variável `atual` guarda a cena ativa                |
-| `pegarDadosMensagem` / `dadosMensagem`      | Telas ↔ Painel       | Sincronizar dados da mensagem do culto                                 |
 | `Alerta`                                    | Painel → Telas       | Exibe alerta temporário (bootbox dialog, 5s)                           |
 
 ## Convenções de Código
 
 - **Idioma**: código e variáveis em português (`titulo`, `corpo`, `empresa`, `servidor`, `rodape`).
-- **HTML customizado**: as telas usam tags não-padrão como `<passagem>`, `<louvor>`, `<mensagem>`, `<titulo>`, `<corpo>`, `<rodape>` — estilizadas via CSS. Não substituir por `<div>`.
+- **HTML customizado**: as telas usam tags não-padrão como `<passagem>`, `<louvor>`, `<titulo>`, `<corpo>`, `<rodape>` — estilizadas via CSS. Não substituir por `<div>`.
 - **jQuery + vanilla JS**: toda manipulação de DOM usa jQuery (`$()`) junto com helpers `query/queryAll/queryId`. Animações com `fadeIn(200)` / `fadeOut(200)`.
 - **Bibliotecas locais**: tudo em `Live/Bibliotecas/` (Bootstrap 5, jQuery, Font Awesome, Socket.IO client, Bootbox, Animate.css). Sem CDN, sem bundler, sem npm no frontend.
 - **Caminhos Windows-style**: nos `src/href` do PHP usa-se `\` (backslash) — ex.: `Bibliotecas\jquery.min.js`. Manter este padrão nos arquivos PHP.
@@ -128,7 +127,7 @@ A base de dados temporária de um culto rodando no aplicativo é totalmente defi
 
 > ⚠️ **INSTRUÇÃO OBRIGATÓRIA PARA A IA:** Qualquer inclusão de um novo `tipo` de card, ou alteração no funcionamento de um dos listados abaixo (como adição/remoção de keys dentro dos objetos), **DEVE ser obrigatoriamente documentada e atualizada nesta exata seção deste arquivo (`copilot-instructions.md`)**. Este arquivo é a ÚNICA fonte de verdade.
 
-Atualmente, o sistema suporta **5 (cinco)** tipos distintos. Abaixo está a documentação completa da estrutura correspondente a cada um deles:
+Atualmente, o sistema suporta **4 (quatro)** tipos distintos. Abaixo está a documentação completa da estrutura correspondente a cada um deles:
 
 ### 1. `hino` (Hinários Tradicionais)
 
@@ -186,23 +185,7 @@ Responsável pelas leituras bíblicas isoladas durante o culto.
 
 - **Detalhe Principal**: Cada índice do array `texto` equivale tipicamente a um parágrafo/versículo que o operador pode avançar com as setas para a próxima tela do projetor.
 
-### 4. `mensagem` (Estrutura do Sermão)
-
-Modelo mais híbrido do sistema, projetado para a hora da pregação.
-
-```json
-{
-  "tipo": "mensagem",
-  "titulo": "Sermão do Monte",
-  "passagem": "Mateus 5.1-3",
-  "topicos": ["1. As Bem-Aventuranças", "2. Sal da terra e Luz do mundo"],
-  "texto": ["Vendo Jesus as multidões, subiu ao monte..."]
-}
-```
-
-- Exibe o Título do Sermão, permite intercalar seus `topicos` principais e ter o texto bíblico-base (`passagem` e `texto`). Na interface da TV/Projetor eles se intercalam inteligentemente baseados na transição de foco guiada pelo pregador.
-
-### 5. `coral` (Músicas do Coral)
+### 4. `coral` (Músicas do Coral)
 
 Funciona de forma idêntica ao `louvor`, mas os dados são gravados e lidos da tabela `coral` (SQLite) em vez de `louvores`. O campo que indexa o item no culto é `coral_id`.
 
@@ -259,7 +242,7 @@ Liturgia/
 | `POST` | `/dados/nova-liturgia`                | Cria arquivo `YYYY-MM-DD.json` vazio                                                                  |
 | `POST` | `/dados/salvar-liturgia`              | Persiste o conteúdo JSON de uma liturgia                                                              |
 | `POST` | `/dados/renomear-liturgia`            | Renomeia o arquivo `YYYY-MM-DD.json` (use: `{ de, para }`)                                            |
-| `POST` | `/formularios/:tipo`                  | Retorna fragmento HTML do formulário de cada tipo (`passagem`, `hino`, `louvor`, `mensagem`) |
+| `POST` | `/formularios/:tipo`                  | Retorna fragmento HTML do formulário de cada tipo (`passagem`, `hino`, `louvor`) |
 | `GET`  | `/formularios/pesquisar-louvor`       | Busca música por título (modal de pesquisa externa)                                                   |
 | `GET`  | `/formularios/pesquisar-louvor-local` | Retorna lista de louvores ya existentes nos cultos + HTML da UI                                       |
 | `GET`  | `/formularios/pesquisar-hino-local`   | Retorna lista de hinos já existentes nos cultos + HTML da UI                                          |
@@ -278,7 +261,7 @@ Os JSONs de liturgia são gravados em **`Liturgia/cultos/`** — dentro do próp
 Layout SPA em 3 colunas:
 
 1. **Lista de liturgias** — arquivos JSON existentes. Botão `+` cria nova liturgia com prompt de data.
-2. **Itens da liturgia** — lista dos itens do culto selecionado. Dropdown `+` permite adicionar `Passagem`, `Hino`, `Louvor` ou `Mensagem`.
+2. **Itens da liturgia** — lista dos itens do culto selecionado. Dropdown `+` permite adicionar `Passagem`, `Hino`, `Louvor` ou `Coral`.
 3. **Formulário de edição** — carregado via AJAX (`/formularios/:tipo`); exibe campos adequados ao tipo selecionado.
 
 ### Convenções do módulo
@@ -300,7 +283,6 @@ As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quant
 | `hino`     | `#3d1f6d`         | `#5b2d99`               | `#e0d0ff` |
 | `louvor`   | `#1a5632`         | `#23784a`               | `#c8f0d4` |
 | `passagem` | `#14506e`         | `#1a6d96`               | `#c4e3f5` |
-| `mensagem` | `#7a2517`         | `#a43220`               | `#fdd8d2` |
 | `coral`    | `#5c3200`         | `#7e4600`               | `#ffe5c8` |
 
 ### Forma de trabalho no módulo Liturgia
@@ -319,7 +301,7 @@ As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quant
 
 - Manter a estrutura de tags customizadas HTML — não converter para divs semânticas.
 - O conteúdo do `corpo` é transmitido via `encodeURI()` e decodificado com `decodeURI()` nas telas.
-- A variável `atual` (cena OBS ativa) controla se passagens bíblicas aparecem como conteúdo principal ou como rodapé dentro de `<mensagem>`.
+- A variável `atual` (cena OBS ativa) é monitorada para controles futuros.
 - `Televisao.js` é praticamente idêntico a `Projetor.js`, mas adiciona relógio via `Hora.php`. `LegendasAoVivo.js` é idêntico a `Legendas.js` com integração OBS direta.
 - Ao adicionar ou alterar um comportamento em `Projetor.js`, verificar se a mesma alteração se aplica a `Televisao.js`, `Legendas.js` e `LegendasAoVivo.js` — eles compartilham a mesma lógica base com variações pontuais.
 

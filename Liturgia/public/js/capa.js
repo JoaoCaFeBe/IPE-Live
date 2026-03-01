@@ -426,55 +426,6 @@ function bibliaBuscar() {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
-   MENSAGEM
-   ──────────────────────────────────────────────────────────────────────── */
-
-function mostraMensagem(codigo) {
-    codigo = codigo ?? $('#bodyLiturgia>ul>li.bg-warning').index();
-    movimentacao();
-    let mensagem = (codigo >= 0)
-        ? $.passarObjeto(Liturgia[codigo])
-        : { tipo: 'mensagem', titulo: '', passagem: '', topicos: [], texto: [] };
-
-    $.post('/formularios/mensagem', { mensagem: JSON.stringify(mensagem) })
-        .done(formulario => {
-            $('#bodyCorpo>*:not(#botoesLiturgia)').remove();
-            query('#bodyCorpo').insertAdjacentHTML('afterbegin', formulario);
-        })
-        .always(() => {
-            query('#headerCorpo>titulo').innerHTML = "<i class='fas fa-cross'></i>" + mensagem.titulo;
-            query('#cardCorpo').classList.remove('d-none');
-            $('#titulo').val(mensagem.titulo);
-            $('#passagem').val(mensagem.passagem);
-            $('#final').val(JSON.stringify(mensagem, undefined, 4));
-            $('#originalMsg').val('');
-            mensagem.topicos.forEach(l => {
-                $('#originalMsg').val($('#originalMsg').val() + l.replace(/<br[/]>/gi, '\n') + '\n');
-            });
-            $('#originalPas').val('');
-            mensagem.texto.forEach(l => {
-                $('#originalPas').val($('#originalPas').val() + '[' + l.replace('.', ']').replace(/<br[/]>/gi, '\n') + '\n');
-            });
-            $('#excluir').toggleClass('d-none', codigo < 0);
-        });
-}
-
-function arrumarMensagem() {
-    let mensagem = {
-        tipo: 'mensagem',
-        titulo: $('#titulo').val(),
-        passagem: $('#passagem').val(),
-        topicos: [],
-        texto: []
-    };
-    $('#originalMsg').val().replace(/\n/g, '|').split('|')
-        .forEach(l => { if (l.trim()) mensagem.topicos.push(l); });
-    $('#originalPas').val().trim().replace(/]/g, '.').replace(/\n/g, '').split('[')
-        .forEach(p => { if (p.trim()) mensagem.texto.push(p.trim()); });
-    $('#final').val(JSON.stringify(mensagem, undefined, 4));
-}
-
-/* ────────────────────────────────────────────────────────────────────────
    HINO
    ──────────────────────────────────────────────────────────────────────── */
 
@@ -633,6 +584,7 @@ function louvorAbrirEditor(tipo) {
         $('#titulo').val($('#modalEditTitulo').val());
         $('#original').val($('#modalEditLetra').val());
         tipo === 'coral' ? arrumarCoral() : arrumarLouvor();
+        salvar();
     };
     const botoes = {};
     if (tipo === 'louvor') {

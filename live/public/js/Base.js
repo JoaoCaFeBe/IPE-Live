@@ -9,7 +9,6 @@
  *   elementoConteudo : 'corpo' | 'rodape'   — elemento filho para louvor/passagem
  *   temAlerta        : true | false          — exibir alertas via bootbox
  *   delayEventos     : 0 | 1500             — delay no processamento de eventos
- *   limparNaMensagem : true | false          — limpar tela no obsSceneChanged='Mensagem'
  *   callbackFadeIn   : function | null       — callback após fadeIn de conteúdo
  *   aoIniciar        : function | null       — código extra executado em inicio()
  *   integracaoOBS    : true | false          — ativar integração direta com OBS
@@ -30,7 +29,6 @@ var telaCfg = window.telaCfg || {
     elementoConteudo: 'corpo',
     temAlerta: false,
     delayEventos: 0,
-    limparNaMensagem: true,
     callbackFadeIn: null,
     aoIniciar: null,
     integracaoOBS: false,
@@ -168,11 +166,7 @@ function _fecharJanela() {
 }
 
 function _fecharBiblia() {
-    if (atual === 'Mensagem') {
-        if ($('mensagem>rodape').is(':visible')) $('mensagem>rodape').fadeOut(200);
-    } else {
-        _fecharJanela();
-    }
+    _fecharJanela();
 }
 
 function _alerta(args) {
@@ -199,20 +193,7 @@ function _alerta(args) {
 
 function _obsSceneChanged(args) {
     atual = args;
-    if (telaCfg.limparNaMensagem || args !== 'Mensagem') {
-        _fecharJanela();
-    }
-}
-
-function _dadosMensagem(args) {
-    if (args == null || typeof args !== 'object') return;
-    $('mensagem>titulo').html(args.titulo);
-    $('mensagem>corpo').html("");
-    $('mensagem>corpo').append('<ol></ol>');
-    args.topicos.forEach((topico, indice) => {
-        $('mensagem>corpo>ol').append(`<li>${topico}</li>`);
-        if (indice + 1 === args.topicos.length) $('mensagem>corpo>ol>li').fadeOut();
-    });
+    _fecharJanela();
 }
 
 function _processarEvento(eventName, args) {
@@ -224,10 +205,6 @@ function _processarEvento(eventName, args) {
         _alerta(args);
     } else if (eventName === "obsSceneChanged") {
         _obsSceneChanged(args);
-    } else if (eventName === "pegarDadosMensagem") {
-        // ignorado nas telas
-    } else if (eventName === "dadosMensagem") {
-        _dadosMensagem(args);
     } else {
         processarConteudo(args);
     }
@@ -236,10 +213,6 @@ function _processarEvento(eventName, args) {
 // -----------------------------------------------------------------------------------------
 // Conexão e escuta de eventos
 // -----------------------------------------------------------------------------------------
-
-socket.on("connect", () => {
-    socket.emit(empresa, "pegarDadosMensagem");
-});
 
 socket.onAny((aplicativo, eventName, args) => {
     if (aplicativo === empresa) {
@@ -252,19 +225,13 @@ socket.onAny((aplicativo, eventName, args) => {
 });
 
 // -----------------------------------------------------------------------------------------
-// Processamento de conteúdo (louvor, passagem, mensagem)
+// Processamento de conteúdo (louvor, passagem)
 // -----------------------------------------------------------------------------------------
 
 function processarConteudo(conteudo) {
     let tipo;
     if (conteudo.tipo.includes("hino") || conteudo.tipo.includes("louvor") || conteudo.tipo.includes("coral")) tipo = "louvor";
     else tipo = conteudo.tipo;
-
-    if ((atual === 'Mensagem') && (tipo === 'passagem')) {
-        tipo = 'mensagem';
-        conteudo.corpo = conteudo.titulo + '.' + conteudo.corpo;
-        conteudo.titulo = 'passagem';
-    }
 
     let elem = telaCfg.elementoConteudo; // 'corpo' ou 'rodape'
     let cb = telaCfg.callbackFadeIn;     // callback opcional
@@ -297,35 +264,6 @@ function processarConteudo(conteudo) {
                 $(`body>${tipo}`).fadeIn(200, cb);
             });
         });
-    } else if (tipo === 'mensagem') {
-        if ($('mensagem').css('display') === 'none') {
-            $('body>*:not(mensagem)').fadeOut(200, function () {
-                $('mensagem').fadeIn(200, cb);
-            });
-        }
-        if (conteudo.titulo === 'topico') {
-            if (conteudo.status === true) {
-                $(`mensagem>corpo>ol>li:eq(${conteudo.indice})`).fadeIn(200);
-            } else {
-                $(`mensagem>corpo>ol>li:eq(${conteudo.indice})`).fadeOut(200);
-            }
-        } else if (conteudo.titulo === 'passagem') {
-            conteudo.corpo = decodeURI(conteudo.corpo);
-            conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
-            const rodapeMsg = document.querySelector('mensagem>rodape');
-            // Inserir conteúdo antes de agrupar para medir com o texto real
-            rodapeMsg.innerHTML = conteudo.corpo;
-            if (telaCfg.juntarLinhasEmPares) {
-                rodapeMsg.innerHTML = agruparLinhasEmPares(conteudo.corpo, rodapeMsg);
-            }
-            if ($('mensagem>rodape').css('display') === 'none') {
-                $('mensagem>rodape').fadeIn(200, cb);
-            }
-        } else if (conteudo.titulo === 'limpaPassagem') {
-            if ($('mensagem>rodape').html(conteudo.corpo).css('display') !== 'none') {
-                $('mensagem>rodape').fadeOut(200, cb);
-            }
-        }
     }
 }
 
@@ -343,17 +281,12 @@ const inicio = () => {
     if (telaCfg.integracaoOBS && typeof window.obsstudio !== "undefined") {
         window.addEventListener('obsSceneChanged', function (event) {
             socket.emit(empresa, 'obsSceneChanged', event.detail.name);
-            if (event.detail.name === 'Mensagem') {
-                $('body>*:not(mensagem)').fadeOut(200, function () {
-                    $('mensagem').fadeIn(200);
-                });
-            }
         });
     }
 
     // Scroll em dispositivos móveis
     if (/android|ipad|iphone|ipod/i.test(navigator.userAgent.toLowerCase())) {
-        $('body>*:not(#mensagem)').addClass('scrollJC');
+        $('body>*').addClass('scrollJC');
     }
 
     // Código extra específico da tela

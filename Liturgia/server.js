@@ -636,25 +636,6 @@ app.post("/formularios/coral", (_req, res) => {
 </texto>`);
 });
 
-app.post("/formularios/mensagem", (_req, res) => {
-  res.send(/* html */ `
-<div>
-  <input type="text" class="form-control" id="titulo" placeholder="Digite o título"
-    style="background-color:bisque;margin-bottom:.225rem;" oninput="arrumarMensagem();">
-  <input type="text" class="form-control" id="passagem" placeholder="Digite a passagem"
-    style="background-color:bisque;" oninput="arrumarMensagem();">
-</div>
-<texto style="display:grid;grid-template-columns:1fr 1fr;grid-column-gap:.25rem;overflow:hidden;">
-  <textarea class="form-control h-100" id="originalMsg"
-    placeholder="Tópicos — um por linha" oninput="arrumarMensagem();" style="resize:none;"></textarea>
-  <textarea class="form-control h-100" id="originalPas"
-    placeholder="Cole o texto bíblico aqui" oninput="arrumarMensagem();" style="resize:none;"></textarea>
-  <textarea id="final" style="display:none;"></textarea>
-</texto>`);
-});
-
-
-
 app.post("/formularios/pesquisar-louvor", (req, res) => {
   const titulo = escHtml(req.body.titulo || "");
   res.send(/* html */ `

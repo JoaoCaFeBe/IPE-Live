@@ -107,8 +107,7 @@ input::-webkit-inner-spin-button {
 
 #passagens .btn-group-vertical>label.btn,
 #passagens .btn-group-vertical>.btn,
-.accordion-item[tipo="passagem"] .btn-group-vertical>label.btn,
-#mensagemPassagens>label.btn {
+.accordion-item[tipo="passagem"] .btn-group-vertical>label.btn {
     text-align: left !important;
     justify-content: flex-start;
 }

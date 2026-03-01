@@ -5,14 +5,11 @@ var query = document.querySelector.bind(document),
     queryName = document.getElementsByName.bind(document),
     socket = io(servidor, { transports: ["polling", "websocket"] }),
     tzoffset = (new Date()).getTimezoneOffset() * 60000,
-    arquivo = (new Date(Date.now() - tzoffset)).toISOString().split('T')[0],
-    culto;
+    arquivo = (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
 
 socket.onAny((aplicativo, eventName, args) => {
     if (aplicativo === empresa) {
-        if (eventName === "pegarDadosMensagem") {
-            if (culto) socket.emit(empresa, "dadosMensagem", culto);
-        } else if ((painelOBS) && (eventName === "obsSceneChanged")) {
+        if ((painelOBS) && (eventName === "obsSceneChanged")) {
             $('body>div:not(.form-check):not(.biblia)').hide();
             $('.accordion-button:not(.collapsed)').addClass('collapsed');
             $('.accordion-collapse.show').removeClass('show');
@@ -22,8 +19,6 @@ socket.onAny((aplicativo, eventName, args) => {
                 $('body>#louvores').show();
             } else if (args.toUpperCase().includes("PASSAGEM")) {
                 $('body>#passagens').show();
-            } else if (args.toUpperCase().includes("MENSAGEM")) {
-                $('body>#mensagens').show();
             }
         }
     }
@@ -51,7 +46,7 @@ const inicio = () => {
 
     $.getJSON(`${cultosUrl}/${arquivo}.json`)
         .done(definicoes => {
-            let hino = 0, louvor = 0, passagem = 0, contMensagem = 0;
+            let hino = 0, louvor = 0, passagem = 0;
             definicoes.forEach(definicao => {
                 switch (definicao.tipo) {
                     case 'hino':
@@ -301,47 +296,6 @@ const inicio = () => {
                                     `);
                         });
                         break;
-                    case 'mensagem':
-                        contMensagem++;
-                        culto = definicao;
-                        socket.emit(empresa, "dadosMensagem", culto);
-                        if (contMensagem == 1) $("body").append(`<div id="mensagens" class="accordion accordion-flush"></div>`);
-                        $("#mensagens").append(`<div class="accordion-item" tipo="mensagem">
-                                                            <h2 class="accordion-header" id="mensagem${contMensagem}">
-                                                                <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseMensagem${contMensagem}" aria-expanded="true" aria-controls="colapseMensagem${contMensagem}">
-                                                                    <i class="fa-solid fa-cross"></i>&nbsp;${definicao.titulo}
-                                                                </button>
-                                                            </h2>
-                                                            <div id="colapseMensagem${contMensagem}" class="accordion-collapse collapse" aria-labelledby="${contMensagem}" data-bs-parent="#mensagens">
-                                                                <div class="accordion-body p-1">
-                                                                    
-                                                                </div>
-                                                            </div>
-                                                        </div>`);
-
-                        $(`#colapseMensagem${contMensagem} .accordion-body`).append(`<div class="btn-group-vertical w-100" role="group" aria-label="Vertical button group" id="mensagemTopicos"></div>`);
-                        definicao.topicos.forEach((valor, indice) => $(`#colapseMensagem${contMensagem} .accordion-body #mensagemTopicos`)
-                            .append(`
-                                        <input type="checkbox" class="btn-check" name="btnMensagemTopico${contMensagem}" id="btnMensagemTopico${contMensagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-secondary text-truncate" for="btnMensagemTopico${contMensagem}${indice}">${valor}</label>
-                                    `)
-                        );
-
-                        $(`#colapseMensagem${contMensagem} .accordion-body`).append(`<div class="btn-group-vertical w-100" role="group" aria-label="Vertical button group" id="mensagemPassagens"></div>`);
-                        $(`#colapseMensagem${contMensagem} .accordion-body #mensagemPassagens`)
-                            .append(`
-                                        <input type="radio" class="btn-check" name="btnMensagemPassagem${contMensagem}" id="btnMensagemPassagem${contMensagem}" titulo="" autocomplete="off">
-                                        <label class="btn btn-warning text-truncate" for="btnMensagemPassagem${contMensagem}">${definicao.passagem}</label>
-                                    `);
-                        definicao.texto.forEach((valor, indice) => {
-                            const versiculoExibicao = formatarVersiculoParaExibicao(valor);
-                            $(`#colapseMensagem${contMensagem} .accordion-body #mensagemPassagens`)
-                                .append(`
-                                        <input type="radio" class="btn-check" name="btnMensagemPassagem${contMensagem}" id="btnMensagemPassagem${contMensagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                        <label class="btn btn-secondary text-truncate" for="btnMensagemPassagem${contMensagem}${indice}">${versiculoExibicao}</label>
-                                    `);
-                        });
-                        break;
                     default:
                         console.log(`Codigo errado em ${definicao.tipo}`);
                 }
@@ -374,7 +328,7 @@ const inicio = () => {
                 });
             });
 
-            queryAll('.accordion:not(#mensagens) .btn-group-vertical>input[type="radio"]').forEach(button => {
+            queryAll('.accordion .btn-group-vertical>input[type="radio"]').forEach(button => {
                 button.addEventListener('change', function () {
                     this.nextElementSibling.style.color = 'yellow';
                     if (this.nextElementSibling.innerHTML === 'Título') {
@@ -391,32 +345,6 @@ const inicio = () => {
                         const corpoCompleto = this.getAttribute('corpo') ? decodeURIComponent(this.getAttribute('corpo')) : this.nextElementSibling.innerHTML;
                         socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: this.getAttribute('titulo'), corpo: encodeURI(corpoCompleto) });
                     }
-                })
-            });
-
-            queryAll('#mensagens .btn-group-vertical>input[type="radio"]').forEach(button => {
-                button.addEventListener('change', function () {
-                    if (this.nextElementSibling.classList.contains('btn-warning')) {
-                        socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: 'limpaPassagem' });
-                    } else {
-                        socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: 'passagem', corpo: encodeURI(this.nextElementSibling.innerHTML) });
-                    }
-                })
-                button.addEventListener('dblclick', function () {
-                    if (this.nextElementSibling.classList.contains('btn-warning')) {
-                        socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: 'limpaPassagem' });
-                    } else {
-                        socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: 'passagem', corpo: encodeURI(this.nextElementSibling.innerHTML) });
-                    }
-                })
-            });
-
-            queryAll('.btn-group-vertical>input[type="checkbox"]').forEach((button, index) => {
-                button.addEventListener('change', function () {
-                    socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: 'topico', corpo: this.getAttribute('titulo'), indice: index, status: this.checked });
-                })
-                button.addEventListener('dblclick', function () {
-                    socket.emit(empresa, $(this).parents('.accordion-item').attr('tipo'), { tipo: $(this).parents('.accordion-item').attr('tipo'), titulo: 'topico', corpo: this.getAttribute('titulo'), indice: index, status: this.checked });
                 })
             });
 
