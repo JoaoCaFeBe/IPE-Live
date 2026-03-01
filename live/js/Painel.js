@@ -68,16 +68,58 @@ const inicio = () => {
                                         <label class="btn btn-warning" for="btnHino${hino}">Título</label>
                                     `);
                         definicao.letra.forEach((valor, indice) => {
-                            let cor = 'btn-secondary';
-                            if (valor.includes('refrao:')) {
-                                valor = valor.replace('refrao:', '');
-                                cor = 'btn-info';
-                            }
-                            $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
-                                .append(`
-                                            <input type="radio" class="btn-check" name="btnHino${hino}" id="btnHino${hino}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                            <label class="btn ${cor}" for="btnHino${hino}${indice}">${valor}</label>
-                                        `);
+                            // Separar por <br/> e processar cada linha
+                            const linhas = valor.split(/<br\s*\/?>/gi);
+                            let grupoLinhas = [];
+                            
+                            linhas.forEach((linha) => {
+                                linha = linha.trim();
+                                if (!linha) return; // ignorar linhas vazias
+                                grupoLinhas.push(linha);
+                            });
+                            
+                            // Agrupar linhas: quando encontra {st}, agrupa tudo até o próximo {st} como um botão
+                            let grupos = [];
+                            let grupoAtual = [];
+                            
+                            grupoLinhas.forEach(linha => {
+                                const stMatch = linha.match(/^\{st\}(.+?)\{\/st\}$/);
+                                if (stMatch) {
+                                    if (grupoAtual.length > 0) {
+                                        grupos.push(grupoAtual);
+                                        grupoAtual = [];
+                                    }
+                                    grupoAtual.push({ tipo: 'cantor', texto: stMatch[1] });
+                                } else {
+                                    grupoAtual.push({ tipo: 'verso', texto: linha });
+                                }
+                            });
+                            if (grupoAtual.length > 0) grupos.push(grupoAtual);
+                            
+                            // Criar um botão para cada grupo
+                            grupos.forEach((grupo, grupoIdx) => {
+                                let cor = 'btn-secondary';
+                                let textoCompleto = [];
+                                let temCantor = false;
+                                
+                                grupo.forEach(item => {
+                                    if (item.tipo === 'cantor') {
+                                        textoCompleto.push(`<strong>${item.texto}</strong>`);
+                                        temCantor = true;
+                                    } else {
+                                        if (item.texto.includes('refrao:')) {
+                                            cor = 'btn-info';
+                                            item.texto = item.texto.replace('refrao:', '');
+                                        }
+                                        textoCompleto.push(item.texto);
+                                    }
+                                });
+                                
+                                let botaoTexto = textoCompleto.join('<br/>');
+                                let botaoId = `btnHino${hino}_${indice}_${grupoIdx}`;
+                                $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
+                                    .append(`<input type="radio" class="btn-check" name="btnHino${hino}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor}" for="${botaoId}">${botaoTexto}</label>`);
+                            });
                         });
                         break;
                     case 'louvor':
@@ -104,16 +146,56 @@ const inicio = () => {
                                         <label class="btn btn-warning" for="btnLouvor${louvor}">Título</label>
                                     `);
                         definicao.letra.forEach((valor, indice) => {
-                            let cor = 'btn-secondary';
-                            if (valor.includes('refrao:')) {
-                                valor = valor.replace('refrao:', '');
-                                cor = 'btn-info';
-                            }
-                            $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)
-                                .append(`
-                                            <input type="radio" class="btn-check" name="btnLouvor${louvor}" id="btnLouvor${louvor}${indice}" titulo="${definicao.titulo}" autocomplete="off">
-                                            <label class="btn ${cor}" for="btnLouvor${louvor}${indice}">${valor}</label>
-                                        `);
+                            // Separar por <br/> e processar cada linha
+                            const linhas = valor.split(/<br\s*\/?>/gi);
+                            let grupoLinhas = [];
+                            
+                            linhas.forEach((linha) => {
+                                linha = linha.trim();
+                                if (!linha) return; // ignorar linhas vazias
+                                grupoLinhas.push(linha);
+                            });
+                            
+                            // Agrupar linhas: quando encontra {st}, agrupa tudo até o próximo {st} como um botão
+                            let grupos = [];
+                            let grupoAtual = [];
+                            
+                            grupoLinhas.forEach(linha => {
+                                const stMatch = linha.match(/^\{st\}(.+?)\{\/st\}$/);
+                                if (stMatch) {
+                                    if (grupoAtual.length > 0) {
+                                        grupos.push(grupoAtual);
+                                        grupoAtual = [];
+                                    }
+                                    grupoAtual.push({ tipo: 'cantor', texto: stMatch[1] });
+                                } else {
+                                    grupoAtual.push({ tipo: 'verso', texto: linha });
+                                }
+                            });
+                            if (grupoAtual.length > 0) grupos.push(grupoAtual);
+                            
+                            // Criar um botão para cada grupo
+                            grupos.forEach((grupo, grupoIdx) => {
+                                let cor = 'btn-secondary';
+                                let textoCompleto = [];
+                                
+                                grupo.forEach(item => {
+                                    if (item.tipo === 'cantor') {
+                                        textoCompleto.push(`<strong>${item.texto}</strong>`);
+                                    } else {
+                                        if (item.texto.includes('refrao:')) {
+                                            cor = 'btn-info';
+                                            item.texto = item.texto.replace('refrao:', '');
+                                        }
+                                        textoCompleto.push(item.texto);
+                                    }
+                                });
+                                
+                                let botaoTexto = textoCompleto.join('<br/>');
+                                let botaoId = `btnLouvor${louvor}_${indice}_${grupoIdx}`;
+                                $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)
+                                    .append(`<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor}" for="${botaoId}">${botaoTexto}</label>`);
+                            });
                         });
                         break;
                     case 'passagem':

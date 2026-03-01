@@ -13,7 +13,8 @@ body {
 .btn-group-vertical>label {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap !important;
+    white-space: normal !important;
+    word-wrap: break-word;
 }
 
 homens {
