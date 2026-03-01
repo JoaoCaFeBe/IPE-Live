@@ -2,7 +2,7 @@
  * capa.js — módulo de liturgia adaptado para Express (Node.js)
  *
  * Adaptações em relação ao original PHP:
- *  - inicio() carrega a lista de cultos via GET /cultos
+ *  - inicio() carrega a lista de cultos via GET /Cultos
  *  - Todas as chamadas a Dados/*.php → /dados/*
  *  - Todas as chamadas a formularios/*.php → /formularios/*
  *  - Sem iframe: baixarArquivo() acessa Liturgia diretamente
@@ -28,7 +28,7 @@ function inicio() {
     // Duplo clique na lista de liturgias para renomear
     $('#listaLiturgias').on('dblclick', 'li', function () { renomearLiturgia(this); });
 
-    $.getJSON('/cultos')
+    $.getJSON('/Cultos')
         .done(arquivos => {
             const $ul = $('#listaLiturgias');
             $ul.empty();
@@ -139,7 +139,7 @@ function abreLiturgia(arquivo) {
     // Exibe o botão de download na navbar
     document.getElementById('itemBaixar').classList.remove('d-none');
 
-    $.getJSON('/cultos/' + arquivo + '?' + formatDate())
+    $.getJSON('/Cultos/' + arquivo + '?' + formatDate())
         .done(retorno => {
             Liturgia = retorno;
             $('#bodyLiturgia>ul').html('');

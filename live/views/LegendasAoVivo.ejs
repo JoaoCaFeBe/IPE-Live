@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> -->
+    <!-- ---------------------------------------------------------------------------------- -->
+    <%- include('includes/bibliotecas.ejs') %>
+        <!-- ---------------------------------------------------------------------------------- -->
+        <title>Legendas</title>
+        <link rel="stylesheet" href="css/Legendas.css?v=<%= new Date().getTime() %>">
+        <script src="js/Base.js?v=<%= new Date().getTime() %>"></script>
+        <script src="js/LegendasAoVivo.js?v=<%= new Date().getTime() %>"></script>
+        <!-- ---------------------------------------------------------------------------------- -->
+</head>
+
+<body onload="$(`body>*`).fadeOut(); inicio();">
+    <passagem>
+        <titulo></titulo>
+        <corpo></corpo>
+        <rodape></rodape>
+    </passagem>
+    <louvor>
+        <titulo></titulo>
+        <corpo></corpo>
+        <rodape></rodape>
+    </louvor>
+    <mensagem id="mensagem">
+        <titulo></titulo>
+        <corpo></corpo>
+        <rodape></rodape>
+    </mensagem>
+
+</body>
+
+</html>

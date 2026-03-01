@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- ---------------------------------------------------------------------------------- -->
+    <%- include('includes/bibliotecas.ejs') %>
+        <!-- ---------------------------------------------------------------------------------- -->
+        <title>
+            <%= nomeLivro %>
+                <%= capitulo %>
+        </title>
+        <link rel="stylesheet" href="css/Painel.css">
+        <script src="js/Biblia.js"></script>
+        <!-- ---------------------------------------------------------------------------------- -->
+</head>
+
+<body class="p-1 bg-dark container-fluid scrollJC" onload="inicio();"
+    style="height:800px!important;overflow-y:auto!important;">
+    <div class="btn-group-vertical" role="group" aria-label="Vertical button group"
+        style='width:100%; display:block!important;'>
+        <% versiculos.forEach((v, i)=> { %>
+            <input type='radio' class='btn-check' name='btnPassagem' id='btnPassagem<%= i %>'
+                titulo='<%= v.name %> <%= capitulo %>' autocomplete='off'>
+            <label class='btn btn-secondary text-start'
+                style='text-overflow:unset!important;white-space:normal!important;' for='btnPassagem<%= i %>'>
+                <%= v.verse %>. <%= v.text %>
+            </label>
+            <% }); %>
+    </div>
+</body>
+
+</html>

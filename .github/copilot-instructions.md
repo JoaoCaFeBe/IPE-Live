@@ -13,7 +13,7 @@ O fluxo de dados segue este ciclo:
 
 ```ascii
 [PÚBLICO / INTERNET]             [SINCRONIZAÇÃO/FS]                   [SERVIDOR LOCAL DA IGREJA]
-  Liturgia/ (Node.js)                                                   live/Painel.php (PHP)
+  Liturgia/ (Node.js)                                                   Live/Painel.php (PHP)
   Criação do Culto      ───grava──▶  Liturgia/cultos/   ◀───lê───    Lê JSON do culto
          │                              YYYY-MM-DD.json                         │
          │                                                                   socket.emit
@@ -37,16 +37,16 @@ O fluxo de dados segue este ciclo:
 - **Integração Liturgia → Local**
   - O arquivo gerado online fica disponível para o sistema local (provavelmente mapeado por sincronização de nuvem / Cloud Docs ou network drive). O PHP (em `live`) acessa esses arquivos na própria estrutura do sistema.
 
-- **`live/` (Controle e Exibição Local - PHP)**
+- **`Live/` (Controle e Exibição Local - PHP)**
   - Hospedado no servidor multimidia da igreja (localhost do templo).
   - **`Painel.php`**: É o "cérebro" do operador local. Ele busca a liturgia do dia na URL configurada (variável `$CULTOS_URL` no `.env` que aponta para a pasta pública) e constrói um painel de controle (accordions com hinos, músicas e bíblias).
   - **`Projetor.php` e `Televisao.php`**: Ficam nos telões e TVs de retorno no salão, aguardando ordens do Painel.
   - **`Legendas.php` e `LegendasAoVivo.php`**: Executados pelo Browser Source do OBS Studio. Adaptados visualmente (fundo verde/chroma e transparências) para servir como lower-thirds e placares na transmissão.
-  - **`Biblia.php` e `dados.php`**: Como o ambiente local é focado em exibição e não dependente da internet, ele tem seus próprios bancos SQLite na pasta `live/Biblias/` para o operador conseguir puxar versículos na hora de forma independente através do recurso (Popup "Bíblico" no Painel).
+  - **`Biblia.php` e `dados.php`**: Como o ambiente local é focado em exibição e não dependente da internet, ele tem seus próprios bancos SQLite na pasta `Live/Biblias/` para o operador conseguir puxar versículos na hora de forma independente através do recurso (Popup "Bíblico" no Painel).
 
 - **`Chat.JS/` (Servidor de Streaming Interno)**
   - Servidor Node.js embutido de baixo consumo rodando Socket.IO na porta local (3000).
-  - Atua apenas como _broadcast router_. Todos os cliques e seleções que o operador faz no `live/Painel.php` acionam um evento que passa pelo `Chat.JS/index.js` e é reemitido obrigatoriamente para as telas (`Projetor.php`, etc.).
+  - Atua apenas como _broadcast router_. Todos os cliques e seleções que o operador faz no `Live/Painel.php` acionam um evento que passa pelo `Chat.JS/index.js` e é reemitido obrigatoriamente para as telas (`Projetor.php`, etc.).
 
 - **`Audio/` (Experimental)**
   - Painel de monitoramento do áudio que usa OBS WebSockets. Ainda não está no pipeline base.
@@ -69,8 +69,8 @@ Eles se completam. Não presuma que mudanças em um lado afetam o outro magicame
 
 ## Dados e Bancos
 
-- **`live/Biblias/*.sqlite`** — 14 versões da Bíblia. Tabelas: `book(id, name)`, `verse(book_id, chapter, verse, text)`. A versão ativa é guardada em `$_SESSION['biblia']`.
-- **`live/Hinarios/*.sqlite`** — 4 hinários (Cantor Cristão, Harpa Cristã, etc.).
+- **`Live/Biblias/*.sqlite`** — 14 versões da Bíblia. Tabelas: `book(id, name)`, `verse(book_id, chapter, verse, text)`. A versão ativa é guardada em `$_SESSION['biblia']`.
+- **`Live/Hinarios/*.sqlite`** — 4 hinários (Cantor Cristão, Harpa Cristã, etc.).
 - **`Liturgia/cultos/YYYY-MM-DD.json`** — Definição do culto do dia (localização canônica). Array de objetos com `tipo` (`hino`, `louvor`, `passagem`, `mensagem`, `extra`) e campos como `titulo`, `letra[]`, `texto[]`, `topicos[]`, `passagem`. Ignorados pelo Git (apenas `.gitkeep`). O PHP acessa via variável `$CULTOS_URL` do `.env`; o JS acessa via `cultosUrl` injetado por `bibliotecas.php`.
 
 ## Comunicação Socket.IO
@@ -93,7 +93,7 @@ Eventos principais:
 - **Idioma**: código e variáveis em português (`titulo`, `corpo`, `empresa`, `servidor`, `rodape`).
 - **HTML customizado**: as telas usam tags não-padrão como `<passagem>`, `<louvor>`, `<mensagem>`, `<titulo>`, `<corpo>`, `<rodape>` — estilizadas via CSS. Não substituir por `<div>`.
 - **jQuery + vanilla JS**: toda manipulação de DOM usa jQuery (`$()`) junto com helpers `query/queryAll/queryId`. Animações com `fadeIn(200)` / `fadeOut(200)`.
-- **Bibliotecas locais**: tudo em `live/Bibliotecas/` (Bootstrap 5, jQuery, Font Awesome, Socket.IO client, Bootbox, Animate.css). Sem CDN, sem bundler, sem npm no frontend.
+- **Bibliotecas locais**: tudo em `Live/Bibliotecas/` (Bootstrap 5, jQuery, Font Awesome, Socket.IO client, Bootbox, Animate.css). Sem CDN, sem bundler, sem npm no frontend.
 - **Caminhos Windows-style**: nos `src/href` do PHP usa-se `\` (backslash) — ex.: `Bibliotecas\jquery.min.js`. Manter este padrão nos arquivos PHP.
 - **Sem framework backend**: PHP puro, sem autoload, sem Composer. `dados.php` é incluído via `include_once`.
 - **Parâmetro query string como flag**: `Painel.php?painelOBS` e `Projetor.php?telaPrincipal` — o `array_key_first($_GET)` extrai a flag, que altera comportamento no JS (modo OBS, alertas).
@@ -108,7 +108,7 @@ O servidor escuta em `0.0.0.0:3000`.
 
 ### Configuração via `.env`
 
-Todas as variáveis de ambiente ficam em **`live/.env`** (ignorado pelo Git; commitar apenas `live/.env.example`). O arquivo é lido por `live/config.php` (usa `vlucas/phpdotenv` ou `parse_ini_file`) e os valores são injetados como variáveis JS globais por `live/includes/bibliotecas.php`.
+Todas as variáveis de ambiente ficam em **`Live/.env`** (ignorado pelo Git; commitar apenas `Live/.env.example`). O arquivo é lido por `Live/config.php` (usa `vlucas/phpdotenv` ou `parse_ini_file`) e os valores são injetados como variáveis JS globais por `Live/includes/bibliotecas.php`.
 
 Variáveis disponíveis:
 
@@ -116,7 +116,7 @@ Variáveis disponíveis:
 | ------------------ | ------------------------------------------------ | -------------------- |
 | `SOCKET_SERVER`    | Endereço `host:porta` do servidor Socket.IO      | `10.0.0.253:3000`    |
 | `SOCKET_NAMESPACE` | Namespace Socket.IO                              | `IPE.Transmissão`    |
-| `CULTOS_URL`       | Caminho (relativo ao `live/`) dos JSONs de culto | `../Liturgia/cultos` |
+| `CULTOS_URL`       | Caminho (relativo ao `Live/`) dos JSONs de culto | `../Liturgia/cultos` |
 
 No PHP: `$SOCKET_SERVER`, `$SOCKET_NAMESPACE`, `$CULTOS_URL`. No JS (via `bibliotecas.php`): `servidor`, `empresa`, `cultosUrl`.
 
@@ -228,7 +228,7 @@ Modelo mais híbrido do sistema, projetado para a hora da pregação.
 
 ## Módulo Liturgia (Editor)
 
-Aplicação **Node.js/Express** independente localizada em `Liturgia/`. Seu propósito é criar e editar os arquivos JSON de liturgia que o `live/Painel.php` consome.
+Aplicação **Node.js/Express** independente localizada em `Liturgia/`. Seu propósito é criar e editar os arquivos JSON de liturgia que o `Live/Painel.php` consome.
 
 ### Iniciar
 
@@ -271,7 +271,7 @@ Os JSONs de liturgia são gravados em **`Liturgia/cultos/`** — dentro do próp
 
 ### Compartilhamento de bibliotecas
 
-- `/lib` → `IPE/lib/` (Bootstrap, jQuery, Font Awesome, Bootbox — mesmas versões do `live/Bibliotecas/`)
+- `/lib` → `IPE/lib/` (Bootstrap, jQuery, Font Awesome, Bootbox — mesmas versões do `Live/Bibliotecas/`)
 - `/img` → `IPE/.img/` (logomarca etc.)
 
 ### Interface (`public/`)
@@ -294,7 +294,7 @@ Layout SPA em 3 colunas:
 
 ### Identidade visual por tipo
 
-As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quanto nos accordions do `live/Painel.css`. Ao criar ou editar elementos visuais associados a tipos, manter esta paleta:
+As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quanto nos accordions do `Live/Painel.css`. Ao criar ou editar elementos visuais associados a tipos, manter esta paleta:
 
 | Tipo       | Fundo (recolhido) | Fundo (expandido/ativo) | Texto     |
 | ---------- | ----------------- | ----------------------- | --------- |
