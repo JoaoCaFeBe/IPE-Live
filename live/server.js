@@ -20,6 +20,11 @@ app.locals.SOCKET_SERVER = process.env.SOCKET_SERVER || "http://localhost:3000";
 app.locals.SOCKET_NAMESPACE = process.env.SOCKET_NAMESPACE || "IPE.Transmissão";
 app.locals.CULTOS_URL = process.env.CULTOS_URL || "/Liturgia/cultos";
 
+// OBS WebSocket (usado pelo monitor de áudio)
+app.locals.obsWsHost = process.env.OBS_WS_HOST || "localhost";
+app.locals.obsWsPort = process.env.OBS_WS_PORT || "4455";
+app.locals.obsWsPass = process.env.OBS_WS_PASS || "";
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -138,6 +143,9 @@ app.get("/Televisao", (req, res) => {
 app.get("/Legendas", (req, res) => res.render("Legendas"));
 app.get("/LegendasAoVivo", (req, res) => res.render("LegendasAoVivo"));
 
+// 5. Monitor de Áudio (OBS WebSocket)
+app.get("/Audio", (req, res) => res.render("Audio"));
+
 // 4. API Utilitária: Retornar Relógio Servidor
 app.get(["/Hora.php", "/Hora"], (req, res) => {
   const data = new Date();
@@ -186,5 +194,6 @@ http.listen(PORT, "0.0.0.0", () => {
   console.log(`=========================================`);
   console.log(`🚀 IPE Live Back-end Rodando na porta ${PORT}`);
   console.log(`🖥️  Acesse: http://localhost:${PORT}/Painel`);
+  console.log(`🎚️  Áudio:  http://localhost:${PORT}/Audio`);
   console.log(`=========================================`);
 });

@@ -11,6 +11,10 @@ Liturgia/cultos/*
 # Backups
 **/*.bak
 
+# Arquivos temporários criados pela IA (devem ser excluídos após o uso)
+**/.tmp_*
+.tmp_*
+
 # macOS
 .DS_Store
 **/.DS_Store

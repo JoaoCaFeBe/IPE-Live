@@ -326,3 +326,16 @@ As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quant
 - A variável `atual` (cena OBS ativa) controla se passagens bíblicas aparecem como conteúdo principal ou como rodapé dentro de `<mensagem>`.
 - `Televisao.js` é praticamente idêntico a `Projetor.js`, mas adiciona relógio via `Hora.php`. `LegendasAoVivo.js` é idêntico a `Legendas.js` com integração OBS direta.
 - Ao adicionar ou alterar um comportamento em `Projetor.js`, verificar se a mesma alteração se aplica a `Televisao.js`, `Legendas.js` e `LegendasAoVivo.js` — eles compartilham a mesma lógica base com variações pontuais.
+
+---
+
+## Arquivos Temporários
+
+> ⚠️ **INSTRUÇÃO OBRIGATÓRIA PARA A IA:** Todo arquivo criado para fins temporários — diagnóstico, análise de dados, migração, teste, script pontual, verificação ou qualquer outra finalidade que **não** seja parte permanente do projeto — **DEVE ser excluído imediatamente após o uso**, ainda dentro da mesma sessão de trabalho.
+
+### Regras
+
+1. **Criação com nome explicitamente temporário**: prefixar sempre com `.tmp_` (ex.: `.tmp_normalizar_titulos.py`, `.tmp_diagnostico.sql`). Isso torna a intenção inequívoca e facilita limpeza em lote se necessário.
+2. **Exclusão imediata**: ao final da operação para a qual o arquivo foi criado, executar `rm -f <arquivo>` ou `rm -rf <pasta>` antes de encerrar a tarefa.
+3. **Nunca commitar**: arquivos `.tmp_*` estão cobertos pelo `.gitignore` raiz — confirmar que a regra `**/.tmp_*` ou equivalente esteja presente antes de criar qualquer temporário.
+4. **Sem exceções**: mesmo que o arquivo ainda possa "ser útil depois", não deixar no workspace. Se a lógica for relevante para o projeto, incorporá-la ao código permanente apropriado em vez de manter um script solto.

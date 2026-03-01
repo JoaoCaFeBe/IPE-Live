@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Monitor de Áudio — IPE Live</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="stylesheet" href="Bibliotecas/bootstrap.min.css">
+    <link rel="stylesheet" href="Bibliotecas/fontawesome.min.css">
+    <link rel="stylesheet" href="Bibliotecas/all.min.css">
+    <style>
+        :root {
+            --bg: #111316;
+            --surface: #1c1f24;
+            --border: #2e3138;
+            --text: #d0d4dc;
+            --text-muted: #6b7280;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --orange: #f97316;
+            --red: #ef4444;
+            --peak-line: #ff6060;
+            --connected: #22c55e;
+            --connecting: #eab308;
+            --disconnected: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        /* ── Barra de topo ── */
+        #topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 18px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            height: 54px;
+            gap: 12px;
+        }
+
+        #topbar .title {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            color: #fff;
+            white-space: nowrap;
+        }
+
+        #topbar .title small {
+            font-weight: 400;
+            color: var(--text-muted);
+            font-size: .75rem;
+            margin-left: 8px;
+        }
+
+        #status-badge {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: .78rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, .3);
+            border: 1px solid var(--border);
+            white-space: nowrap;
+            transition: color .3s;
+        }
+
+        #status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--disconnected);
+            transition: background .3s;
+            flex-shrink: 0;
+        }
+
+        #status-badge.connected #status-dot {
+            background: var(--connected);
+        }
+
+        #status-badge.connected {
+            color: var(--connected);
+        }
+
+        #status-badge.connecting #status-dot {
+            background: var(--connecting);
+        }
+
+        #status-badge.connecting {
+            color: var(--connecting);
+        }
+
+        #status-badge.disconnected #status-dot {
+            background: var(--disconnected);
+        }
+
+        #status-badge.disconnected {
+            color: var(--disconnected);
+        }
+
+        #obs-info {
+            font-size: .72rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* ── Área principal ── */
+        #main {
+            display: flex;
+            height: calc(100vh - 54px);
+            overflow: hidden;
+        }
+
+        /* ── Escala dB (lateral esquerda) ── */
+        #db-scale {
+            width: 42px;
+            flex-shrink: 0;
+            position: relative;
+            padding: 14px 0 36px 0;
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        #db-scale .tick {
+            position: absolute;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transform: translateY(-50%);
+        }
+
+        #db-scale .tick span {
+            font-size: .62rem;
+            color: var(--text-muted);
+            width: 26px;
+            text-align: right;
+            line-height: 1;
+        }
+
+        #db-scale .tick::after {
+            content: '';
+            display: block;
+            width: 6px;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ── Área de medidores ── */
+        #meters-area {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            padding: 14px 12px 0 12px;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        #meters-area::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        #meters-area::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        /* ── Aguardando conexão ── */
+        #empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            width: 100%;
+            color: var(--text-muted);
+            font-size: .9rem;
+            padding-bottom: 40px;
+        }
+
+        #empty-state i {
+            font-size: 2.5rem;
+            opacity: .3;
+        }
+
+        /* ── Coluna de canal (input) ── */
+        .meter-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            gap: 0;
+            min-width: 60px;
+        }
+
+        .meter-col .input-name {
+            font-size: .62rem;
+            color: var(--text-muted);
+            text-align: center;
+            max-width: 90px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 4px 2px 6px;
+            order: 3;
+        }
+
+        /* ── Pares L/R ── */
+        .channels-row {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+            order: 2;
+        }
+
+        /* ── Canal individual (L ou R) ── */
+        .channel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            gap: 3px;
+        }
+
+        .channel-label {
+            font-size: .58rem;
+            color: var(--text-muted);
+            order: 1;
+            line-height: 1;
+            padding-bottom: 2px;
+        }
+
+        .channel .db-readout {
+            font-size: .6rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-muted);
+            order: 3;
+            height: 14px;
+            line-height: 14px;
+            padding-bottom: 4px;
+        }
+
+        /* ── Barra VU ── */
+        .bar-wrap {
+            flex: 1;
+            width: 22px;
+            position: relative;
+            border-radius: 3px;
+            overflow: hidden;
+            order: 2;
+            /* Gradiente multizona: verde → amarelo → laranja → vermelho
+               mapeado para -60dB(0%) → 0dB(100%) */
+            background: linear-gradient(to top,
+                    #16a34a 0%,
+                    /* verde escuro    -60dB */
+                    #22c55e 50%,
+                    /* verde           -30dB */
+                    #a3e635 66.7%,
+                    /* verde-limão     -20dB */
+                    #eab308 80%,
+                    /* amarelo         -12dB */
+                    #f97316 90%,
+                    /* laranja         - 6dB */
+                    #ef4444 95%,
+                    /* vermelho        - 3dB */
+                    #dc2626 100%
+                    /* vermelho escuro   0dB */
+                );
+        }
+
+        /* Máscara escura que cobre de cima até o nível atual */
+        .bar-mask {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg);
+            height: 100%;
+            /* JS define conforme nível: (100 - percent)% */
+            transition: height 60ms linear;
+        }
+
+        /* Linha de pico */
+        .peak-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--peak-line);
+            bottom: 0;
+            /* JS define */
+            transition: bottom 80ms ease-out;
+            border-radius: 1px;
+        }
+
+        /* Separador de colunas */
+        .meter-col+.meter-col {
+            border-left: 1px solid var(--border);
+            padding-left: 4px;
+            margin-left: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Barra de topo ── -->
+    <div id="topbar">
+        <div style="display:flex;align-items:center;gap:14px;min-width:0">
+            <span class="title">
+                <i class="fas fa-sliders-h" style="color:#6366f1;margin-right:6px"></i>
+                Monitor de Áudio
+                <small>IPE Live</small>
+            </span>
+            <span id="obs-info">—</span>
+        </div>
+        <div id="status-badge" class="disconnected">
+            <div id="status-dot"></div>
+            <span id="status-text">Desconectado</span>
+        </div>
+    </div>
+
+    <!-- ── Área principal ── -->
+    <div id="main">
+        <!-- Escala dB -->
+        <div id="db-scale"></div>
+
+        <!-- Medidores -->
+        <div id="meters-area">
+            <div id="empty-state">
+                <i class="fas fa-broadcast-tower"></i>
+                <span id="empty-msg">Aguardando conexão com OBS…</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================================================
+        // CONFIGURAÇÃO — lida das variáveis injetadas pelo servidor
+        // Pode ser sobrescrita via query string: /Audio?host=10.0.0.x&pass=senha
+        // ==========================================================================
+        const params = new URLSearchParams(location.search);
+        const obsHost = params.get('host') || '<%- obsWsHost %>';
+        const obsPort = params.get('port') || '<%- obsWsPort %>';
+        const obsPassword = params.get('pass') || '<%- obsWsPass %>';
+        const wsUrl = `ws://${obsHost}:${obsPort}`;
+
+        // ==========================================================================
+        // ESTADO
+        // ==========================================================================
+        let ws;
+        let meters = {};   // { inputName: { cols: [], peakHold: [] } }
+        let peakTimers = {};   // { 'inputName-ch': timestamp do último pico }
+        let retryTimer = null;
+
+        // ==========================================================================
+        // CRIA ESCALA dB
+        // ==========================================================================
+        (function buildScale() {
+            const ticks = [0, -3, -6, -12, -20, -30, -40, -60];
+            const scale = document.getElementById('db-scale');
+            ticks.forEach(db => {
+                const pct = (db + 60) / 60 * 100;        // 0dB=100%, -60dB=0%
+                const top = 14 + (100 - pct) / 100 * (scale.clientHeight - 50 || 300);
+                const tick = document.createElement('div');
+                tick.className = 'tick';
+                tick.style.top = `${(100 - pct)}%`;
+                tick.innerHTML = `<span>${db === 0 ? '0' : db}</span>`;
+                scale.appendChild(tick);
+            });
+        })();
+
+        // ==========================================================================
+        // STATUS UI
+        // ==========================================================================
+        function setStatus(state, detail) {
+            const badge = document.getElementById('status-badge');
+            const text = document.getElementById('status-text');
+            badge.className = state;
+            const labels = { connected: 'Conectado', connecting: 'Conectando…', disconnected: 'Desconectado' };
+            text.textContent = labels[state] || state;
+            if (detail) document.getElementById('empty-msg').textContent = detail;
+        }
+
+        // ==========================================================================
+        // CRIPTOGRAFIA — Web Crypto API (sem CDN)
+        // ==========================================================================
+        async function sha256Base64(str) {
+            const buf = new TextEncoder().encode(str);
+            const hash = await crypto.subtle.digest('SHA-256', buf);
+            const bytes = new Uint8Array(hash);
+            let bin = '';
+            for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+            return btoa(bin);
+        }
+
+        async function generateAuthHash(password, salt, challenge) {
+            const step1 = await sha256Base64(password + salt);
+            const step2 = await sha256Base64(step1 + challenge);
+            return step2;
+        }
+
+        // ==========================================================================
+        // CRIA ELEMENTO VU METER (dinamicamente ao receber novos inputs do OBS)
+        // ==========================================================================
+        function createMeter(inputName, numChannels) {
+            const area = document.getElementById('meters-area');
+            const empty = document.getElementById('empty-state');
+            if (empty) empty.remove();
+
+            const col = document.createElement('div');
+            col.className = 'meter-col';
+            col.id = 'col-' + CSS.escape(inputName);
+
+            const channelsRow = document.createElement('div');
+            channelsRow.className = 'channels-row';
+
+            const peakHold = [];
+            const barMasks = [];
+            const peakLines = [];
+            const dbReadouts = [];
+
+            for (let i = 0; i < numChannels; i++) {
+                const key = inputName + '-' + i;
+
+                const ch = document.createElement('div');
+                ch.className = 'channel';
+
+                // Label L / R / M
+                const chLabel = document.createElement('div');
+                chLabel.className = 'channel-label';
+                chLabel.textContent = numChannels === 1 ? 'M' : (i === 0 ? 'L' : 'R');
+                ch.appendChild(chLabel);
+
+                // Barra
+                const barWrap = document.createElement('div');
+                barWrap.className = 'bar-wrap';
+
+                const mask = document.createElement('div');
+                mask.className = 'bar-mask';
+                mask.id = 'mask-' + key;
+                barWrap.appendChild(mask);
+
+                const pkLine = document.createElement('div');
+                pkLine.className = 'peak-line';
+                pkLine.id = 'peak-' + key;
+                pkLine.style.bottom = '0%';
+                barWrap.appendChild(pkLine);
+
+                ch.appendChild(barWrap);
+
+                // Leitura dB
+                const dbVal = document.createElement('div');
+                dbVal.className = 'db-readout';
+                dbVal.id = 'db-' + key;
+                dbVal.textContent = '—';
+                ch.appendChild(dbVal);
+
+                channelsRow.appendChild(ch);
+                peakHold.push(0);
+                barMasks.push(mask);
+                peakLines.push(pkLine);
+                dbReadouts.push(dbVal);
+            }
+
+            // Nome do input (abreviado para caber)
+            const label = document.createElement('div');
+            label.className = 'input-name';
+            label.title = inputName;
+            label.textContent = inputName.length > 14 ? inputName.slice(0, 13) + '…' : inputName;
+
+            col.appendChild(channelsRow);
+            col.appendChild(label);
+            area.appendChild(col);
+
+            meters[inputName] = { barMasks, peakLines, dbReadouts, peakHold };
+        }
+
+        // ==========================================================================
+        // ATUALIZA VU METER
+        // ==========================================================================
+        function updateMeter(inputName, channels) {
+            // channels = [[magnitude, peak, inputPeak], ...] (valores lineares 0.0–1.0)
+            const state = meters[inputName];
+            const now = Date.now();
+
+            channels.forEach((ch, i) => {
+                const linPeak = ch[1];                                    // linear 0–1
+                const db = linPeak > 0 ? 20 * Math.log10(linPeak) : -Infinity;
+                const dbC = Math.max(-60, isFinite(db) ? db : -60);
+                const pct = (dbC + 60) / 60 * 100;                   // 0% → 100%
+
+                // Máscara (cobre de cima: 100% = silêncio, 0% = pico máximo)
+                state.barMasks[i].style.height = `${100 - pct}%`;
+
+                // Leitura numérica
+                state.dbReadouts[i].textContent = dbC > -59.5 ? (Math.round(dbC) + '') : '–∞';
+                state.dbReadouts[i].style.color = dbC > -6 ? 'var(--red)'
+                    : dbC > -12 ? 'var(--orange)'
+                        : dbC > -20 ? 'var(--yellow)'
+                            : 'var(--text-muted)';
+
+                // Pico hold — sobe imediatamente, cai após 2 s
+                const key = inputName + '-' + i;
+                if (pct >= (state.peakHold[i] || 0)) {
+                    state.peakHold[i] = pct;
+                    peakTimers[key] = now;
+                } else if (now - (peakTimers[key] || 0) > 2000) {
+                    state.peakHold[i] = Math.max(0, (state.peakHold[i] || 0) - 0.8);
+                }
+                state.peakLines[i].style.bottom = `${state.peakHold[i]}%`;
+            });
+        }
+
+        // ==========================================================================
+        // WEBSOCKET OBS (protocolo v5)
+        // ==========================================================================
+        function connect() {
+            clearTimeout(retryTimer);
+            setStatus('connecting');
+            document.getElementById('obs-info').textContent = wsUrl;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('[OBS WS] Conectado a', wsUrl);
+            };
+
+            ws.onmessage = async (event) => {
+                let msg;
+                try { msg = JSON.parse(event.data); } catch { return; }
+
+                switch (msg.op) {
+
+                    // op 0 — Hello: servidor envia dados de auth + rpcVersion
+                    case 0: {
+                        const identifyPayload = {
+                            op: 1,
+                            d: {
+                                rpcVersion: 1,
+                                // InputVolumeMeters = 1 << 16 = 65536
+                                eventSubscriptions: 65536
+                            }
+                        };
+                        if (msg.d.authentication && obsPassword) {
+                            identifyPayload.d.authentication = await generateAuthHash(
+                                obsPassword,
+                                msg.d.authentication.salt,
+                                msg.d.authentication.challenge
+                            );
+                        }
+                        ws.send(JSON.stringify(identifyPayload));
+                        break;
+                    }
+
+                    // op 2 — Identified: autenticação bem-sucedida
+                    case 2: {
+                        setStatus('connected');
+                        document.getElementById('empty-msg') &&
+                            (document.getElementById('empty-msg').textContent = 'Aguardando sinal de áudio do OBS…');
+                        console.log('[OBS WS] Identificado com sucesso');
+                        break;
+                    }
+
+                    // op 5 — Event: eventos do OBS
+                    case 5: {
+                        if (msg.d.eventType === 'InputVolumeMeters') {
+                            const inputs = msg.d.eventData.inputs;
+                            inputs.forEach(input => {
+                                const name = input.inputName;
+                                const levels = input.inputLevelsMul; // [[mag, peak, inputPeak], ...]
+                                if (!levels || levels.length === 0) return;
+                                if (!meters[name]) createMeter(name, levels.length);
+                                updateMeter(name, levels);
+                            });
+                        }
+                        break;
+                    }
+
+                    default:
+                        break;
+                }
+            };
+
+            ws.onerror = () => {
+                console.warn('[OBS WS] Erro de conexão');
+            };
+
+            ws.onclose = () => {
+                setStatus('disconnected');
+                console.log('[OBS WS] Conexão encerrada. Tentando reconectar em 4s…');
+                retryTimer = setTimeout(connect, 4000);
+            };
+        }
+
+        // ==========================================================================
+        // INICIA
+        // ==========================================================================
+        connect();
+    </script>
+</body>
+
+</html>
