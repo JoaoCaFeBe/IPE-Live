@@ -133,6 +133,71 @@ const inicio = () => {
                             });
                         });
                         break;
+                    case 'coral':
+                        louvor++;
+                        if (louvor == 1) $('body').append(`<div id="louvores" class="accordion accordion-flush"></div>`);
+                        // Se a seção coral ainda não foi criada, cria-a separada
+                        if (!$('#corais').length) $('body').append(`<div id="corais" class="accordion accordion-flush"></div>`);
+
+                        $('#corais').append(`<div class="accordion-item" tipo="louvor">
+                                                        <h2 class="accordion-header" id="coral${louvor}">
+                                                            <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseCoral${louvor}" aria-expanded="true" aria-controls="colapseCoral${louvor}">
+                                                                <i class="fa-solid fa-users"></i>&nbsp;${definicao.titulo}
+                                                            </button>
+                                                        </h2>
+                                                        <div id="colapseCoral${louvor}" class="accordion-collapse collapse" aria-labelledby="coral${louvor}" data-bs-parent="#corais">
+                                                            <div class="accordion-body p-1">
+                                                                <div class="btn-group-vertical w-100" role="group">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>`);
+
+                        $(`#colapseCoral${louvor} .accordion-body .btn-group-vertical`)
+                            .append(`
+                                        <input type="radio" class="btn-check" name="btnCoral${louvor}" id="btnCoral${louvor}" titulo="${definicao.titulo}" autocomplete="off">
+                                        <label class="btn btn-warning text-truncate" for="btnCoral${louvor}">Título</label>
+                                    `);
+                        definicao.letra.forEach((valor, indice) => {
+                            const linhas = valor.split(/<br\s*\/?>/gi);
+                            let grupoLinhas = [];
+                            linhas.forEach((linha) => {
+                                linha = linha.trim().replace(/\{it\}|\{\/it\}/g, '').trim();
+                                if (!linha) return;
+                                grupoLinhas.push(linha);
+                            });
+                            let grupos = [], grupoAtual = [];
+                            grupoLinhas.forEach(linha => {
+                                const stMatch = linha.match(/^\{st\}(.+?)\{\/st\}$/);
+                                if (stMatch) {
+                                    if (grupoAtual.length > 0) { grupos.push(grupoAtual); grupoAtual = []; }
+                                    grupoAtual.push({ tipo: 'cantor', texto: stMatch[1] });
+                                } else {
+                                    grupoAtual.push({ tipo: 'verso', texto: linha });
+                                }
+                            });
+                            if (grupoAtual.length > 0) grupos.push(grupoAtual);
+                            grupos.forEach((grupo, grupoIdx) => {
+                                let cor = 'btn-secondary';
+                                let textoCompleto = [];
+                                grupo.forEach(item => {
+                                    if (item.tipo === 'cantor') {
+                                        textoCompleto.push(`<strong style="color: #ffc107 !important;">${item.texto}</strong>`);
+                                    } else {
+                                        if (item.texto.includes('refrao:')) {
+                                            cor = 'btn-info';
+                                            item.texto = item.texto.replace('refrao:', '');
+                                        }
+                                        textoCompleto.push(item.texto);
+                                    }
+                                });
+                                let botaoTexto = montarTextoComTruncamentoPorLinha(textoCompleto);
+                                let botaoId = `btnCoral${louvor}_${indice}_${grupoIdx}`;
+                                $(`#colapseCoral${louvor} .accordion-body .btn-group-vertical`)
+                                    .append(`<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${botaoId}" titulo="${definicao.titulo}" autocomplete="off"><label class="btn ${cor} text-truncate" for="${botaoId}">${botaoTexto}</label>`);
+                            });
+                        });
+                        break;
                     case 'louvor':
                         louvor++;
                         if (louvor == 1) $("body").append(`<div id="louvores" class="accordion accordion-flush"></div>`);

@@ -202,6 +202,27 @@ Modelo mais híbrido do sistema, projetado para a hora da pregação.
 
 - Exibe o Título do Sermão, permite intercalar seus `topicos` principais e ter o texto bíblico-base (`passagem` e `texto`). Na interface da TV/Projetor eles se intercalam inteligentemente baseados na transição de foco guiada pelo pregador.
 
+### 5. `coral` (Músicas do Coral)
+
+Funciona de forma idêntica ao `louvor`, mas os dados são gravados e lidos da tabela `coral` (SQLite) em vez de `louvores`. O campo que indexa o item no culto é `coral_id`.
+
+```json
+{
+  "tipo": "coral",
+  "titulo": "Cantai ao Senhor",
+  "letra": [
+    "Cantai ao Senhor um cântico novo...",
+    "refrao:Aleluia, aleluia!"
+  ]
+}
+```
+
+- A flag `refrao:` funciona exatamente igual à do `hino` e do `louvor`.
+- **Armazenamento**: ao salvar, o servidor faz `INSERT INTO coral ON CONFLICT(titulo) DO UPDATE` (novo) ou `UPDATE coral SET ... WHERE id=?` (edição existente via `coral_id`).
+- **Expansão**: ao carregar o culto, a rota `GET /Cultos/:arquivo` expande `coral_id` buscando `titulo` e `letra` na tabela `coral`.
+- **Funções JS**: `mostraCoral(codigo)`, `arrumarCoral()`, `coralLocal()` (seleção local com botão Novo).
+- **Rota de formulário**: `POST /formularios/coral` e `GET /formularios/pesquisar-coral-local`.
+
 ---
 
 ## Módulo Liturgia (Editor)
@@ -280,6 +301,7 @@ As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quant
 | `louvor`   | `#1a5632`         | `#23784a`               | `#c8f0d4` |
 | `passagem` | `#14506e`         | `#1a6d96`               | `#c4e3f5` |
 | `mensagem` | `#7a2517`         | `#a43220`               | `#fdd8d2` |
+| `coral`    | `#5c3200`         | `#7e4600`               | `#ffe5c8` |
 
 ### Forma de trabalho no módulo Liturgia
 

@@ -257,7 +257,7 @@ socket.onAny((aplicativo, eventName, args) => {
 
 function processarConteudo(conteudo) {
     let tipo;
-    if (conteudo.tipo.includes("hino") || conteudo.tipo.includes("louvor")) tipo = "louvor";
+    if (conteudo.tipo.includes("hino") || conteudo.tipo.includes("louvor") || conteudo.tipo.includes("coral")) tipo = "louvor";
     else tipo = conteudo.tipo;
 
     if ((atual === 'Mensagem') && (tipo === 'passagem')) {

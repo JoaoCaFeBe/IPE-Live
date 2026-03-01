@@ -85,6 +85,16 @@ input::-webkit-inner-spin-button {
     color: #fff;
 }
 
+#corais .accordion-button {
+    background-color: #5c3200;
+    color: #ffe5c8;
+}
+
+#corais .accordion-button:not(.collapsed) {
+    background-color: #7e4600;
+    color: #fff;
+}
+
 #passagens .accordion-button {
     background-color: #14506e;
     color: #c4e3f5;

@@ -115,6 +115,12 @@ app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// Sem cache para JS locais (app.js, capa.js) — evita versão desatualizada em cache
+app.use("/js", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+
 // Arquivos estáticos do próprio projeto (public/)
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -288,12 +294,22 @@ app.get("/Cultos/:arquivo", (req, res) => {
     const getLouvor = db.prepare(
       "SELECT titulo, letra FROM louvores WHERE id = ?",
     );
+    const getCoral = db.prepare(
+      "SELECT titulo, letra FROM coral WHERE id = ?",
+    );
 
-    // Expande louvores através do louvor_id ou resolvendo Hinos soltos que não foram/foram apagados da tabela de CULTOS_DB
+    // Expande louvores/coral através do louvor_id/coral_id ou resolvendo Hinos soltos
     itens = itens.map((item) => {
-      // Se for um item de música pre-salvo (como louvor ou hino recém adicionado)
+      // Louvor
       if (item && item.louvor_id) {
         const m = getLouvor.get(item.louvor_id);
+        if (m) {
+          return { ...item, titulo: m.titulo, letra: JSON.parse(m.letra) };
+        }
+      }
+      // Coral
+      if (item && item.coral_id) {
+        const m = getCoral.get(item.coral_id);
         if (m) {
           return { ...item, titulo: m.titulo, letra: JSON.parse(m.letra) };
         }
@@ -384,15 +400,42 @@ app.post("/dados/salvar-liturgia", (req, res) => {
       "INSERT INTO louvores (titulo, letra) VALUES (?, ?) " +
       "ON CONFLICT(titulo) DO UPDATE SET letra=excluded.letra RETURNING id",
     );
+    const insertCoral = db.prepare(
+      "INSERT INTO coral (titulo, letra) VALUES (?, ?) " +
+      "ON CONFLICT(titulo) DO UPDATE SET letra=excluded.letra RETURNING id",
+    );
 
     itens = itens.map((item) => {
       if (!item) return item;
-      // Se for louvor (que a gente gerencia localmente), inserimos na tabela Músicas
+      // Coral — gerenciado na tabela coral
+      if (item.tipo === "coral" && Array.isArray(item.letra)) {
+        let result;
+        if (item.coral_id) {
+          db.prepare("UPDATE coral SET titulo=?, letra=? WHERE id=?")
+            .run(item.titulo || "Sem título", JSON.stringify(item.letra), item.coral_id);
+          result = { id: item.coral_id };
+        } else {
+          result = insertCoral.get(
+            item.titulo || "Sem título",
+            JSON.stringify(item.letra),
+          );
+        }
+        return { tipo: item.tipo, coral_id: result.id };
+      }
+      // Louvor (que a gente gerencia localmente), inserimos/atualizamos na tabela Músicas
       if (item.tipo === "louvor" && Array.isArray(item.letra)) {
-        const result = insertLouvor.get(
-          item.titulo || "Sem título",
-          JSON.stringify(item.letra),
-        );
+        let result;
+        if (item.louvor_id) {
+          // Atualiza o registro existente diretamente pelo id
+          db.prepare("UPDATE louvores SET titulo=?, letra=? WHERE id=?")
+            .run(item.titulo || "Sem título", JSON.stringify(item.letra), item.louvor_id);
+          result = { id: item.louvor_id };
+        } else {
+          result = insertLouvor.get(
+            item.titulo || "Sem título",
+            JSON.stringify(item.letra),
+          );
+        }
         return { tipo: item.tipo, louvor_id: result.id };
       }
 
@@ -409,7 +452,14 @@ app.post("/dados/salvar-liturgia", (req, res) => {
       "INSERT OR REPLACE INTO cultos (data_culto, itens) VALUES (?, ?)",
     ).run(dataCulto, JSON.stringify(itens));
     db.close();
-    res.json({ ok: true });
+    // Devolve os IDs gerados para o cliente atualizar a memória
+    const idMap = itens.map(item => {
+      if (!item) return {};
+      if (item.louvor_id) return { louvor_id: item.louvor_id };
+      if (item.coral_id) return { coral_id: item.coral_id };
+      return {};
+    });
+    res.json({ ok: true, idMap });
   } catch (e) {
     res.status(400).json({ error: "JSON inválido: " + e.message });
   }
@@ -551,19 +601,38 @@ app.post("/formularios/hino", (_req, res) => {
 
 app.post("/formularios/louvor", (_req, res) => {
   res.send(/* html */ `
-<div class="input-group">
-  <input type="text" class="form-control" id="titulo" placeholder="Digite o título"
-    style="background-color:bisque;" onchange="arrumarLouvor();">
-  <button class="btn btn-success" type="button"
-    onclick="pesquisarLouvor($('#titulo').val());">
+<div class="d-flex align-items-center gap-2 mb-1">
+  <strong id="tituloLouvor" class="flex-grow-1 px-2 py-1"
+    style="background:bisque;border-radius:.25rem;min-height:2.1rem;font-size:1.05rem;display:block;"></strong>
+  <button class="btn btn-sm btn-outline-secondary" title="Editar letra" onclick="louvorAbrirEditor('louvor');">
+    <i class="fas fa-edit limpo"></i>
+  </button>
+  <button class="btn btn-sm btn-success" title="Pesquisar" onclick="pesquisarLouvor($('#titulo').val());">
     <i class="fas fa-search limpo"></i>
   </button>
 </div>
-<texto style="display:grid;grid-template-rows:1fr 40%;grid-row-gap:.25rem;">
-  <textarea class="form-control" id="original"
-    placeholder="Cole a letra aqui&#10;Estrofes separadas por linha em branco"
-    onchange="arrumarLouvor();" style="resize:none;"></textarea>
-  <textarea class="form-control text-nowrap" id="final" style="resize:none;"></textarea>
+<texto style="overflow-y:auto;padding:.5rem .75rem;">
+  <div id="letraLouvor" style="line-height:2;"></div>
+  <textarea id="titulo" style="display:none;"></textarea>
+  <textarea id="original" style="display:none;"></textarea>
+  <textarea id="final" style="display:none;"></textarea>
+</texto>`);
+});
+
+app.post("/formularios/coral", (_req, res) => {
+  res.send(/* html */ `
+<div class="d-flex align-items-center gap-2 mb-1">
+  <strong id="tituloLouvor" class="flex-grow-1 px-2 py-1"
+    style="background:bisque;border-radius:.25rem;min-height:2.1rem;font-size:1.05rem;display:block;"></strong>
+  <button class="btn btn-sm btn-outline-secondary" title="Editar letra" onclick="louvorAbrirEditor('coral');">
+    <i class="fas fa-edit limpo"></i>
+  </button>
+</div>
+<texto style="overflow-y:auto;padding:.5rem .75rem;">
+  <div id="letraLouvor" style="line-height:2;"></div>
+  <textarea id="titulo" style="display:none;"></textarea>
+  <textarea id="original" style="display:none;"></textarea>
+  <textarea id="final" style="display:none;"></textarea>
 </texto>`);
 });
 
@@ -571,18 +640,16 @@ app.post("/formularios/mensagem", (_req, res) => {
   res.send(/* html */ `
 <div>
   <input type="text" class="form-control" id="titulo" placeholder="Digite o título"
-    style="background-color:bisque;margin-bottom:.225rem;" onchange="arrumarMensagem();">
+    style="background-color:bisque;margin-bottom:.225rem;" oninput="arrumarMensagem();">
   <input type="text" class="form-control" id="passagem" placeholder="Digite a passagem"
-    style="background-color:bisque;" onchange="arrumarMensagem();">
+    style="background-color:bisque;" oninput="arrumarMensagem();">
 </div>
-<texto style="display:grid;grid-template-rows:1fr 40%;grid-row-gap:.25rem;">
-  <div style="display:grid;grid-template-columns:1fr 1fr;grid-column-gap:.25rem;">
-    <textarea class="form-control" id="originalMsg"
-      placeholder="Tópicos — um por linha" onchange="arrumarMensagem();" style="resize:none;"></textarea>
-    <textarea class="form-control" id="originalPas"
-      placeholder="Cole o texto bíblico aqui" onchange="arrumarMensagem();" style="resize:none;"></textarea>
-  </div>
-  <textarea class="form-control text-nowrap" id="final" style="resize:none;"></textarea>
+<texto style="display:grid;grid-template-columns:1fr 1fr;grid-column-gap:.25rem;overflow:hidden;">
+  <textarea class="form-control h-100" id="originalMsg"
+    placeholder="Tópicos — um por linha" oninput="arrumarMensagem();" style="resize:none;"></textarea>
+  <textarea class="form-control h-100" id="originalPas"
+    placeholder="Cole o texto bíblico aqui" oninput="arrumarMensagem();" style="resize:none;"></textarea>
+  <textarea id="final" style="display:none;"></textarea>
 </texto>`);
 });
 
@@ -633,6 +700,30 @@ app.get("/formularios/pesquisar-louvor-local", (_req, res) => {
   });
 });
 
+/** Retorna { formulario: HTML, corais: [] } */
+app.get("/formularios/pesquisar-coral-local", (_req, res) => {
+  const corais = carregarItens("coral");
+  const listaHtml = corais
+    .map((l, i) => `<li codigo="${i}">${escHtml(l.titulo)}</li>`)
+    .join("\n");
+  res.json({
+    formulario: /* html */ `
+<corais style="display:grid;grid-template-columns:30% 1fr;grid-column-gap:.25rem;height:70vh;">
+  <pesquisa class="border-end" style="display:grid;grid-template-rows:1fr auto;overflow-y:auto;">
+    <ul id="corais" class="ulMenu selecionavel w-100 p-1"
+      style="overflow-y:auto;margin-bottom:0;padding-bottom:0;">${listaHtml}</ul>
+    <div class="input-group input-group-sm border-top p-1">
+      <input type="text" class="form-control" placeholder="Pesquisar coral"
+        oninput="$('#corais').filtra(this.value);" autofocus>
+      <span class="input-group-text"><i class="fa fa-search"></i></span>
+    </div>
+  </pesquisa>
+  <mostrar style="overflow:auto;"></mostrar>
+</corais>`,
+    corais,
+  });
+});
+
 /** Retorna { formulario: HTML, hinos: [] } */
 app.get("/formularios/pesquisar-hino-local", (_req, res) => {
   const hinos = carregarItens("hino");
@@ -661,22 +752,21 @@ app.get("/formularios/pesquisar-hino-local", (_req, res) => {
 // HELPERS
 // ===========================================================================
 
-/** Coleta todos os itens de um tipo disponíveis no banco (buscando da tabela louvores) */
+/** Coleta todos os itens de um tipo disponíveis no banco */
 function carregarItens(tipo) {
-  // Hinos são pegos diretamente dos hinários, não ficam na tabela louvores
-  if (tipo !== "louvor") return [];
+  if (tipo !== "louvor" && tipo !== "coral") return [];
+  const tabela = tipo === "coral" ? "coral" : "louvores";
   try {
     const db = new Database(CULTOS_DB_PATH, { readonly: true });
-    // NOCASE permite ignorar acentos/maiúsculas ao ordenar no SQLite
     const rows = db
       .prepare(
-        "SELECT titulo, letra FROM louvores ORDER BY titulo COLLATE NOCASE",
+        `SELECT titulo, letra FROM ${tabela} ORDER BY titulo COLLATE NOCASE`,
       )
       .all();
     db.close();
 
     return rows.map((r) => ({
-      tipo: "louvor",
+      tipo,
       titulo: r.titulo,
       letra: JSON.parse(r.letra),
     }));

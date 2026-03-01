@@ -215,6 +215,10 @@ function salvar() {
     }
     const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
     if (codigo >= 0) {
+        // Preserva IDs existentes caso o #final ainda não os carregue (ex: segundo Save sem reabrir editor)
+        const anterior = Liturgia[codigo];
+        if (!item.louvor_id && anterior?.louvor_id) item.louvor_id = anterior.louvor_id;
+        if (!item.coral_id && anterior?.coral_id) item.coral_id = anterior.coral_id;
         Liturgia[codigo] = item;
         const el = query('#bodyLiturgia>ul>li.bg-warning');
         if (el) el.textContent = item.titulo;
@@ -229,7 +233,17 @@ function salvar() {
         $('#bodyLiturgia>ul>li:eq(' + idx + ')').click();
     }
     $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
-        .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Salvo!'));
+        .done(resp => {
+            // Sincroniza IDs (louvor_id / coral_id) gerados pelo servidor de volta para a memória
+            if (resp.idMap) {
+                resp.idMap.forEach((ids, i) => {
+                    if (!Liturgia[i]) return;
+                    if (ids.louvor_id) Liturgia[i].louvor_id = ids.louvor_id;
+                    if (ids.coral_id) Liturgia[i].coral_id = ids.coral_id;
+                });
+            }
+            mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Salvo!');
+        });
 }
 
 function excluir() {
@@ -432,7 +446,7 @@ function mostraMensagem(codigo) {
             query('#cardCorpo').classList.remove('d-none');
             $('#titulo').val(mensagem.titulo);
             $('#passagem').val(mensagem.passagem);
-            $('#final').text(JSON.stringify(mensagem, undefined, 4));
+            $('#final').val(JSON.stringify(mensagem, undefined, 4));
             $('#originalMsg').val('');
             mensagem.topicos.forEach(l => {
                 $('#originalMsg').val($('#originalMsg').val() + l.replace(/<br[/]>/gi, '\n') + '\n');
@@ -584,21 +598,88 @@ function mostraLouvor(codigo) {
         .always(() => {
             query('#headerCorpo>titulo').innerHTML = "<i class='fas fa-guitar'></i>" + louvor.titulo;
             query('#cardCorpo').classList.remove('d-none');
+            $('#tituloLouvor').text(louvor.titulo);
             $('#titulo').val(louvor.titulo);
-            $('#final').text(JSON.stringify(louvor, undefined, 4));
+            const divLouvor = document.getElementById('letraLouvor');
+            if (divLouvor) {
+                divLouvor.innerHTML = '';
+                louvor.letra.forEach(l => {
+                    const isRefrao = l.startsWith('refrao:');
+                    const texto = l.replace(/^refrao:/, '').replace(/\{it\}|\{\/it\}/g, '').replace(/<br\/?>\s*/gi, '\n');
+                    divLouvor.innerHTML += `<p class="mb-2${isRefrao ? ' fst-italic text-primary' : ''}">${texto.replace(/\n/g, '<br>')}</p>`;
+                });
+            }
+            $('#final').val(JSON.stringify(louvor, undefined, 4));
             $('#original').val('');
             louvor.letra.forEach(l => {
                 $('#original').val($('#original').val() + l.replace(/\{it\}|\{\/it\}/g, '').replace(/<br[/]>/gi, '\n') + '\n\n');
             });
             $('#excluir').toggleClass('d-none', codigo < 0);
+            if (codigo < 0) louvorAbrirEditor('louvor');
         });
 }
 
+function louvorAbrirEditor(tipo) {
+    const tituloAtual = ($('#titulo').val() || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const letraAtual = ($('#original').val() || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const icone = tipo === 'coral' ? 'fa-users' : 'fa-guitar';
+    const htmlModal = `
+<input type="text" class="form-control mb-2" id="modalEditTitulo"
+  style="background:bisque;" placeholder="T\u00edtulo" value="${tituloAtual}" autofocus>
+<textarea class="form-control" id="modalEditLetra" rows="14"
+  style="resize:none;"
+  placeholder="Cole a letra aqui&#10;Estrofes separadas por linha em branco">${letraAtual}</textarea>`;
+    const aplicar = () => {
+        $('#titulo').val($('#modalEditTitulo').val());
+        $('#original').val($('#modalEditLetra').val());
+        tipo === 'coral' ? arrumarCoral() : arrumarLouvor();
+    };
+    const botoes = {};
+    if (tipo === 'louvor') {
+        botoes.pesquisar = {
+            label: '<i class="fas fa-search"></i> Pesquisar',
+            className: 'btn-success float-start',
+            callback() {
+                $('#titulo').val($('#modalEditTitulo').val());
+                pesquisarLouvor($('#modalEditTitulo').val());
+            }
+        };
+    }
+    botoes.cancelar = { label: 'Cancelar', className: 'btn-secondary' };
+    botoes.ok = { label: 'Ok', className: 'btn-primary', callback: aplicar };
+    bootbox.dialog({
+        title: `<i class="fas ${icone}"></i>&nbsp;${tipo === 'coral' ? 'Editar Coral' : 'Editar Louvor'}`,
+        message: htmlModal,
+        size: 'large',
+        centerVertical: true,
+        onEscape: true,
+        closeButton: true,
+        buttons: botoes
+    })
+        .bind('shown.bs.modal', function () { $('body').addClass('modal-open'); $('#modalEditTitulo').focus().select(); })
+        .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
+}
+
 function arrumarLouvor() {
+    const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
     let louvor = { tipo: 'louvor', titulo: $('#titulo').val(), letra: [] };
+    if (codigo >= 0 && Liturgia[codigo]?.louvor_id) {
+        louvor.louvor_id = Liturgia[codigo].louvor_id;
+    }
     $('#original').val().replace(/\n\n/g, '|').replace(/\n/g, '<br/>').split('|')
         .forEach(l => { if (l.trim()) louvor.letra.push(l); });
     $('#final').val(JSON.stringify(louvor, undefined, 4));
+    // sincroniza exibição visual
+    $('#tituloLouvor').text(louvor.titulo);
+    const div = document.getElementById('letraLouvor');
+    if (div) {
+        div.innerHTML = '';
+        louvor.letra.forEach(l => {
+            const isRefrao = l.startsWith('refrao:');
+            const texto = l.replace(/^refrao:/, '').replace(/<br\/?>/gi, '\n');
+            div.innerHTML += `<p class="mb-2${isRefrao ? ' fst-italic text-primary' : ''}">${texto.replace(/\n/g, '<br>')}</p>`;
+        });
+    }
 }
 
 function pesquisarLouvor(titulo) {
@@ -710,6 +791,121 @@ function louvorLocal() {
                     const el = query('mostrar');
                     el.innerHTML = `<h2>${louvor.titulo}</h2><hr class="p-0 m-0 mt-1 mb-1">`;
                     louvor.letra.forEach(linha => { el.innerHTML += linha + '<br><br>'; });
+                    query('.botaoOK').classList.remove('disabled');
+                });
+                $(this).find('[autofocus]').focus().select();
+            })
+            .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
+    });
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   CORAL
+   ─────────────────────────────────────────────────────────────────────────── */
+
+function mostraCoral(codigo) {
+    codigo = codigo ?? $('#bodyLiturgia>ul>li.bg-warning').index();
+    movimentacao();
+    let coral = (codigo >= 0)
+        ? $.passarObjeto(Liturgia[codigo])
+        : { tipo: 'coral', titulo: '', letra: [] };
+
+    $.post('/formularios/coral', { coral: JSON.stringify(coral) })
+        .done(formulario => {
+            $('#bodyCorpo>*:not(#botoesLiturgia)').remove();
+            query('#bodyCorpo').insertAdjacentHTML('afterbegin', formulario);
+        })
+        .always(() => {
+            query('#headerCorpo>titulo').innerHTML = "<i class='fas fa-users'></i>" + coral.titulo;
+            query('#cardCorpo').classList.remove('d-none');
+            $('#tituloLouvor').text(coral.titulo);
+            $('#titulo').val(coral.titulo);
+            const divCoral = document.getElementById('letraLouvor');
+            if (divCoral) {
+                divCoral.innerHTML = '';
+                coral.letra.forEach(l => {
+                    const isRefrao = l.startsWith('refrao:');
+                    const texto = l.replace(/^refrao:/, '').replace(/\{it\}|\{\/it\}/g, '').replace(/<br\/?>\s*/gi, '\n');
+                    divCoral.innerHTML += `<p class="mb-2${isRefrao ? ' fst-italic text-primary' : ''}">${texto.replace(/\n/g, '<br>')}</p>`;
+                });
+            }
+            $('#final').val(JSON.stringify(coral, undefined, 4));
+            $('#original').val('');
+            coral.letra.forEach(l => {
+                $('#original').val($('#original').val() + l.replace(/\{it\}|\{\/it\}/g, '').replace(/<br[/]>/gi, '\n') + '\n\n');
+            });
+            $('#excluir').toggleClass('d-none', codigo < 0);
+            if (codigo < 0) louvorAbrirEditor('coral');
+        });
+}
+
+function arrumarCoral() {
+    const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
+    let coral = { tipo: 'coral', titulo: $('#titulo').val(), letra: [] };
+    if (codigo >= 0 && Liturgia[codigo]?.coral_id) {
+        coral.coral_id = Liturgia[codigo].coral_id;
+    }
+    $('#original').val().replace(/\n\n/g, '|').replace(/\n/g, '<br/>').split('|')
+        .forEach(l => { if (l.trim()) coral.letra.push(l); });
+    $('#final').val(JSON.stringify(coral, undefined, 4));
+    // sincroniza exibição visual
+    $('#tituloLouvor').text(coral.titulo);
+    const div = document.getElementById('letraLouvor');
+    if (div) {
+        div.innerHTML = '';
+        coral.letra.forEach(l => {
+            const isRefrao = l.startsWith('refrao:');
+            const texto = l.replace(/^refrao:/, '').replace(/<br\/?>/gi, '\n');
+            div.innerHTML += `<p class="mb-2${isRefrao ? ' fst-italic text-primary' : ''}">${texto.replace(/\n/g, '<br>')}</p>`;
+        });
+    }
+}
+
+function coralLocal() {
+    $.get('/formularios/pesquisar-coral-local').then(retorno => {
+        bootbox.dialog({
+            title: 'Selecione o coral',
+            message: retorno.formulario,
+            onEscape: true,
+            closeButton: true,
+            backdrop: true,
+            className: 'p-0',
+            size: 'extra-large',
+            centerVertical: true,
+            buttons: {
+                novo: {
+                    label: 'Novo',
+                    className: 'btn-success',
+                    callback: () => { novaSelecao('Coral'); }
+                },
+                ok: {
+                    label: 'Ok',
+                    className: 'btn-info disabled botaoOK',
+                    callback: () => {
+                        const idx = $('#corais>li.bg-warning').attr('codigo');
+                        const salvar = $.passarObjeto(retorno.corais[idx]);
+                        Liturgia.push(salvar);
+                        const codigo = Liturgia.length - 1;
+                        $('#bodyLiturgia>ul').append(
+                            `<li class="${salvar.tipo}"
+                  onclick="marcaLI(this); mostra${capitalize(salvar.tipo)}($(this).index());"
+                  id="M${codigo}">${salvar.titulo}</li>`
+                        );
+                        $('#bodyLiturgia>ul>li:eq(' + codigo + ')').click();
+                        $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
+                            .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Coral adicionado!'));
+                    }
+                }
+            }
+        })
+            .bind('shown.bs.modal', function () {
+                $('body').addClass('modal-open');
+                $('#corais>li').off('click').on('click', function () {
+                    marcaLI(this);
+                    const coral = retorno.corais[$(this).attr('codigo')];
+                    const el = query('mostrar');
+                    el.innerHTML = `<h2>${coral.titulo}</h2><hr class="p-0 m-0 mt-1 mb-1">`;
+                    coral.letra.forEach(linha => { el.innerHTML += linha + '<br><br>'; });
                     query('.botaoOK').classList.remove('disabled');
                 });
                 $(this).find('[autofocus]').focus().select();
