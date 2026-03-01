@@ -286,7 +286,7 @@ app.get("/Cultos/:arquivo", (req, res) => {
 
     let itens = JSON.parse(row.itens);
     const getLouvor = db.prepare(
-      "SELECT tipo, titulo, letra FROM louvores WHERE id = ?",
+      "SELECT titulo, letra FROM louvores WHERE id = ?",
     );
 
     // Expande louvores através do louvor_id ou resolvendo Hinos soltos que não foram/foram apagados da tabela de CULTOS_DB
@@ -381,8 +381,8 @@ app.post("/dados/salvar-liturgia", (req, res) => {
     let itens = JSON.parse(dados);
     const db = new Database(CULTOS_DB_PATH);
     const insertLouvor = db.prepare(
-      "INSERT INTO louvores (tipo, titulo, letra) VALUES (?, ?, ?) " +
-      "ON CONFLICT(tipo, titulo) DO UPDATE SET letra=excluded.letra RETURNING id",
+      "INSERT INTO louvores (titulo, letra) VALUES (?, ?) " +
+      "ON CONFLICT(titulo) DO UPDATE SET letra=excluded.letra RETURNING id",
     );
 
     itens = itens.map((item) => {
@@ -390,7 +390,6 @@ app.post("/dados/salvar-liturgia", (req, res) => {
       // Se for louvor (que a gente gerencia localmente), inserimos na tabela Músicas
       if (item.tipo === "louvor" && Array.isArray(item.letra)) {
         const result = insertLouvor.get(
-          item.tipo,
           item.titulo || "Sem título",
           JSON.stringify(item.letra),
         );
@@ -678,18 +677,20 @@ app.get("/formularios/pesquisar-hino-local", (_req, res) => {
 
 /** Coleta todos os itens de um tipo disponíveis no banco (buscando da tabela louvores) */
 function carregarItens(tipo) {
+  // Hinos são pegos diretamente dos hinários, não ficam na tabela louvores
+  if (tipo !== "louvor") return [];
   try {
     const db = new Database(CULTOS_DB_PATH, { readonly: true });
     // NOCASE permite ignorar acentos/maiúsculas ao ordenar no SQLite
     const rows = db
       .prepare(
-        "SELECT titulo, letra FROM louvores WHERE tipo = ? ORDER BY titulo COLLATE NOCASE",
+        "SELECT titulo, letra FROM louvores ORDER BY titulo COLLATE NOCASE",
       )
-      .all(tipo);
+      .all();
     db.close();
 
     return rows.map((r) => ({
-      tipo: tipo,
+      tipo: "louvor",
       titulo: r.titulo,
       letra: JSON.parse(r.letra),
     }));
