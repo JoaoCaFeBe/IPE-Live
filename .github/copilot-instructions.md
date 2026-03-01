@@ -2,26 +2,70 @@
 
 ## Visão Geral
 
-Sistema de projeção e legendas ao vivo para cultos da Igreja Presbiteriana da Encruzilhada (IPE). Arquitetura pub/sub em tempo real: um **Painel** de controle envia comandos via Socket.IO para múltiplas telas de exibição (Projetor, Televisão, Legendas).
+Sistema de projeção, controle e legendas ao vivo para cultos da Igreja Presbiteriana da Encruzilhada (IPE). O projeto possui uma arquitetura **híbrida** (em duas fases/ambientes) para atender ao planejamento e à operação em tempo real:
 
-## Arquitetura
+1. **Preparação (Público/Nuvem)**: A pasta `Liturgia` hospeda um sistema acessível ao público (ou à equipe de liturgia) na internet para construir a pauta do culto com antecedência.
+2. **Exibição (Servidor Local)**: O aplicativo em `live` e seu servidor de websockets (`Chat.JS`) rodam no servidor multimídia local da igreja. Ele lê os arquivos gerados pela Liturgia online e controla a projeção em tempo real.
 
+## Arquitetura e Interações entre Pastas
+
+O fluxo de dados segue este ciclo:
+
+```ascii
+[PÚBLICO / INTERNET]             [SINCRONIZAÇÃO/FS]                   [SERVIDOR LOCAL DA IGREJA]
+  Liturgia/ (Node.js)                                                   live/Painel.php (PHP)
+  Criação do Culto      ───grava──▶  Liturgia/cultos/   ◀───lê───    Lê JSON do culto
+         │                              YYYY-MM-DD.json                         │
+         │                                                                   socket.emit
+         ▼                                                                      │
+  Bancos SQLite locais                                                          ▼
+  (Bibliotecas e Hinários)                                    Chat.JS/ (Node.js - Socket.IO :3000)
+                                                              Servidor de Broadcast (IPE.Transmissão)
+                                                                                │
+                                                                           broadcast
+                                                                                ▼
+                                                                Telas de Exibição (Projetor / TVs / OBS)
 ```
-[Liturgia/] Editor de liturgia ──grava JSON──▶ Liturgia/cultos/YYYY-MM-DD.json
-                                                         │
-                              (lido via cultosUrl)       ▼
-Painel.php (controle) ──socket.emit──▶ Chat.JS/index.js (Socket.IO server :3000) ──broadcast──▶ Projetor.php / Televisao.php / Legendas.php / LegendasAoVivo.php
-```
 
-- **Chat.JS/index.js** — Servidor Node.js Socket.IO na porta 3000. Faz broadcast total: todo evento recebido é reemitido para todos os clientes. Namespace único: `IPE.Transmissão`.
-- **live/Painel.php** — Painel do operador. Carrega o JSON do culto do dia (`cultos/YYYY-MM-DD.json`), exibe hinos, louvores, passagens e mensagens como botões de rádio/checkbox dentro de accordions Bootstrap.
-- **live/Projetor.php** — Tela de projeção principal; exibe conteúdo em tags HTML customizadas (`<passagem>`, `<louvor>`, `<mensagem>`).
-- **live/Televisao.php** — Similar ao Projetor, com relógio (`Hora.php`) e CSS adicional (`Televisao.css`).
-- **live/Legendas.php** e **LegendasAoVivo.php** — Telas para legendas, usadas via OBS Browser Source; detectam `window.obsstudio` para integração com OBS.
-- **live/Biblia.php** — Popup aberto pelo Painel para selecionar versículos bíblicos.
-- **live/dados.php** — Classe PHP `dados` (abstrata/estática) que abre bancos SQLite das Bíblias/Hinários via PDO.
-- **Audio/index.html** — (Experimental) Monitor de níveis de áudio OBS via WebSocket (`ws://localhost:4455`). Usa autenticação com CryptoJS. Ainda não integrado ao fluxo principal.
-- **Liturgia/** — Aplicação Node.js/Express standalone para **criação e edição** de liturgias (ver seção dedicada abaixo).
+### O que cada pasta faz:
+
+- **`Liturgia/` (Editor Público Online)**
+  - É uma aplicação web em Node.js independente que pode ser acessada externamente pela equipe.
+  - Oferece UI (Single Page Application) para construir o culto do dia.
+  - Pesquisa Bíblias e Hinários autonomamente em seus bancos (`Liturgia/Biblias/` e `Liturgia/Hinarios/`).
+  - Gera o arquivo primário com os dados consolidados: `Liturgia/cultos/YYYY-MM-DD.json`.
+- **Integração Liturgia → Local**
+  - O arquivo gerado online fica disponível para o sistema local (provavelmente mapeado por sincronização de nuvem / Cloud Docs ou network drive). O PHP (em `live`) acessa esses arquivos na própria estrutura do sistema.
+
+- **`live/` (Controle e Exibição Local - PHP)**
+  - Hospedado no servidor multimidia da igreja (localhost do templo).
+  - **`Painel.php`**: É o "cérebro" do operador local. Ele busca a liturgia do dia na URL configurada (variável `$CULTOS_URL` no `.env` que aponta para a pasta pública) e constrói um painel de controle (accordions com hinos, músicas e bíblias).
+  - **`Projetor.php` e `Televisao.php`**: Ficam nos telões e TVs de retorno no salão, aguardando ordens do Painel.
+  - **`Legendas.php` e `LegendasAoVivo.php`**: Executados pelo Browser Source do OBS Studio. Adaptados visualmente (fundo verde/chroma e transparências) para servir como lower-thirds e placares na transmissão.
+  - **`Biblia.php` e `dados.php`**: Como o ambiente local é focado em exibição e não dependente da internet, ele tem seus próprios bancos SQLite na pasta `live/Biblias/` para o operador conseguir puxar versículos na hora de forma independente através do recurso (Popup "Bíblico" no Painel).
+
+- **`Chat.JS/` (Servidor de Streaming Interno)**
+  - Servidor Node.js embutido de baixo consumo rodando Socket.IO na porta local (3000).
+  - Atua apenas como _broadcast router_. Todos os cliques e seleções que o operador faz no `live/Painel.php` acionam um evento que passa pelo `Chat.JS/index.js` e é reemitido obrigatoriamente para as telas (`Projetor.php`, etc.).
+
+- **`Audio/` (Experimental)**
+  - Painel de monitoramento do áudio que usa OBS WebSockets. Ainda não está no pipeline base.
+
+### ⚠️ Regra de Ouro: Sincronização Nuclear entre Liturgia e Live
+
+O **núcleo base** do projeto é a simbiose entre esses dois ambientes:
+
+1. **A `Liturgia` administra (cadastra, formata)** a estrutura e gera o arquivo JSON estruturado.
+2. **O ambiente `live` carrega e apresenta** no momento do culto, enviando via sockets para projeção.
+
+**INSTRUÇÃO OBRIGATÓRIA PARA A IA:**
+Se o usuário solicitar a **criação de um novo tipo** de card/mídia/texto (ex: um tipo "Aviso", "Vídeo" etc.), a **alteração** da estrutura de um tipo existente, ou sua **exclusão**, você **OBRIGATORIAMENTE** deve lidar com a sincronização do código em ambos os lados!
+Isto significa que você nunca deve criar suporte de um "tipo" apenas no `live` ou apenas na `Liturgia`. O fluxo completo precisa que:
+
+- O módulo Node em `Liturgia` (ex: `server.js`, `capa.js`) saiba gerar a interface de cadastro e salvar o JSON adequadamente.
+- O módulo de controle PHP em `live` (`Painel.php` e arquivos JS de exibição) saiba ler o novo formato do JSON e injetar nas transmissões via Socket.IO.
+
+Eles se completam. Não presuma que mudanças em um lado afetam o outro magicamente de forma orgânica, a implementação de novos formatos afeta ambos.
 
 ## Dados e Bancos
 
@@ -35,14 +79,14 @@ Todos os eventos usam o padrão: `socket.emit("IPE.Transmissão", nomeEvento, da
 
 Eventos principais:
 
-| Evento | Direção | Propósito |
-|---|---|---|
-| `hino` / `louvor` / `passagem` / `mensagem` | Painel → Telas | Exibir conteúdo (payload: `{tipo, titulo, corpo}`) |
-| `fecharJanela` | Painel → Telas | Ocultar todo conteúdo visível |
-| `fecharBiblia` | Painel → Telas | Ocultar passagem bíblica (no contexto de mensagem, oculta só o rodapé) |
-| `obsSceneChanged` | OBS/Legendas → Todos | Troca de cena OBS; variável `atual` guarda a cena ativa |
-| `pegarDadosMensagem` / `dadosMensagem` | Telas ↔ Painel | Sincronizar dados da mensagem do culto |
-| `Alerta` | Painel → Telas | Exibe alerta temporário (bootbox dialog, 5s) |
+| Evento                                      | Direção              | Propósito                                                              |
+| ------------------------------------------- | -------------------- | ---------------------------------------------------------------------- |
+| `hino` / `louvor` / `passagem` / `mensagem` | Painel → Telas       | Exibir conteúdo (payload: `{tipo, titulo, corpo}`)                     |
+| `fecharJanela`                              | Painel → Telas       | Ocultar todo conteúdo visível                                          |
+| `fecharBiblia`                              | Painel → Telas       | Ocultar passagem bíblica (no contexto de mensagem, oculta só o rodapé) |
+| `obsSceneChanged`                           | OBS/Legendas → Todos | Troca de cena OBS; variável `atual` guarda a cena ativa                |
+| `pegarDadosMensagem` / `dadosMensagem`      | Telas ↔ Painel       | Sincronizar dados da mensagem do culto                                 |
+| `Alerta`                                    | Painel → Telas       | Exibe alerta temporário (bootbox dialog, 5s)                           |
 
 ## Convenções de Código
 
@@ -68,28 +112,119 @@ Todas as variáveis de ambiente ficam em **`live/.env`** (ignorado pelo Git; com
 
 Variáveis disponíveis:
 
-| Variável | Uso | Exemplo |
-|---|---|---|
-| `SOCKET_SERVER` | Endereço `host:porta` do servidor Socket.IO | `10.0.0.253:3000` |
-| `SOCKET_NAMESPACE` | Namespace Socket.IO | `IPE.Transmissão` |
-| `CULTOS_URL` | Caminho (relativo ao `live/`) dos JSONs de culto | `../Liturgia/cultos` |
+| Variável           | Uso                                              | Exemplo              |
+| ------------------ | ------------------------------------------------ | -------------------- |
+| `SOCKET_SERVER`    | Endereço `host:porta` do servidor Socket.IO      | `10.0.0.253:3000`    |
+| `SOCKET_NAMESPACE` | Namespace Socket.IO                              | `IPE.Transmissão`    |
+| `CULTOS_URL`       | Caminho (relativo ao `live/`) dos JSONs de culto | `../Liturgia/cultos` |
 
 No PHP: `$SOCKET_SERVER`, `$SOCKET_NAMESPACE`, `$CULTOS_URL`. No JS (via `bibliotecas.php`): `servidor`, `empresa`, `cultosUrl`.
 
 O `Liturgia/server.js` usa `process.env.CULTOS_DIR` (com fallback para `path.join(__dirname, 'cultos')`) — não lê o mesmo `.env` do PHP.
 
-## Estrutura de um JSON de Culto
+## Estrutura de um JSON de Culto e Tipos Atuais Suportados
+
+A base de dados temporária de um culto rodando no aplicativo é totalmente definida por um array JSON (ex: ` Liturgia/cultos/2026-03-01.json`).
+
+> ⚠️ **INSTRUÇÃO OBRIGATÓRIA PARA A IA:** Qualquer inclusão de um novo `tipo` de card, ou alteração no funcionamento de um dos listados abaixo (como adição/remoção de keys dentro dos objetos), **DEVE ser obrigatoriamente documentada e atualizada nesta exata seção deste arquivo (`copilot-instructions.md`)**. Este arquivo é a ÚNICA fonte de verdade.
+
+Atualmente, o sistema suporta **5 (cinco)** tipos distintos. Abaixo está a documentação completa da estrutura correspondente a cada um deles:
+
+### 1. `hino` (Hinários Tradicionais)
+
+Hinos formatados e puxados primariamente dos bancos de dados SQLite (como Novo Cântico, Cantor Cristão).
 
 ```json
-[
-  { "tipo": "hino", "titulo": "Hino 001", "letra": ["Estrofe 1", "refrao:Refrão aqui", "Estrofe 2"] },
-  { "tipo": "louvor", "titulo": "Nome do Louvor", "letra": ["Verso 1", "refrao:Coro"] },
-  { "tipo": "passagem", "titulo": "João 3:16", "texto": ["Versículo completo"] },
-  { "tipo": "mensagem", "titulo": "Tema", "passagem": "Ref. bíblica", "topicos": ["Tópico 1"], "texto": ["Texto da passagem"] }
-]
+{
+  "tipo": "hino",
+  "titulo": "HNC 001 - Doxologia",
+  "letra": [
+    "A Deus, supremo Benfeitor,",
+    "refrao:A Deus, supremo Benfeitor",
+    "A Deus, o Pai, o Criador;"
+  ]
+}
 ```
 
-- Prefixo `refrao:` em `letra[]` indica refrão (renderizado com cor diferente `btn-info` no Painel).
+- **Detalhe Principal**: O campo `letra` é um array de estrofes (strings). Quando um item começa com a flag literal `refrao:`, o sistema entende como o refrão/coro. Isso faz o Painel pintar os botões com a classe `.btn-info` para visualização rápida.
+
+### 2. `louvor` (Músicas Avulsas)
+
+Semelhante aos hinos, mas serve para músicas contemporâneas/avulsas cuja letra é colada manualmente no formatação livre, estrofe por estrofe.
+
+```json
+{
+  "tipo": "louvor",
+  "titulo": "Me Amou Primeiro",
+  "letra": [
+    "Eu tenho tantas bênçãos...",
+    "refrao:E eu sei que me amou primeiro..."
+  ]
+}
+```
+
+- O conceito da flag `refrao:` funciona exatamente igual ao do `hino`.
+
+### 3. `passagem` (Versículos e Leitura Bíblica)
+
+Responsável pelas leituras bíblicas isoladas durante o culto.
+
+```json
+{
+  "tipo": "passagem",
+  "titulo": "Gênesis 1.1-3",
+  "texto": [
+    "No princípio, criou Deus os céus e a terra.",
+    "A terra, porém, estava sem forma e vazia...",
+    "Disse Deus: Haja luz; e houve luz."
+  ]
+}
+```
+
+- **Detalhe Principal**: Cada índice do array `texto` equivale tipicamente a um parágrafo/versículo que o operador pode avançar com as setas para a próxima tela do projetor.
+
+### 4. `mensagem` (Estrutura do Sermão)
+
+Modelo mais híbrido do sistema, projetado para a hora da pregação.
+
+```json
+{
+  "tipo": "mensagem",
+  "titulo": "Sermão do Monte",
+  "passagem": "Mateus 5.1-3",
+  "topicos": ["1. As Bem-Aventuranças", "2. Sal da terra e Luz do mundo"],
+  "texto": ["Vendo Jesus as multidões, subiu ao monte..."]
+}
+```
+
+- Exibe o Título do Sermão, permite intercalar seus `topicos` principais e ter o texto bíblico-base (`passagem` e `texto`). Na interface da TV/Projetor eles se intercalam inteligentemente baseados na transição de foco guiada pelo pregador.
+
+### 5. `extra` (Vídeos e Imagens Customizadas)
+
+Última seção para colocar informações que não são texto propriamente dito.
+
+```json
+{
+  "tipo": "extra",
+  "titulo": "Avisos da Semana",
+  "imagem": [
+    {
+      "arquivo": "avisos_domingo.png",
+      "titulo": "Culto da Virada"
+    }
+  ],
+  "video": [
+    {
+      "arquivo": "missoes_2026.mp4",
+      "titulo": "Vídeo Baseado em João"
+    }
+  ]
+}
+```
+
+- Exige estruturação diferenciada onde imagens e vídeos possuem os caminhos relativos ao sistema principal (para o `live` buscar e exibir).
+
+---
 
 ## Módulo Liturgia (Editor)
 
@@ -118,17 +253,17 @@ Liturgia/
 
 ### Rotas do servidor (`server.js`)
 
-| Método | Rota | Propósito |
-|---|---|---|
-| `GET` | `/cultos` | Lista todos os arquivos de liturgia (ordem decrescente) |
-| `GET` | `/cultos/:arquivo` | Retorna o JSON de uma liturgia específica |
-| `POST` | `/dados/nova-liturgia` | Cria arquivo `YYYY-MM-DD.json` vazio |
-| `POST` | `/dados/salvar-liturgia` | Persiste o conteúdo JSON de uma liturgia |
-| `POST` | `/dados/renomear-liturgia` | Renomeia o arquivo `YYYY-MM-DD.json` (use: `{ de, para }`) |
-| `POST` | `/formularios/:tipo` | Retorna fragmento HTML do formulário de cada tipo (`passagem`, `hino`, `louvor`, `mensagem`, `extra`) |
-| `GET` | `/formularios/pesquisar-louvor` | Busca música por título (modal de pesquisa externa) |
-| `GET` | `/formularios/pesquisar-louvor-local` | Retorna lista de louvores ya existentes nos cultos + HTML da UI |
-| `GET` | `/formularios/pesquisar-hino-local` | Retorna lista de hinos já existentes nos cultos + HTML da UI |
+| Método | Rota                                  | Propósito                                                                                             |
+| ------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `GET`  | `/cultos`                             | Lista todos os arquivos de liturgia (ordem decrescente)                                               |
+| `GET`  | `/cultos/:arquivo`                    | Retorna o JSON de uma liturgia específica                                                             |
+| `POST` | `/dados/nova-liturgia`                | Cria arquivo `YYYY-MM-DD.json` vazio                                                                  |
+| `POST` | `/dados/salvar-liturgia`              | Persiste o conteúdo JSON de uma liturgia                                                              |
+| `POST` | `/dados/renomear-liturgia`            | Renomeia o arquivo `YYYY-MM-DD.json` (use: `{ de, para }`)                                            |
+| `POST` | `/formularios/:tipo`                  | Retorna fragmento HTML do formulário de cada tipo (`passagem`, `hino`, `louvor`, `mensagem`, `extra`) |
+| `GET`  | `/formularios/pesquisar-louvor`       | Busca música por título (modal de pesquisa externa)                                                   |
+| `GET`  | `/formularios/pesquisar-louvor-local` | Retorna lista de louvores ya existentes nos cultos + HTML da UI                                       |
+| `GET`  | `/formularios/pesquisar-hino-local`   | Retorna lista de hinos já existentes nos cultos + HTML da UI                                          |
 
 ### Armazenamento de dados
 
@@ -161,13 +296,13 @@ Layout SPA em 3 colunas:
 
 As cores abaixo são usadas tanto nos `<li>` da lista de itens da Liturgia quanto nos accordions do `live/Painel.css`. Ao criar ou editar elementos visuais associados a tipos, manter esta paleta:
 
-| Tipo | Fundo (recolhido) | Fundo (expandido/ativo) | Texto |
-|---|---|---|---|
-| `hino` | `#3d1f6d` | `#5b2d99` | `#e0d0ff` |
-| `louvor` | `#1a5632` | `#23784a` | `#c8f0d4` |
-| `passagem` | `#14506e` | `#1a6d96` | `#c4e3f5` |
-| `mensagem` | `#7a2517` | `#a43220` | `#fdd8d2` |
-| `extra` | `#3a3a3a` | `#555555` | `#e0e0e0` |
+| Tipo       | Fundo (recolhido) | Fundo (expandido/ativo) | Texto     |
+| ---------- | ----------------- | ----------------------- | --------- |
+| `hino`     | `#3d1f6d`         | `#5b2d99`               | `#e0d0ff` |
+| `louvor`   | `#1a5632`         | `#23784a`               | `#c8f0d4` |
+| `passagem` | `#14506e`         | `#1a6d96`               | `#c4e3f5` |
+| `mensagem` | `#7a2517`         | `#a43220`               | `#fdd8d2` |
+| `extra`    | `#3a3a3a`         | `#555555`               | `#e0e0e0` |
 
 ### Forma de trabalho no módulo Liturgia
 
