@@ -114,16 +114,51 @@ app.get("/Biblia", (req, res) => {
   const nomeLivro = req.query.nomeLivro || "";
   const livro = parseInt(req.query.livro) || 0;
   const capitulo = parseInt(req.query.capitulo) || 0;
+  const biblia = req.session.biblia || "Almeida Revista e Atualizada - ARA.sqlite";
 
   try {
     const db = getBibliaDb(req);
+
+    // Busca os versículos do capítulo
     const stmt = db.prepare(
       "SELECT book.name, verse.verse, verse.text FROM verse INNER JOIN book on (verse.book_id=book.id) WHERE verse.book_id=? AND verse.chapter=?",
     );
     const versiculos = stmt.all(livro, capitulo);
+
+    // Busca informações de navegação
+    const stmtMaxCap = db.prepare(
+      "SELECT MAX(verse.chapter) as maxCapitulo FROM verse WHERE verse.book_id=?",
+    );
+    const { maxCapitulo } = stmtMaxCap.get(livro);
+
+    const stmtLivros = db.prepare(
+      "SELECT id, name FROM book WHERE id IN (?, ?) ORDER BY id",
+    );
+    const livrosNav = stmtLivros.all(livro - 1, livro + 1);
+
+    let livroAnterior = livrosNav.find(l => l.id === livro - 1) || null;
+    let livroProximo = livrosNav.find(l => l.id === livro + 1) || null;
+
+    // Último capítulo do livro anterior (para navegar ao final dele)
+    let maxCapituloAnterior = 0;
+    if (livroAnterior) {
+      const r = stmtMaxCap.get(livroAnterior.id);
+      maxCapituloAnterior = r ? r.maxCapitulo : 1;
+    }
+
     db.close();
 
-    res.render("Biblia", { nomeLivro, livro, capitulo, versiculos });
+    res.render("Biblia", {
+      nomeLivro,
+      livro,
+      capitulo,
+      maxCapitulo,
+      versiculos,
+      biblia,
+      livroAnterior,
+      livroProximo,
+      maxCapituloAnterior
+    });
   } catch (e) {
     res.status(500).send("🔧 Erro ao pesquisar os versos: " + e.message);
   }

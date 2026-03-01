@@ -13,12 +13,44 @@
         </title>
         <link rel="stylesheet" href="css/Painel.css">
         <script src="js/Biblia.js"></script>
+        <style>
+            html,
+            body {
+                height: 100vh !important;
+                margin: 0;
+            }
+
+            body {
+                display: flex;
+                flex-direction: column;
+                overflow: hidden !important;
+            }
+
+            #bibliaVersos {
+                flex: 1;
+                overflow-y: auto;
+                padding-bottom: 0.5rem;
+            }
+
+            #bibliaRodape {
+                flex-shrink: 0;
+                padding: 0.6rem 1rem;
+                background-color: #2d2d2d;
+                border-top: 1px solid #555;
+            }
+        </style>
         <!-- ---------------------------------------------------------------------------------- -->
 </head>
 
-<body class="p-1 bg-dark container-fluid scrollJC" onload="inicio();"
-    style="height:800px!important;overflow-y:auto!important;">
-    <div class="btn-group-vertical" role="group" aria-label="Vertical button group"
+<body class="p-1 bg-dark container-fluid" onload="inicio();" data-livro="<%= livro %>" data-capitulo="<%= capitulo %>"
+    data-max-capitulo="<%= maxCapitulo %>" data-nome-livro="<%= nomeLivro %>" data-biblia="<%= biblia %>"
+    data-livro-anterior-id="<%= livroAnterior ? livroAnterior.id : '' %>"
+    data-livro-anterior-nome="<%= livroAnterior ? livroAnterior.name : '' %>"
+    data-max-capitulo-anterior="<%= maxCapituloAnterior %>"
+    data-livro-proximo-id="<%= livroProximo ? livroProximo.id : '' %>"
+    data-livro-proximo-nome="<%= livroProximo ? livroProximo.name : '' %>">
+
+    <div id="bibliaVersos" class="btn-group-vertical" role="group" aria-label="Vertical button group"
         style='width:100%; display:block!important;'>
         <% versiculos.forEach((v, i)=> { %>
             <input type='radio' class='btn-check' name='btnPassagem' id='btnPassagem<%= i %>'
@@ -29,6 +61,59 @@
             </label>
             <% }); %>
     </div>
+
+    <div id="bibliaRodape">
+        <div class="d-flex gap-2 justify-content-between align-items-center">
+            <% const temAnterior=capitulo> 1 || livroAnterior;
+                const temProximo = capitulo < maxCapitulo || livroProximo; %>
+
+                    <% if (temAnterior) { %>
+                        <% if (capitulo> 1) { %>
+                            <button class='btn btn-sm btn-warning'
+                                onclick='navegar(<%= livro %>, <%= capitulo - 1 %>, <%- JSON.stringify(nomeLivro) %>)'>
+                                ◄ Anterior
+                            </button>
+                            <% } else { %>
+                                <button class='btn btn-sm btn-warning'
+                                    onclick='navegar(<%= livroAnterior.id %>, <%= maxCapituloAnterior %>, <%- JSON.stringify(livroAnterior.name) %>)'>
+                                    ◄ Anterior
+                                </button>
+                                <% } %>
+                                    <% } else { %>
+                                        <span></span>
+                                        <% } %>
+
+                                            <small class="text-secondary text-center">
+                                                <%= nomeLivro %>
+                                                    <%= capitulo %>/<%= maxCapitulo %>
+                                            </small>
+
+                                            <% if (temProximo) { %>
+                                                <% if (capitulo < maxCapitulo) { %>
+                                                    <button class='btn btn-sm btn-warning'
+                                                        onclick='navegar(<%= livro %>, <%= capitulo + 1 %>, <%- JSON.stringify(nomeLivro) %>)'>
+                                                        Próximo ►
+                                                    </button>
+                                                    <% } else { %>
+                                                        <button class='btn btn-sm btn-warning'
+                                                            onclick='navegar(<%= livroProximo.id %>, 1, <%- JSON.stringify(livroProximo.name) %>)'>
+                                                            Próximo ►
+                                                        </button>
+                                                        <% } %>
+                                                            <% } else { %>
+                                                                <span></span>
+                                                                <% } %>
+        </div>
+    </div>
+
+    <script>
+        const navegar = (livro_id, cap, nomeLvr, sel) => {
+            const versao = document.body.dataset.biblia;
+            let url = `Biblia?nomeLivro=${encodeURIComponent(nomeLvr)}&livro=${livro_id}&capitulo=${cap}&biblia=${versao}`;
+            if (sel) url += `&sel=${sel}`;
+            window.location.href = url;
+        };
+    </script>
 </body>
 
 </html>

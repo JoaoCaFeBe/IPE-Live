@@ -359,7 +359,7 @@ const listaVersiculos = (livro_id, capitulo, versao) => {
     let nomeLivro = livro.options[livro.selectedIndex].text,
         left = (screen.width - 350) / 2,
         top = (screen.height - 800) / 4;
-    window.open(`Biblia.php?nomeLivro=${nomeLivro}&livro=${livro_id}&capitulo=${capitulo}&biblia=${versao}`, `${nomeLivro}${capitulo}`, `toolbar=no,
+    window.open(`Biblia?nomeLivro=${nomeLivro}&livro=${livro_id}&capitulo=${capitulo}&biblia=${versao}`, `${nomeLivro}${capitulo}`, `toolbar=no,
                                     location=no,
                                     status=no,
                                     menubar=no,
