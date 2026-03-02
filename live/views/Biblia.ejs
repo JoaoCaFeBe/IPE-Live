@@ -63,46 +63,48 @@
     </div>
 
     <div id="bibliaRodape">
-        <div class="d-flex gap-2 justify-content-between align-items-center">
+        <div class="position-relative d-flex align-items-center justify-content-between w-100">
             <% const temAnterior=capitulo> 1 || livroAnterior;
                 const temProximo = capitulo < maxCapitulo || livroProximo; %>
 
-                    <% if (temAnterior) { %>
-                        <% if (capitulo> 1) { %>
-                            <button class='btn btn-sm btn-warning'
-                                onclick='navegar(<%= livro %>, <%= capitulo - 1 %>, <%- JSON.stringify(nomeLivro) %>)'>
-                                ◄ Anterior
-                            </button>
-                            <% } else { %>
-                                <button class='btn btn-sm btn-warning'
-                                    onclick='navegar(<%= livroAnterior.id %>, <%= maxCapituloAnterior %>, <%- JSON.stringify(livroAnterior.name) %>)'>
-                                    ◄ Anterior
-                                </button>
-                                <% } %>
-                                    <% } else { %>
-                                        <span></span>
-                                        <% } %>
+            <div style="z-index: 1;">
+                <% if (temAnterior) { %>
+                    <% if (capitulo> 1) { %>
+                        <button class='btn btn-sm btn-warning'
+                            onclick='navegar(<%= livro %>, <%= capitulo - 1 %>, <%- JSON.stringify(nomeLivro) %>)'>
+                            ◄ Anterior
+                        </button>
+                    <% } else { %>
+                        <button class='btn btn-sm btn-warning'
+                            onclick='navegar(<%= livroAnterior.id %>, <%= maxCapituloAnterior %>, <%- JSON.stringify(livroAnterior.name) %>)'>
+                            ◄ Anterior
+                        </button>
+                    <% } %>
+                <% } %>
+            </div>
 
-                                            <small class="text-secondary text-center">
-                                                <%= nomeLivro %>
-                                                    <%= capitulo %>/<%= maxCapitulo %>
-                                            </small>
+            <div class="position-absolute w-100 text-center pe-none" style="left: 0; line-height: 1.2;">
+                <small class="text-secondary d-block">
+                    <%= nomeLivro %><br>
+                    <%= capitulo %>/<%= maxCapitulo %>
+                </small>
+            </div>
 
-                                            <% if (temProximo) { %>
-                                                <% if (capitulo < maxCapitulo) { %>
-                                                    <button class='btn btn-sm btn-warning'
-                                                        onclick='navegar(<%= livro %>, <%= capitulo + 1 %>, <%- JSON.stringify(nomeLivro) %>)'>
-                                                        Próximo ►
-                                                    </button>
-                                                    <% } else { %>
-                                                        <button class='btn btn-sm btn-warning'
-                                                            onclick='navegar(<%= livroProximo.id %>, 1, <%- JSON.stringify(livroProximo.name) %>)'>
-                                                            Próximo ►
-                                                        </button>
-                                                        <% } %>
-                                                            <% } else { %>
-                                                                <span></span>
-                                                                <% } %>
+            <div style="z-index: 1;">
+                <% if (temProximo) { %>
+                    <% if (capitulo < maxCapitulo) { %>
+                        <button class='btn btn-sm btn-warning'
+                            onclick='navegar(<%= livro %>, <%= capitulo + 1 %>, <%- JSON.stringify(nomeLivro) %>)'>
+                            Próximo ►
+                        </button>
+                    <% } else { %>
+                        <button class='btn btn-sm btn-warning'
+                            onclick='navegar(<%= livroProximo.id %>, 1, <%- JSON.stringify(livroProximo.name) %>)'>
+                            Próximo ►
+                        </button>
+                    <% } %>
+                <% } %>
+            </div>
         </div>
     </div>
 

@@ -26,11 +26,11 @@ socket.onAny((aplicativo, eventName, args) => {
 });
 
 // Agrupa as linhas de letra em slides de no máximo `max` linhas cada.
-// Cada item do array corresponde a uma estrofe. Se a estrofe for dividida em mais de um slide,
-// ganha uma tag visual (idTag) para identificá-la.
+// Cada item do array corresponde a uma estrofe.
+// Ganha uma tag visual (idTag) para identificá-la.
 const agruparEmSlides = (letra, max = 4) => {
   const slides = [];
-  let contadorEstrofesDivididas = 0;
+  let contadorEstrofes = 0;
 
   (letra || []).forEach((item) => {
     const str = (item || "").trim();
@@ -43,14 +43,8 @@ const agruparEmSlides = (letra, max = 4) => {
       .map((l) => l.trim())
       .filter(Boolean);
 
-    // Verifica se esta estrofe em particular precisa ser dividida
-    const precisaDividir = linhasItem.length > max;
-    // Se ela for dividida, ganha um identificador único de estrofe dividida na música
-    let idTag = null;
-    if (precisaDividir) {
-      contadorEstrofesDivididas++;
-      idTag = contadorEstrofesDivididas;
-    }
+    contadorEstrofes++;
+    let idTag = contadorEstrofes;
 
     let bloco = { linhas: [], refrao: isRefrao, idTag: idTag };
 
@@ -118,6 +112,7 @@ const inicio = () => {
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
               const cor = slide.refrao ? "btn-info" : "btn-secondary";
               let tagHtml = "";
+              let letraTag = "";
               if (slide.idTag) {
                 const corBadge = [
                   "bg-danger",
@@ -127,8 +122,8 @@ const inicio = () => {
                   "bg-dark",
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
-                const letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Parte da mesma estrofe">${letraTag}</span>`;
+                letraTag = String.fromCharCode(64 + slide.idTag);
+                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
               }
               const textoLimpo = slide.linhas
                 .map((l) => `<span class="linha-truncate">${l}</span>`)
@@ -139,7 +134,7 @@ const inicio = () => {
               $(
                 `#colapseHino${hino} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnHino${hino}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnHino${hino}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -177,6 +172,7 @@ const inicio = () => {
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
               const cor = slide.refrao ? "btn-info" : "btn-secondary";
               let tagHtml = "";
+              let letraTag = "";
               if (slide.idTag) {
                 const corBadge = [
                   "bg-danger",
@@ -186,8 +182,8 @@ const inicio = () => {
                   "bg-dark",
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
-                const letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Parte da mesma estrofe">${letraTag}</span>`;
+                letraTag = String.fromCharCode(64 + slide.idTag);
+                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
               }
               const textoLimpo = slide.linhas
                 .map((l) => `<span class="linha-truncate">${l}</span>`)
@@ -198,7 +194,7 @@ const inicio = () => {
               $(
                 `#colapseCoral${louvor} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -231,6 +227,7 @@ const inicio = () => {
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
               const cor = slide.refrao ? "btn-info" : "btn-secondary";
               let tagHtml = "";
+              let letraTag = "";
               if (slide.idTag) {
                 const corBadge = [
                   "bg-danger",
@@ -240,8 +237,8 @@ const inicio = () => {
                   "bg-dark",
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
-                const letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Parte da mesma estrofe">${letraTag}</span>`;
+                letraTag = String.fromCharCode(64 + slide.idTag);
+                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
               }
               const textoLimpo = slide.linhas
                 .map((l) => `<span class="linha-truncate">${l}</span>`)
@@ -252,7 +249,7 @@ const inicio = () => {
               $(
                 `#colapseLouvor${louvor} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -323,6 +320,31 @@ const inicio = () => {
               bootstrap.Collapse.getOrCreateInstance(aberto).hide();
             }
           });
+      });
+
+      // Teclado para trocar de estrofe (apenas no que estiver aberto)
+      document.addEventListener("keyup", function (e) {
+        if (e.target.tagName === "INPUT" && e.target.type === "text") return;
+
+        const key = e.key.toUpperCase();
+        if (key >= "A" && key <= "Z" && key.length === 1) {
+          const activeAccordion = document.querySelector(
+            ".accordion-collapse.show",
+          );
+          if (activeAccordion) {
+            const inputs = Array.from(
+              activeAccordion.querySelectorAll(`input[data-letra="${key}"]`),
+            );
+            if (inputs.length > 0) {
+              let checkedIndex = inputs.findIndex((input) => input.checked);
+              let nextIndex = 0;
+              if (checkedIndex !== -1 && checkedIndex < inputs.length - 1) {
+                nextIndex = checkedIndex + 1;
+              }
+              inputs[nextIndex].click();
+            }
+          }
+        }
       });
 
       queryAll('.accordion .btn-group-vertical>input[type="radio"]').forEach(
