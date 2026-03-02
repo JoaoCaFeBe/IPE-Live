@@ -21,33 +21,35 @@
         <!-- ---------------------------------------------------------------------------------- -->
 </head>
 
-<body class="p-1 bg-dark container-fluid scrollJC" onload="inicio();">
-    <div class="input-group mb-1 biblia">
-        <span class="input-group-text"><i class="fa-solid fa-book-bible"></i></span>
-        <select id='livro' class="form-select form-select-sm" aria-label="Small select"
-            onchange="capitulo.value = 1; capitulos(this.value)">
-            <% livros.forEach((livro, index)=> { %>
-                <option value="<%= livro.id %>" capitulos="<%= livro.capitulos %>" <%=index===0 ? 'selected' : '' %>><%=
-                        livro.name %>
-                </option>
-                <% }); %>
-        </select>
-        <select id="versao" class="form-select form-select-sm" style="max-width: 12ch;" aria-label="Small select"
-            onchange="/* Só visual neste dropdown pois ele mandará por link ao selecionar o capitulo no Painel.js (opcionalmente pode renderizar /Painel?biblia=value pra fixar) */">
-            <% arquivos.forEach((arquivo)=> {
-                let m = arquivo.match(/- ([^-]+)\.sqlite$/);
-                let sigla = m ? m[1] : arquivo;
-                %>
-                <option value="<%= arquivo %>" <%=currentBiblia===arquivo ? 'selected' : '' %>><%= sigla %>
-                </option>
-                <% }); %>
-        </select>
-        <input class="input-group-text" style="width: 50px;" type="number" id="capitulo" min='1' value='1' max='50'
-            onkeydown="if (event.key === 'Enter') { if (parseInt(this.value) > parseInt(this.max)) this.value=this.max; listaVersiculos(livro.value, this.value, versao.value); }">
-        <button class="btn btn-warning" type="button" id="button-addon2"
-            onclick="if (parseInt(capitulo.value) > parseInt(capitulo.max)) capitulo.value=capitulo.max; listaVersiculos(livro.value, capitulo.value, versao.value);">Abrir</button>
+<body class="px-1 bg-dark container-fluid scrollJC" onload="inicio();">
+    <div class="sticky-top bg-dark pt-1 pb-1" style="z-index: 1050; box-shadow: 0 4px 6px -6px #222;">
+        <div class="input-group mb-1 biblia">
+            <span class="input-group-text"><i class="fa-solid fa-book-bible"></i></span>
+            <select id='livro' class="form-select form-select-sm" aria-label="Small select"
+                onchange="capitulo.value = 1; capitulos(this.value)">
+                <% livros.forEach((livro, index)=> { %>
+                    <option value="<%= livro.id %>" capitulos="<%= livro.capitulos %>" <%=index===0 ? 'selected' : '' %>><%=
+                            livro.name %>
+                    </option>
+                    <% }); %>
+            </select>
+            <select id="versao" class="form-select form-select-sm" style="max-width: 12ch;" aria-label="Small select"
+                onchange="/* Só visual neste dropdown pois ele mandará por link ao selecionar o capitulo no Painel.js (opcionalmente pode renderizar /Painel?biblia=value pra fixar) */">
+                <% arquivos.forEach((arquivo)=> {
+                    let m = arquivo.match(/- ([^-]+)\.sqlite$/);
+                    let sigla = m ? m[1] : arquivo;
+                    %>
+                    <option value="<%= arquivo %>" <%=currentBiblia===arquivo ? 'selected' : '' %>><%= sigla %>
+                    </option>
+                    <% }); %>
+            </select>
+            <input class="input-group-text" style="width: 50px;" type="number" id="capitulo" min='1' value='1' max='50'
+                onkeydown="if (event.key === 'Enter') { if (parseInt(this.value) > parseInt(this.max)) this.value=this.max; listaVersiculos(livro.value, this.value, versao.value); }">
+            <button class="btn btn-warning" type="button" id="button-addon2"
+                onclick="if (parseInt(capitulo.value) > parseInt(capitulo.max)) capitulo.value=capitulo.max; listaVersiculos(livro.value, capitulo.value, versao.value);">Abrir</button>
+        </div>
+        <input type="text" class="w-100" id='mensagem' name='mensagem' placeholder="Mensagem para o pulpito">
     </div>
-    <input type="text" class="w-100 mb-1" id='mensagem' name='mensagem' placeholder="Mensagem para o pulpito">
 
 </body>
 
