@@ -18,7 +18,9 @@ const PORT = process.env.PORT || 3001;
 // Se estiver rodando o Socket no mesmo Node, ele chamará a mesma máquina sem precisar informar domínio complexo
 app.locals.SOCKET_SERVER = process.env.SOCKET_SERVER || "http://localhost:3000";
 app.locals.SOCKET_NAMESPACE = process.env.SOCKET_NAMESPACE || "IPE.Transmissão";
-app.locals.CULTOS_URL = process.env.CULTOS_URL || "/Liturgia/cultos";
+
+// app.locals.CULTOS_URL será internalizado para suportar a variável CULTOS_DIR (busca local primeiro)
+app.locals.CULTOS_URL = "/api/cultos";
 
 // OBS WebSocket (usado pelo monitor de áudio)
 app.locals.obsWsHost = process.env.OBS_WS_HOST || "localhost";
@@ -67,6 +69,23 @@ const getArquivosBiblia = () => {
 // ROTEAMENTO (SUBSTITUI OS ARQUIVOS .PHP)
 // ==========================================
 
+// Interceptador para permitir carregar json do diretório local (CULTOS_DIR) ou da URL (CULTOS_URL)
+app.get("/api/cultos/:arquivo", (req, res) => {
+  const arquivo = req.params.arquivo;
+  const cultosDir = process.env.CULTOS_DIR;
+  const fallbackUrl = process.env.CULTOS_URL || "/Liturgia/cultos";
+
+  if (cultosDir) {
+    const filePath = path.join(cultosDir, arquivo);
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+  }
+
+  // Fallback - Redireciona para baixar da URL original
+  res.redirect(`${fallbackUrl}/${arquivo}`);
+});
+
 app.get("/", (req, res) => res.redirect("/Painel"));
 
 // 1. Painel Administrativo de Controle O.B.S./Tela
@@ -114,7 +133,8 @@ app.get("/Biblia", (req, res) => {
   const nomeLivro = req.query.nomeLivro || "";
   const livro = parseInt(req.query.livro) || 0;
   const capitulo = parseInt(req.query.capitulo) || 0;
-  const biblia = req.session.biblia || "Almeida Revista e Atualizada - ARA.sqlite";
+  const biblia =
+    req.session.biblia || "Almeida Revista e Atualizada - ARA.sqlite";
 
   try {
     const db = getBibliaDb(req);
@@ -136,8 +156,8 @@ app.get("/Biblia", (req, res) => {
     );
     const livrosNav = stmtLivros.all(livro - 1, livro + 1);
 
-    let livroAnterior = livrosNav.find(l => l.id === livro - 1) || null;
-    let livroProximo = livrosNav.find(l => l.id === livro + 1) || null;
+    let livroAnterior = livrosNav.find((l) => l.id === livro - 1) || null;
+    let livroProximo = livrosNav.find((l) => l.id === livro + 1) || null;
 
     // Último capítulo do livro anterior (para navegar ao final dele)
     let maxCapituloAnterior = 0;
@@ -157,7 +177,7 @@ app.get("/Biblia", (req, res) => {
       biblia,
       livroAnterior,
       livroProximo,
-      maxCapituloAnterior
+      maxCapituloAnterior,
     });
   } catch (e) {
     res.status(500).send("🔧 Erro ao pesquisar os versos: " + e.message);
