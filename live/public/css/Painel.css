@@ -1,57 +1,57 @@
 html,
 body {
-    width: 100%;
-    height: 100%;
-    padding: 0px;
-    /*padding-bottom: 50px;*/
-    margin: 0px;
-    overflow: hidden;
-    background-color: black;
-    color: white;
+  width: 100%;
+  height: 100%;
+  padding: 0px;
+  /*padding-bottom: 50px;*/
+  margin: 0px;
+  overflow: hidden;
+  background-color: black;
+  color: white;
 }
 
-.btn-group-vertical>label {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
-    white-space: normal !important;
-    word-wrap: break-word;
+.btn-group-vertical > label {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: normal !important;
+  word-wrap: break-word;
 }
 
-.btn-group-vertical>label .linha-truncate {
-    display: inline-block;
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap !important;
-    vertical-align: bottom;
+.btn-group-vertical > label .linha-truncate {
+  display: inline-block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+  vertical-align: bottom;
 }
 
 homens {
-    width: 50%;
-    float: left;
-    text-align: center;
+  width: 50%;
+  float: left;
+  text-align: center;
 }
 
 mulheres {
-    text-align: center;
+  text-align: center;
 }
 
 .scrollJC {
-    overflow-y: auto;
+  overflow-y: auto;
 }
 
 .scrollJC::-webkit-scrollbar {
-    display: initial;
-    width: 5px;
+  display: initial;
+  width: 5px;
 }
 
 .scrollJC::-webkit-scrollbar-thumb {
-    background: currentColor;
-    opacity: 0.5;
-    backdrop-filter: invert(1);
+  background: currentColor;
+  opacity: 0.5;
+  backdrop-filter: invert(1);
 }
 
 /*.scrollJC:hover::-webkit-scrollbar {
@@ -60,74 +60,83 @@ mulheres {
 
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* ---- Cores por tipo de seção ---- */
 #hinos .accordion-button {
-    background-color: #3d1f6d;
-    color: #e0d0ff;
+  background-color: #3d1f6d;
+  color: #e0d0ff;
 }
 
 #hinos .accordion-button:not(.collapsed) {
-    background-color: #5b2d99;
-    color: #fff;
+  background-color: #5b2d99;
+  color: #fff;
 }
 
 #louvores .accordion-button {
-    background-color: #1a5632;
-    color: #c8f0d4;
+  background-color: #1a5632;
+  color: #c8f0d4;
 }
 
 #louvores .accordion-button:not(.collapsed) {
-    background-color: #23784a;
-    color: #fff;
+  background-color: #23784a;
+  color: #fff;
 }
 
 #corais .accordion-button {
-    background-color: #5c3200;
-    color: #ffe5c8;
+  background-color: #5c3200;
+  color: #ffe5c8;
 }
 
 #corais .accordion-button:not(.collapsed) {
-    background-color: #7e4600;
-    color: #fff;
+  background-color: #7e4600;
+  color: #fff;
 }
 
 #passagens .accordion-button {
-    background-color: #14506e;
-    color: #c4e3f5;
+  background-color: #14506e;
+  color: #c4e3f5;
 }
 
 #passagens .accordion-button:not(.collapsed) {
-    background-color: #1a6d96;
-    color: #fff;
+  background-color: #1a6d96;
+  color: #fff;
 }
 
-#passagens .btn-group-vertical>label.btn,
-#passagens .btn-group-vertical>.btn,
-.accordion-item[tipo="passagem"] .btn-group-vertical>label.btn {
-    text-align: left !important;
-    justify-content: flex-start;
+#passagens .btn-group-vertical > label.btn,
+#passagens .btn-group-vertical > .btn,
+.accordion-item[tipo="passagem"] .btn-group-vertical > label.btn {
+  text-align: left !important;
+  justify-content: flex-start;
 }
 
 #mensagens .accordion-button {
-    background-color: #7a2517;
-    color: #fdd8d2;
+  background-color: #7a2517;
+  color: #fdd8d2;
 }
 
 #mensagens .accordion-button:not(.collapsed) {
-    background-color: #a43220;
-    color: #fff;
+  background-color: #a43220;
+  color: #fff;
 }
 
 .accordion-button::after {
-    filter: invert(1);
+  filter: invert(1);
 }
 
 /* Evita salto de scroll ao focar o input invisível do btn-check */
 .btn-check {
-    position: fixed !important;
-    pointer-events: none !important;
+  position: fixed !important;
+  pointer-events: none !important;
+}
+
+.tag-estrofe {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
 }
