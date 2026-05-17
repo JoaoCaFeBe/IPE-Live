@@ -645,30 +645,47 @@ app.post("/formularios/coral", (_req, res) => {
 // ---------------------------------------------------------------------------
 const https = require("https");
 
-function vagalumeGet(url, res) {
+const VAGALUME_API = "https://api.vagalume.com.br";
+const VAGALUME_TIMEOUT_MS = 5000;
+
+function vagalumeGet(endpoint, params, res) {
   if (!VAGALUME_API_KEY) {
     return res.status(503).json({ error: "Vagalume desabilitado: API key ausente" });
   }
-  https.get(url, (remote) => {
+  const qs = new URLSearchParams({ ...params, apikey: VAGALUME_API_KEY }).toString();
+  const url = `${VAGALUME_API}${endpoint}?${qs}`;
+
+  const req = https.get(url, (remote) => {
     let data = "";
     remote.on("data", (chunk) => { data += chunk; });
     remote.on("end", () => {
       try { res.json(JSON.parse(data)); }
       catch (_) { res.status(502).json({ error: "Resposta inválida da Vagalume" }); }
     });
-  }).on("error", () => res.status(502).json({ error: "Falha ao conectar à Vagalume" }));
+  });
+
+  req.setTimeout(VAGALUME_TIMEOUT_MS, () => {
+    console.error(`[vagalume] timeout apos ${VAGALUME_TIMEOUT_MS}ms — ${endpoint}`);
+    req.destroy();
+    if (!res.headersSent) res.status(504).json({ error: "Vagalume nao respondeu a tempo" });
+  });
+
+  req.on("error", (err) => {
+    console.error(`[vagalume] erro de rede — ${endpoint} — ${err && err.message}`);
+    if (!res.headersSent) res.status(502).json({ error: "Falha ao conectar à Vagalume" });
+  });
 }
 
 app.get("/api/vagalume/buscar", (req, res) => {
-  const q = encodeURIComponent((req.query.q || "").trim());
+  const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Parâmetro q obrigatório" });
-  vagalumeGet(`https://api.vagalume.com.br/search.mus?q=${q}&apikey=${VAGALUME_API_KEY}`, res);
+  vagalumeGet("/search.mus", { q }, res);
 });
 
 app.get("/api/vagalume/letra", (req, res) => {
-  const musid = encodeURIComponent((req.query.musid || "").trim());
+  const musid = (req.query.musid || "").trim();
   if (!musid) return res.status(400).json({ error: "Parâmetro musid obrigatório" });
-  vagalumeGet(`https://api.vagalume.com.br/search.php?musid=${musid}&apikey=${VAGALUME_API_KEY}`, res);
+  vagalumeGet("/search.php", { musid }, res);
 });
 
 app.post("/formularios/pesquisar-louvor", (req, res) => {
