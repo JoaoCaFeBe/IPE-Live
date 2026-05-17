@@ -14,11 +14,27 @@
  *   integracaoOBS    : true | false          — ativar integração direta com OBS
  */
 
+// Sanitizacao de HTML recebido via Socket.IO ou consumido do Liturgia (SEC-001, SEC-013).
+// Allowlist baseada nas tags realmente usadas: span (com style/class), br, strong.
+var SANITIZE_CONFIG = {
+    ALLOWED_TAGS: ['span', 'br', 'strong'],
+    ALLOWED_ATTR: ['style', 'class']
+};
+function sanitizar(html) {
+    if (typeof html !== 'string') return '';
+    return (window.DOMPurify ? window.DOMPurify.sanitize(html, SANITIZE_CONFIG) : html);
+}
+// Helper de atribuicao DOM com sanitizacao obrigatoria (substitui uso direto de innerHTML).
+function definirHtmlSeguro(elemento, html) {
+    if (!elemento) return;
+    elemento.innerHTML = sanitizar(html);
+}
+
 var query = document.querySelector.bind(document),
     queryAll = document.querySelectorAll.bind(document),
     queryId = document.getElementById.bind(document),
     queryName = document.getElementsByName.bind(document),
-    socket = io(servidor, { transports: ["polling", "websocket"] }),
+    socket = io(servidor, { transports: ["polling", "websocket"], auth: { token: window.SOCKET_TOKEN || "" } }),
     atual;
 
 // telaPrincipal será detectado em inicio() quando o DOM estiver completo
@@ -250,12 +266,13 @@ function processarConteudo(conteudo) {
             });
         }).then(() => {
             $(`body>*:not(${tipo})`).fadeOut(200, function () {
-                $(`body>${tipo}>titulo`).html(conteudo.titulo);
+                // Sanitizacao (SEC-001): titulo e corpo vem via Socket.IO de cliente nao confiavel
+                $(`body>${tipo}>titulo`).html(sanitizar(conteudo.titulo));
                 // Inserir conteúdo primeiro para que a medição use o texto real
                 const elementoAlvo = document.querySelector(`body>${tipo}>${elem}`);
-                elementoAlvo.innerHTML = conteudo.corpo;
+                definirHtmlSeguro(elementoAlvo, conteudo.corpo);
                 if (conteudo.corpo && telaCfg.juntarLinhasEmPares) {
-                    elementoAlvo.innerHTML = agruparLinhasEmPares(conteudo.corpo, elementoAlvo);
+                    definirHtmlSeguro(elementoAlvo, agruparLinhasEmPares(conteudo.corpo, elementoAlvo));
                 }
                 // Só exibe o elem se houver conteúdo
                 if (elementoAlvo.innerHTML.trim()) {

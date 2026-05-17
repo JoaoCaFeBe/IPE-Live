@@ -2,7 +2,7 @@ var query = document.querySelector.bind(document),
     queryAll = document.querySelectorAll.bind(document),
     queryId = document.getElementById.bind(document),
     queryName = document.getElementsByName.bind(document),
-    socket = io(servidor, { transports: ["polling", "websocket"] });
+    socket = io(servidor, { transports: ["polling", "websocket"], auth: { token: window.SOCKET_TOKEN || "" } });
 // -----------------------------------------------------------------------------------------
 const inicio = () => {
     const botoes = queryAll('input[type="radio"]');

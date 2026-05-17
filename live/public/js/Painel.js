@@ -1,10 +1,37 @@
 let painelOBS =
   document.currentScript.getAttribute("painelOBS") === "painelOBS";
+
+// Sanitizacao (SEC-013) — dados vem do Liturgia (VPS publica) via getJSON e sao
+// interpolados em templates literais HTML. Sem isso, atacante na VPS injeta XSS no Painel.
+const SANITIZE_TITULO = { ALLOWED_TAGS: [] }; // titulo aparece em texto puro
+const SANITIZE_TEXTO = {
+  ALLOWED_TAGS: ["span", "br", "strong", "i"],
+  ALLOWED_ATTR: ["style", "class"],
+};
+function sanitizarTitulo(s) {
+  if (typeof s !== "string") return "";
+  return window.DOMPurify ? window.DOMPurify.sanitize(s, SANITIZE_TITULO) : s;
+}
+function sanitizarTexto(s) {
+  if (typeof s !== "string") return "";
+  return window.DOMPurify ? window.DOMPurify.sanitize(s, SANITIZE_TEXTO) : s;
+}
+// Escape de valor de atributo HTML (para titulo="...") — DOMPurify nao cobre.
+function escAttr(s) {
+  if (typeof s !== "string") return "";
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 var query = document.querySelector.bind(document),
   queryAll = document.querySelectorAll.bind(document),
   queryId = document.getElementById.bind(document),
   queryName = document.getElementsByName.bind(document),
-  socket = io(servidor, { transports: ["polling", "websocket"] }),
+  socket = io(servidor, { transports: ["polling", "websocket"], auth: { token: window.SOCKET_TOKEN || "" } }),
   tzoffset = new Date().getTimezoneOffset() * 60000,
   arquivo = new Date(Date.now() - tzoffset).toISOString().split("T")[0];
 
@@ -92,7 +119,7 @@ const inicio = () => {
             $("#hinos").append(`<div class="accordion-item" tipo="hino">
                                                         <h2 class="accordion-header" id="hino${hino}">
                                                             <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseHino${hino}" aria-expanded="true" aria-controls="colapseHino${hino}">
-                                                                <i class="fa-solid fa-music"></i>&nbsp;${definicao.titulo}
+                                                                <i class="fa-solid fa-music"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
                                                             </button>
                                                         </h2>
                                                         <div id="colapseHino${hino}" class="accordion-collapse collapse" aria-labelledby="${hino}" data-bs-parent="#hinos">
@@ -106,7 +133,7 @@ const inicio = () => {
 
             $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
               .append(`
-                                        <input type="radio" class="btn-check" name="btnHino${hino}" id="btnHino${hino}" titulo="${definicao.titulo}" autocomplete="off">
+                                        <input type="radio" class="btn-check" name="btnHino${hino}" id="btnHino${hino}" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
                                         <label class="btn btn-warning text-truncate" for="btnHino${hino}">Título</label>
                                     `);
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
@@ -126,7 +153,7 @@ const inicio = () => {
                 tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
               }
               const textoLimpo = slide.linhas
-                .map((l) => `<span class="linha-truncate">${l}</span>`)
+                .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
                 .join("");
               const textoCorpo = slide.linhas.join("<br>");
               const texto = tagHtml + textoLimpo;
@@ -134,7 +161,7 @@ const inicio = () => {
               $(
                 `#colapseHino${hino} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnHino${hino}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnHino${hino}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -153,7 +180,7 @@ const inicio = () => {
             $("#corais").append(`<div class="accordion-item" tipo="louvor">
                                                         <h2 class="accordion-header" id="coral${louvor}">
                                                             <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseCoral${louvor}" aria-expanded="true" aria-controls="colapseCoral${louvor}">
-                                                                <i class="fa-solid fa-users"></i>&nbsp;${definicao.titulo}
+                                                                <i class="fa-solid fa-users"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
                                                             </button>
                                                         </h2>
                                                         <div id="colapseCoral${louvor}" class="accordion-collapse collapse" aria-labelledby="coral${louvor}" data-bs-parent="#corais">
@@ -166,7 +193,7 @@ const inicio = () => {
 
             $(`#colapseCoral${louvor} .accordion-body .btn-group-vertical`)
               .append(`
-                                        <input type="radio" class="btn-check" name="btnCoral${louvor}" id="btnCoral${louvor}" titulo="${definicao.titulo}" autocomplete="off">
+                                        <input type="radio" class="btn-check" name="btnCoral${louvor}" id="btnCoral${louvor}" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
                                         <label class="btn btn-warning text-truncate" for="btnCoral${louvor}">Título</label>
                                     `);
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
@@ -186,7 +213,7 @@ const inicio = () => {
                 tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
               }
               const textoLimpo = slide.linhas
-                .map((l) => `<span class="linha-truncate">${l}</span>`)
+                .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
                 .join("");
               const textoCorpo = slide.linhas.join("<br>");
               const texto = tagHtml + textoLimpo;
@@ -194,7 +221,7 @@ const inicio = () => {
               $(
                 `#colapseCoral${louvor} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -208,7 +235,7 @@ const inicio = () => {
             $("#louvores").append(`<div class="accordion-item" tipo="louvor">
                                                             <h2 class="accordion-header" id="louvor${louvor}">
                                                                 <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseLouvor${louvor}" aria-expanded="true" aria-controls="colapseLouvor${louvor}">
-                                                                    <i class="fa-solid fa-guitar"></i>&nbsp;${definicao.titulo}
+                                                                    <i class="fa-solid fa-guitar"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
                                                                 </button>
                                                             </h2>
                                                             <div id="colapseLouvor${louvor}" class="accordion-collapse collapse" aria-labelledby="${louvor}" data-bs-parent="#louvores">
@@ -221,7 +248,7 @@ const inicio = () => {
                                                         </div>`);
             $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)
               .append(`
-                                        <input type="radio" class="btn-check" name="btnLouvor${louvor}" id="btnLouvor${louvor}" titulo="${definicao.titulo}" autocomplete="off">
+                                        <input type="radio" class="btn-check" name="btnLouvor${louvor}" id="btnLouvor${louvor}" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
                                         <label class="btn btn-warning text-truncate" for="btnLouvor${louvor}">Título</label>
                                     `);
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
@@ -241,7 +268,7 @@ const inicio = () => {
                 tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
               }
               const textoLimpo = slide.linhas
-                .map((l) => `<span class="linha-truncate">${l}</span>`)
+                .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
                 .join("");
               const textoCorpo = slide.linhas.join("<br>");
               const texto = tagHtml + textoLimpo;
@@ -249,7 +276,7 @@ const inicio = () => {
               $(
                 `#colapseLouvor${louvor} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${id}" titulo="${definicao.titulo}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -263,7 +290,7 @@ const inicio = () => {
             $("#passagens").append(`<div class="accordion-item" tipo="passagem">
                                                             <h2 class="accordion-header" id="passagem${passagem}">
                                                                 <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapsePassagem${passagem}" aria-expanded="true" aria-controls="colapsePassagem${passagem}">
-                                                                    <i class="fa-solid fa-book-bible"></i>&nbsp;${definicao.titulo}
+                                                                    <i class="fa-solid fa-book-bible"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
                                                                 </button>
                                                             </h2>
                                                             <div id="colapsePassagem${passagem}" class="accordion-collapse collapse" aria-labelledby="${passagem}" data-bs-parent="#passagens">
@@ -279,7 +306,7 @@ const inicio = () => {
               $(
                 `#colapsePassagem${passagem} .accordion-body .btn-group-vertical`,
               ).append(`
-                                        <input type="radio" class="btn-check" name="btnPassagem${passagem}" id="btnPassagem${passagem}${indice}" titulo="${definicao.titulo}" autocomplete="off">
+                                        <input type="radio" class="btn-check" name="btnPassagem${passagem}" id="btnPassagem${passagem}${indice}" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
                                         <label class="btn btn-secondary text-truncate" for="btnPassagem${passagem}${indice}">${versiculoExibicao}</label>
                                     `);
             });

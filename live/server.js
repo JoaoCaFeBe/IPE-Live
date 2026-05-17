@@ -27,6 +27,30 @@ app.locals.obsWsHost = process.env.OBS_WS_HOST || "localhost";
 app.locals.obsWsPort = process.env.OBS_WS_PORT || "4455";
 app.locals.obsWsPass = process.env.OBS_WS_PASS || "";
 
+// Socket.IO auth (SEC-001) — pre-shared token + grace period + bypass quente
+const SOCKET_TOKEN = process.env.SOCKET_TOKEN || "";
+const SOCKET_AUTH_GRACE_UNTIL = process.env.SOCKET_AUTH_GRACE_UNTIL || "";
+const SOCKET_SCHEMA_MODE = process.env.SOCKET_SCHEMA_MODE || "warn";
+const SOCKET_AUTH_BYPASS_FILE = process.env.SOCKET_AUTH_BYPASS_FILE || "/tmp/ipe-bypass-auth";
+app.locals.SOCKET_TOKEN = SOCKET_TOKEN;
+if (!SOCKET_TOKEN) console.warn("[socket] SOCKET_TOKEN ausente — qualquer conexao sera autorizada (modo legacy)");
+
+// Cache do estado do bypass file para reduzir IO no handshake
+let bypassCache = { mtime: 0, present: false };
+function isBypassActive() {
+  const now = Date.now();
+  if (now - bypassCache.mtime < 2000) return bypassCache.present;
+  bypassCache = { mtime: now, present: fs.existsSync(SOCKET_AUTH_BYPASS_FILE) };
+  return bypassCache.present;
+}
+
+function isWithinGrace() {
+  if (!SOCKET_AUTH_GRACE_UNTIL) return false;
+  const until = new Date(SOCKET_AUTH_GRACE_UNTIL).getTime();
+  if (Number.isNaN(until)) return false;
+  return Date.now() < until;
+}
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -237,11 +261,89 @@ const io = new Server(http, {
   },
 });
 
+// Auth middleware Socket.IO (SEC-001)
+io.use((socket, next) => {
+  const ip = socket.handshake.address;
+  const token = socket.handshake.auth && socket.handshake.auth.token;
+  const tokenStatus = token ? "[present]" : "[missing]";
+
+  if (isBypassActive()) {
+    console.warn(`[socket][bypass] conexao aceita via arquivo sentinela — ip=${ip} token=${tokenStatus}`);
+    return next();
+  }
+
+  if (!SOCKET_TOKEN) {
+    // Sem token configurado no servidor: modo legacy (compatibilidade); apenas avisa.
+    console.warn(`[socket][legacy] SOCKET_TOKEN nao configurado — conexao aceita sem checagem; ip=${ip}`);
+    return next();
+  }
+
+  if (token === SOCKET_TOKEN) {
+    return next();
+  }
+
+  if (isWithinGrace()) {
+    console.warn(`[socket][grace] token invalido aceito durante grace period — ip=${ip} token=${tokenStatus}`);
+    return next();
+  }
+
+  console.warn(`[socket][reject] auth_required — ip=${ip} token=${tokenStatus}`);
+  return next(new Error("auth_required"));
+});
+
+// Allowlist de eventos (SEC-001) — emitidos pelos clientes Painel/Biblia/Base
+const ALLOWED_EVENTS = new Set([
+  "passagem",
+  "Alerta",
+  "fecharJanela",
+  "fecharBiblia",
+  "obsSceneChanged",
+  "hino",
+  "coral",
+  "louvor",
+]);
+
+function validatePayload(funcao, args) {
+  if (funcao === "fecharJanela" || funcao === "fecharBiblia") {
+    return args === undefined || args === false || args === null;
+  }
+  if (funcao === "Alerta" || funcao === "obsSceneChanged") {
+    return typeof args === "string";
+  }
+  // passagem / hino / coral / louvor: objeto { tipo, titulo, corpo }
+  if (!args || typeof args !== "object") return false;
+  if (typeof args.tipo !== "string") return false;
+  if (typeof args.titulo !== "string") return false;
+  if (args.corpo !== undefined && args.corpo !== null && typeof args.corpo !== "string") return false;
+  return true;
+}
+
 io.on("connection", (socket) => {
-  console.log("⚡ Nova Conexão no Painel Node/IO: " + socket.id);
-  // Atua como 'broadcast router' repetindo as informações
+  const ip = socket.handshake.address;
+  console.log(`⚡ Nova Conexão no Painel Node/IO: ${socket.id} ip=${ip}`);
+
+  socket.on("disconnect", (reason) => {
+    console.log(`👋 Conexão encerrada: ${socket.id} ip=${ip} reason=${reason}`);
+  });
+
+  // Handlers especificos com schema validation. Mantem assinatura (empresa, funcao, args)
+  // identica ao broadcaster original para preservar contrato com as 6 views EJS.
   socket.onAny((empresa, funcao, args = false) => {
-    io.emit(empresa, funcao, args);
+    try {
+      if (!ALLOWED_EVENTS.has(funcao)) {
+        console.warn(`[socket][reject-event] evento fora da allowlist — funcao=${funcao} ip=${ip}`);
+        return;
+      }
+      const ok = validatePayload(funcao, args);
+      if (!ok) {
+        console.warn(`[socket][schema] payload invalido — funcao=${funcao} ip=${ip}`);
+        if (SOCKET_SCHEMA_MODE === "enforce") return;
+        // warn-only: deixa passar mas marca log
+      }
+      io.emit(empresa, funcao, args);
+    } catch (err) {
+      console.error(`[socket][error] handler falhou — funcao=${funcao} ip=${ip} err=${err && err.message}`);
+    }
   });
 });
 

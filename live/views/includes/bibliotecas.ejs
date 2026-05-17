@@ -17,13 +17,19 @@
 
     <!-- Usando a rota nativa do Socket.IO do backend unificado Node -->
     <script src='/socket.io/socket.io.js'></script>
-    
+    <!-- Sanitizador DOM (SEC-001, SEC-013) -->
+    <script src='/Bibliotecas/dompurify.min.js'></script>
+
     <script>
         // Variáveis exportadas pelo motor Padrão em app.locals
         var servidor = "<%- SOCKET_SERVER %>",
             empresa  = "<%- SOCKET_NAMESPACE %>",
             cultosUrl= "<%- CULTOS_URL %>";
-        
+
+        // Token Socket.IO (SEC-001). Em ambientes sem .env configurado, fica string vazia
+        // e o servidor decide aceitar (modo legacy) ou rejeitar (modo enforce pos-grace).
+        window.SOCKET_TOKEN = "<%= typeof SOCKET_TOKEN !== 'undefined' ? SOCKET_TOKEN : '' %>";
+
         // Se a url da env estiver chamando localhost, é interessante formatar perigoso hardcodes do cliente base!
         if (servidor && !servidor.includes('http')) {
             servidor = "http://" + servidor;
