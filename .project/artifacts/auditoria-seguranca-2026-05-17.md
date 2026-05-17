@@ -20,9 +20,9 @@ A aplicacao apresenta postura de seguranca fraca condizente com sistema interno 
 
 ### Critical
 
-| ID | Titulo | Local |
-| --- | --- | --- |
-| SEC-001 | Socket.IO broadcaster cego (XSS persistente + injecao de comandos no front) | `Live/server.js:240-246`, `Live/public/js/Base.js:253-258` |
+| ID | Titulo | Local | Status |
+| --- | --- | --- | --- |
+| SEC-001 | Socket.IO broadcaster cego (XSS persistente + injecao de comandos no front) | `Live/server.js:240-246`, `Live/public/js/Base.js:253-258` | **[Resolvido]** spec [2026-05-17-hardening-credenciais-canais](../specs/2026-05-17-hardening-credenciais-canais/) commit `41f029a` |
 
 **Exploit (SEC-001):** Qualquer cliente que alcance a porta 3001 conecta no Socket.IO (sem auth) e emite payload com `<img onerror=...>`. O servidor faz `io.emit(empresa, funcao, args)` para todos os clientes (Painel, Projetor, Televisao, Legendas). Em `Base.js`, o conteudo cai em `.html()`/`innerHTML` sem sanitizacao — executa JS arbitrario em todas as telas.
 
@@ -30,13 +30,13 @@ A aplicacao apresenta postura de seguranca fraca condizente com sistema interno 
 
 ### High
 
-| ID | Titulo | Local |
-| --- | --- | --- |
-| SEC-002 | Path traversal em `/api/cultos/:arquivo` | `Live/server.js:73-87` |
-| SEC-003 | `express-session` secret hardcoded + cookie sem flags | `Live/server.js:40-46` |
-| SEC-004 | Senha OBS WebSocket renderizada cru em JS inline servido a anonimos | `Live/views/Audio.ejs:362-364` + `Live/server.js:26-28` |
-| SEC-005 | Nenhum endpoint autenticado; servidor escuta em `0.0.0.0` | `Live/server.js:248`, `Liturgia/server.js:800` |
-| SEC-006 | Dependencias com CVEs (`path-to-regexp`, `socket.io-parser`, `picomatch`, `brace-expansion`) | `Live/package-lock.json`, `Liturgia/package-lock.json` |
+| ID | Titulo | Local | Status |
+| --- | --- | --- | --- |
+| SEC-002 | Path traversal em `/api/cultos/:arquivo` | `Live/server.js:73-87` | Aberto |
+| SEC-003 | `express-session` secret hardcoded + cookie sem flags | `Live/server.js:40-46` | Aberto |
+| SEC-004 | Senha OBS WebSocket renderizada cru em JS inline servido a anonimos | `Live/views/Audio.ejs:362-364` + `Live/server.js:26-28` | Aberto |
+| SEC-005 | Nenhum endpoint autenticado; servidor escuta em `0.0.0.0` | `Live/server.js:248`, `Liturgia/server.js:800` | Aberto |
+| SEC-006 | Dependencias com CVEs (`path-to-regexp`, `socket.io-parser`, `picomatch`, `brace-expansion`) | `Live/package-lock.json`, `Liturgia/package-lock.json` | Aberto |
 
 **SEC-002:** `req.params.arquivo` vai direto para `path.join(cultosDir, arquivo)` sem `path.basename`. URL-encoded `..` resolve upward. Fix: `path.basename` + validacao regex ou `res.sendFile(safe, { root, dotfiles: 'deny' })`.
 
@@ -50,14 +50,14 @@ A aplicacao apresenta postura de seguranca fraca condizente com sistema interno 
 
 ### Medium
 
-| ID | Titulo | Local |
-| --- | --- | --- |
-| SEC-007 | CORS totalmente aberto em Liturgia | `Liturgia/server.js:116` |
-| SEC-008 | Falta validacao em POSTs (prototype pollution / body sem limit) | `Liturgia/server.js:389-468` |
-| SEC-009 | Headers de seguranca ausentes (helmet/CSP/XFO/HSTS) | ambos `server.js` |
-| SEC-010 | Sem rate-limit / sem anti-DoS | ambos `server.js` |
-| SEC-011 | API key Vagalume hardcoded | `Liturgia/server.js:660,666` |
-| SEC-013 | XSS DOM-based em `capa.js` (innerHTML com dados do servidor) | `Liturgia/public/js/capa.js:295,297,...` |
+| ID | Titulo | Local | Status |
+| --- | --- | --- | --- |
+| SEC-007 | CORS totalmente aberto em Liturgia | `Liturgia/server.js:116` | Aberto |
+| SEC-008 | Falta validacao em POSTs (prototype pollution / body sem limit) | `Liturgia/server.js:389-468` | Aberto |
+| SEC-009 | Headers de seguranca ausentes (helmet/CSP/XFO/HSTS) | ambos `server.js` | Aberto |
+| SEC-010 | Sem rate-limit / sem anti-DoS | ambos `server.js` | Aberto |
+| SEC-011 | API key Vagalume hardcoded | `Liturgia/server.js:660,666` | **[Resolvido]** commit `7403ca5` |
+| SEC-013 | XSS DOM-based no fluxo Liturgia → Painel | `Liturgia/public/js/capa.js:295,297,...` | **[Resolvido parcial]** Painel.js coberto (commit `41f029a`); `capa.js` ainda nao — spec propria |
 
 **SEC-011:** API key `c1563d6845dc6623fe573ef39989d329` versionada. Acao: **tratar como queimada e rotacionar**. Mover para `process.env.VAGALUME_API_KEY`. Considerar `git filter-repo` se historico for sensivel.
 
