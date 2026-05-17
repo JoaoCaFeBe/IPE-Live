@@ -6,6 +6,8 @@ const Database = require("better-sqlite3");
 const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 3000;
+const VAGALUME_API_KEY = process.env.VAGALUME_API_KEY;
+if (!VAGALUME_API_KEY) console.warn("[vagalume] VAGALUME_API_KEY ausente — rotas /api/vagalume/* responderao 503");
 
 // Diretório e banco de dados dos cultos (SQLite gerencia Músicas e Liturgias)
 const CULTOS_DB_PATH = process.env.CULTOS_DB_PATH
@@ -644,6 +646,9 @@ app.post("/formularios/coral", (_req, res) => {
 const https = require("https");
 
 function vagalumeGet(url, res) {
+  if (!VAGALUME_API_KEY) {
+    return res.status(503).json({ error: "Vagalume desabilitado: API key ausente" });
+  }
   https.get(url, (remote) => {
     let data = "";
     remote.on("data", (chunk) => { data += chunk; });
@@ -657,13 +662,13 @@ function vagalumeGet(url, res) {
 app.get("/api/vagalume/buscar", (req, res) => {
   const q = encodeURIComponent((req.query.q || "").trim());
   if (!q) return res.status(400).json({ error: "Parâmetro q obrigatório" });
-  vagalumeGet(`https://api.vagalume.com.br/search.mus?q=${q}&apikey=c1563d6845dc6623fe573ef39989d329`, res);
+  vagalumeGet(`https://api.vagalume.com.br/search.mus?q=${q}&apikey=${VAGALUME_API_KEY}`, res);
 });
 
 app.get("/api/vagalume/letra", (req, res) => {
   const musid = encodeURIComponent((req.query.musid || "").trim());
   if (!musid) return res.status(400).json({ error: "Parâmetro musid obrigatório" });
-  vagalumeGet(`https://api.vagalume.com.br/search.php?musid=${musid}&apikey=c1563d6845dc6623fe573ef39989d329`, res);
+  vagalumeGet(`https://api.vagalume.com.br/search.php?musid=${musid}&apikey=${VAGALUME_API_KEY}`, res);
 });
 
 app.post("/formularios/pesquisar-louvor", (req, res) => {
