@@ -18,7 +18,7 @@
 
 - Stack inicial: Node.js.
 - Familia operacional: `node`.
-- Observacao de portabilidade: Node/subprojeto com .gemini e instrucoes antigas em .github.
+- Subprojetos: `Liturgia/` (publica) e `Live/` (projecao); ambos Express + SQLite, `Live/` com Socket.IO.
 
 ## Documentacao E IA
 
@@ -28,11 +28,11 @@
 - Se futuramente surgirem workflows recorrentes, crie skills locais em `.codex/skills/{nome}/SKILL.md`; nao crie `*.agent.md`, `.prompt.md` ou nova arvore paralela.
 - Conteudo proprio do projeto, runbooks, inventarios e evidencias devem ir para `.project/` quando essa estrutura for adotada.
 
-## Legado De IA Encontrado
+## Legado De IA Migrado
 
-- `.github/copilot-instructions.md`
-
-Esses itens podem continuar como compatibilidade enquanto nao forem migrados. Nao remova nem substitua sem aprovacao explicita.
+- `.github/copilot-instructions.md` foi migrado para `.ai/docs/GITHUB_COPILOT_INSTRUCTIONS_MIGRATED.md` e removido em 2026-05-17.
+- `.gemini/GEMINI.md` antigo preservado em `.ai/docs/GEMINI_MIGRATED.md`.
+- `.gemini/settings.json` anterior preservado em `.ai/docs/GEMINI_SETTINGS_PRE_2026-05-17.md`.
 
 ## Comandos De Validacao
 

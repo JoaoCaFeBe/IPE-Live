@@ -11,8 +11,13 @@ Projeto standalone migrado pela Rodada 4 da `ia-portabilidade`.
 
 - Mudancas em `Liturgia/` ou `Live/`: use `node-runtime`.
 - Qualquer novo tipo de card/midia/texto deve avaliar os dois lados: `Liturgia` e `Live`.
-- Mudancas em `.github`, `.gemini`, `.ai`, `.codex`, wrappers ou catalogo: use `orquestrador`.
+- Mudancas em `.gemini`, `.ai`, `.codex`, wrappers ou catalogo: use `orquestrador`.
 - Mudancas em PM2, `.env`, URLs, tokens, bancos SQLite ou APIs externas: use `seguranca-config`.
+- Diagnostico de setup local (`.env`, banco, portas, versoes Node): use `ambiente`.
+- Decisao sobre onde salvar arquivo novo ou mover arquivo solto: use `repo-file-governor`.
+- Limpeza de evidencias e temporarios (`.project/artifacts/`, `.temp/`): use `organizar-artefatos`.
+- Falhas de runtime, stack traces ou regressoes: use `incident-debugger` (global).
+- Revisao de seguranca de aplicacao (validacao, XSS, injection): use `appsec-auditor` (global) em complemento a `seguranca-config`.
 
 ## Validacao
 
