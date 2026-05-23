@@ -32,3 +32,13 @@ Liturgia/cultos/*
 
 # favicon servido pelo Express em Live/public/
 favicon.ico
+# Governança de IA — fonte em IA.Global/shared/projects/{NomeProjeto}/governanca/
+# Movidos em 2026-05-23 via shared/brain/bin/migrar-governanca.sh
+/CLAUDE.md
+/AGENTS.md
+/GEMINI.md
+/.ai
+/.codex
+/.agents
+/.project
+/.claude
