@@ -1,1 +1,0 @@
-/Users/joaocfb/Library/CloudStorage/GoogleDrive-joaocfb@gmail.com/Meu Drive/Desenvolvimento/IA.Global/shared/projects/IPE.Live/governanca/GEMINI.md
