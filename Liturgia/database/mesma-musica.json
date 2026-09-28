@@ -1,0 +1,8 @@
+{
+  "_uso": "Títulos de louvor cujas versões são todas a mesma música, mesmo com começo diferente. A curadoria (lib/curadoria.js) junta num registro só, com a letra mais recente. Decisão do João em 28/09/2026 sobre a tabela de possíveis duplicados.",
+  "louvor": [
+    "Cantarei teu amor",
+    "Isaias 53",
+    "Não tenhas sobre ti"
+  ]
+}

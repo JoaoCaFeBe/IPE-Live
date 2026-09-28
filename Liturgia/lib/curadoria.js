@@ -172,7 +172,12 @@ function curar(db, { dirHinarios, dirBiblias }) {
   }
 
   /* 2. Louvores e coral: agrupar versões da mesma música ---------------- */
+  // Títulos que o João confirmou serem uma música só (versões com começo diferente)
+  const arqMesma = path.join(path.dirname(dirHinarios), "mesma-musica.json");
+  const mesmaMusicaConfirmada = fs.existsSync(arqMesma) ? JSON.parse(fs.readFileSync(arqMesma, "utf8")) : {};
+
   const agrupar = (tipo, campoId, tabela) => {
+    const confirmados = new Set((mesmaMusicaConfirmada[tipo] || []).map((t) => N.chave(t)));
     rel[tipo === "coral" ? "coralAntes" : "louvoresAntes"] =
       db.prepare(`SELECT COUNT(*) AS n FROM ${tabela}`).get().n;
     const grupos = new Map(); // chave do título -> [{ rep, versoes: [{titulo, letra, data}] }]
@@ -182,7 +187,7 @@ function curar(db, { dirHinarios, dirBiblias }) {
         const k = N.chave(N.tituloLouvor(it.titulo).replace(/\(.*?\)/g, "")) || "sem titulo";
         const texto = N.textoDaLetra(it.letra);
         const lista = grupos.get(k) || [];
-        let musica = lista.find((m) => mesmaMusica(m.rep, texto));
+        let musica = confirmados.has(k) ? lista[0] : lista.find((m) => mesmaMusica(m.rep, texto));
         if (!musica) { musica = { rep: texto, versoes: [] }; lista.push(musica); }
         musica.versoes.push({ item: it, data: c.data });
         grupos.set(k, lista);
