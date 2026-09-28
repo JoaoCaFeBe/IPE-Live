@@ -89,6 +89,13 @@ const ehMusicaDoCoral = (t) => /^\s*m[uú]sica(?![a-zà-ÿ])/i.test(t);
 /** Tira o prefixo "Música N –" das peças do coral */
 const semPrefixoMusica = (t) => limparEspacos(t).replace(/^m[uú]sica\s*\d*\s*[.:–-]*\s*/i, "");
 
+/** Louvor marcado como peça de cantata infantil: "Bebê Jesus - Cantata Infantil" */
+const ehCantataInfantil = (t) => /cantata\s+infantil/i.test(t || "");
+/** Tira a marca "- Cantata Infantil" / "(Cantata Infantil)" do título */
+const semMarcaCantataInfantil = (t) => limparEspacos(t)
+  .replace(/\s*[-–]\s*cantata\s+infantil\s*$/i, "")
+  .replace(/\s*\(\s*cantata\s+infantil\s*\)\s*$/i, "");
+
 /** Título de louvor/coral: sem numeração na frente, sem caixa alta, sem espaço sobrando */
 function tituloLouvor(t) {
   const s = limparEspacos(t)
@@ -252,6 +259,8 @@ module.exports = {
   tituloLouvor,
   tituloFrase,
   ehMusicaDoCoral,
+  ehCantataInfantil,
+  semMarcaCantataInfantil,
   semPrefixoMusica,
   lerNumeroHino,
   tituloHino,

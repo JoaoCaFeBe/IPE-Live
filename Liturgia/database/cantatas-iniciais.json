@@ -1,0 +1,17 @@
+{
+  "_uso": "Cantatas criadas uma vez pela curadoria (lib/curadoria.js) no banco novo; depois o coral as gerencia pela tela. culto = músicas de coral daquela data, na ordem; marca = louvores com essa marca no título que passaram ao coral. Nomes aprovados pelo João em 28/09/2026.",
+  "cantatas": [
+    {
+      "nome": "Cantata de Natal 2022",
+      "culto": "2022-12-21"
+    },
+    {
+      "nome": "Cantata Dia das Mães 2026",
+      "culto": "2026-05-10"
+    },
+    {
+      "nome": "Cantata infantil",
+      "marca": "cantata infantil"
+    }
+  ]
+}

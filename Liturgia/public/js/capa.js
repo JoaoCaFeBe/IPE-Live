@@ -823,48 +823,4 @@ function arrumarCoral() {
     }
 }
 
-function coralLocal() {
-    $.get('/formularios/pesquisar-coral-local').then(retorno => {
-        bootbox.dialog({
-            title: 'Selecione o coral',
-            message: retorno.formulario,
-            onEscape: true,
-            closeButton: true,
-            backdrop: true,
-            className: 'p-0',
-            size: 'extra-large',
-            centerVertical: true,
-            buttons: {
-                novo: {
-                    label: 'Novo',
-                    className: 'btn-success',
-                    callback: () => { novaSelecao('Coral'); }
-                },
-                ok: {
-                    label: 'Ok',
-                    className: 'btn-info disabled botaoOK',
-                    callback: () => {
-                        const idx = $('#corais>li.bg-warning').attr('codigo');
-                        const salvar = $.passarObjeto(retorno.corais[idx]);
-                        adicionarItem(salvar);
-                        $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
-                            .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Coral adicionado!'));
-                    }
-                }
-            }
-        })
-            .bind('shown.bs.modal', function () {
-                $('body').addClass('modal-open');
-                $('#corais>li').off('click').on('click', function () {
-                    marcaLI(this);
-                    const coral = retorno.corais[$(this).attr('codigo')];
-                    const el = query('mostrar');
-                    el.innerHTML = `<h2>${coral.titulo}</h2><hr class="p-0 m-0 mt-1 mb-1">`;
-                    coral.letra.forEach(linha => { el.innerHTML += linha + '<br><br>'; });
-                    query('.botaoOK').classList.remove('disabled');
-                });
-                $(this).find('[autofocus]').focus().select();
-            })
-            .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
-    });
-}
+// coralLocal (escolha do coral por cantata) está em js/coral.js

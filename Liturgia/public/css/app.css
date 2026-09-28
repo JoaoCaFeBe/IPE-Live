@@ -531,3 +531,34 @@ body.somente-consulta #botoesLiturgia,
 body.somente-consulta #bodyCorpo .btn { display: none !important; }
 body.somente-consulta #bodyLiturgia li[data-tipo] { cursor: pointer; }
 body.somente-consulta #bodyLiturgia li[data-tipo]::after { content: none; }
+
+/* ── Coral por cantata (js/coral.js) — reaproveita o layout .pm ───────── */
+
+.cm .pm-corpo { grid-template-columns: minmax(18rem, 46%) 1fr; }
+.cm-lista { overflow-y: auto; border-right: 1px solid #dee2e6; padding-right: .5rem; }
+.cm-grupo { border: 1px solid #e6dccf; border-radius: .35rem; margin-bottom: .4rem; }
+.cm-cab { display: flex; align-items: center; gap: .35rem; padding: .3rem .4rem; background: #fbf5ec; border-radius: .35rem; }
+.cm-abrir { flex: 1; display: flex; align-items: baseline; gap: .4rem; border: 0; background: none; text-align: left; padding: .1rem; min-width: 0; }
+.cm-abrir strong { color: #5c3200; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-abrir .fa-chevron-right { font-size: .7rem; color: #9a7650; transition: transform .15s; }
+.cm-grupo.aberto .cm-abrir .fa-chevron-right { transform: rotate(90deg); }
+.cm-musicas { list-style: none; margin: 0; padding: .2rem .3rem .3rem; display: none; }
+.cm-grupo.aberto .cm-musicas { display: block; }
+.cm-musica { display: flex; align-items: baseline; gap: .45rem; padding: .25rem .35rem; border-radius: .25rem; cursor: pointer; }
+.cm-musica:hover { background: #fdf3e3; }
+.cm-musica .form-check-input { margin-top: 0; flex-shrink: 0; cursor: pointer; }
+.cm-musica .titulo { white-space: nowrap; }
+.cm-musica .inicio { color: #8a8a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.cm-musica.marcada { background: #fff3cd; }
+.cm-ordem { font-size: .75rem; font-weight: 700; color: #fff; background: #7e4600; border-radius: 1rem; min-width: 1.3rem; text-align: center; }
+.cm-ordem:empty { display: none; }
+
+.ce-lista { list-style: none; margin: 0; padding: 0; border: 1px solid #dee2e6; border-radius: .35rem; max-height: 45vh; overflow-y: auto; }
+.ce-item { display: flex; align-items: center; gap: .5rem; padding: .35rem .5rem; border-bottom: 1px solid #f0f0f0; background: #fff; }
+.ce-item .fa-grip-vertical { cursor: grab; }
+.ce-n { font-size: .75rem; font-weight: 700; color: #7e4600; min-width: 1.2rem; }
+
+@media (max-width: 768px) {
+  .cm .pm-corpo { grid-template-columns: 1fr; grid-template-rows: 55% 1fr; }
+  .cm-lista { border-right: 0; border-bottom: 1px solid #dee2e6; }
+}

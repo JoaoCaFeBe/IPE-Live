@@ -78,7 +78,7 @@ function curar(db, { dirHinarios, dirBiblias }) {
   bib.close();
 
   const rel = { hinos: 0, hinosCantados: 0, hinosVinculados: 0, hinosViraramLouvor: new Map(), hinosForaDoBanco: new Map(),
-    divergencias: new Map(), louvoresAntes: 0, louvoresDepois: 0, coralAntes: 0, coralDepois: 0, titulosAlterados: 0, louvoresParaCoral: 0, fusoes: [], possiveis: [] };
+    divergencias: new Map(), louvoresAntes: 0, louvoresDepois: 0, coralAntes: 0, coralDepois: 0, titulosAlterados: 0, louvoresParaCoral: 0, cantatasCriadas: [], eventosSemMusicaDoCoral: [], cantataMusicasPerdidas: 0, fusoes: [], possiveis: [] };
 
   /* 1. Hinos: vincular cada item de hino ao hinário -------------------- */
   const { hinos: catalogoHinos, corrigidos } = carregarHinarios(dirHinarios);
@@ -168,11 +168,17 @@ function curar(db, { dirHinarios, dirBiblias }) {
   }
 
   /* 2a. Peças do coral cadastradas como louvor ("MÚSICA 1 – ...", "Música 1. ...") */
+  // e peças marcadas "Cantata Infantil" (decisão do João, 28/09/2026)
+  const louvoresQueViraramCoral = new Set();
   for (const c of cultos) {
     for (const it of c.itens) {
-      if (it?.tipo !== "louvor" || !N.ehMusicaDoCoral(it.titulo)) continue;
+      if (it?.tipo !== "louvor") continue;
+      const musica = N.ehMusicaDoCoral(it.titulo), infantil = N.ehCantataInfantil(it.titulo);
+      if (!musica && !infantil) continue;
       it.tipo = "coral";
-      it.titulo = N.semPrefixoMusica(it.titulo);
+      it.titulo = musica ? N.semPrefixoMusica(it.titulo) : N.semMarcaCantataInfantil(it.titulo);
+      if (infantil) it._marca = "cantata infantil"; // para a cantata inicial; não é gravado
+      if (it.louvor_id) louvoresQueViraramCoral.add(Number(it.louvor_id));
       delete it.louvor_id;
       rel.louvoresParaCoral++;
     }
@@ -188,18 +194,29 @@ function curar(db, { dirHinarios, dirBiblias }) {
     rel[tipo === "coral" ? "coralAntes" : "louvoresAntes"] =
       db.prepare(`SELECT COUNT(*) AS n FROM ${tabela}`).get().n;
     const grupos = new Map(); // chave do título -> [{ rep, versoes: [{titulo, letra, data}] }]
+    const incluir = (it, data) => {
+      const k = N.chave(N.tituloLouvor(it.titulo).replace(/\(.*?\)/g, "")) || "sem titulo";
+      const texto = N.textoDaLetra(it.letra);
+      const lista = grupos.get(k) || [];
+      let musica = confirmados.has(k) ? lista[0] : lista.find((m) => mesmaMusica(m.rep, texto));
+      if (!musica) { musica = { rep: texto, versoes: [] }; lista.push(musica); }
+      musica.versoes.push({ item: it, data });
+      grupos.set(k, lista);
+    };
+    // Música do catálogo que ainda não está em nenhum culto (cadastrada numa cantata, ou
+    // tirada da liturgia) continua no catálogo — entra como a versão mais antiga
+    const usados = new Set();
+    cultos.forEach((c) => c.itens.forEach((it) => { if (it?.tipo === tipo && it[campoId]) usados.add(Number(it[campoId])); }));
+    db.prepare(`SELECT id, titulo, letra FROM ${tabela} ORDER BY id`).all()
+      .filter((r) => !usados.has(r.id) && !(tipo === "louvor" && louvoresQueViraramCoral.has(r.id)))
+      .forEach((r) => incluir({ titulo: r.titulo, letra: JSON.parse(r.letra), [campoId]: r.id }, ""));
     for (const c of cultos) {
       for (const it of c.itens) {
         if (it?.tipo !== tipo || !Array.isArray(it.letra)) continue;
-        const k = N.chave(N.tituloLouvor(it.titulo).replace(/\(.*?\)/g, "")) || "sem titulo";
-        const texto = N.textoDaLetra(it.letra);
-        const lista = grupos.get(k) || [];
-        let musica = confirmados.has(k) ? lista[0] : lista.find((m) => mesmaMusica(m.rep, texto));
-        if (!musica) { musica = { rep: texto, versoes: [] }; lista.push(musica); }
-        musica.versoes.push({ item: it, data: c.data });
-        grupos.set(k, lista);
+        incluir(it, c.data);
       }
     }
+    const novosIds = new Map(); // id antigo no catálogo -> id novo
     // Mesmo título com letras parecidas mas começo diferente: não junta, relata para revisão
     for (const lista of grupos.values()) {
       for (let i = 0; i < lista.length; i++) {
@@ -234,7 +251,9 @@ function curar(db, { dirHinarios, dirBiblias }) {
         const distintas = new Set(musica.versoes.map((v) => JSON.stringify([v.item.titulo, v.item.letra]))).size;
         if (distintas > 1) rel.fusoes.push({ tipo, titulo, versoes: distintas, cultos: musica.versoes.length });
         musica.versoes.forEach((v) => {
-          if (v.item.titulo !== titulo) rel.titulosAlterados++;
+          const antigo = Number(v.item[campoId]) || 0;
+          if (antigo) novosIds.set(antigo, id);
+          if (v.data && v.item.titulo !== titulo) rel.titulosAlterados++;
           v.item.titulo = titulo;
           v.item[campoId] = id;
         });
@@ -242,9 +261,120 @@ function curar(db, { dirHinarios, dirBiblias }) {
     }
     rel[tipo === "coral" ? "coralDepois" : "louvoresDepois"] =
       db.prepare(`SELECT COUNT(*) AS n FROM ${tabela}`).get().n;
+    return novosIds;
   };
   agrupar("louvor", "louvor_id", "louvores");
-  agrupar("coral", "coral_id", "coral");
+
+  /* 2c. Eventos do coral (database/eventos-coral.json) — regra do João, 28/09/2026: nos
+     eventos em que o coral se apresenta, música que também é cantada em culto comum é do
+     grupo de louvor e continua louvor; música cantada só em eventos vai para o coral.
+     Roda depois do agrupamento: louvor_id já identifica a música (todas as versões). */
+  const arqEventos = path.join(path.dirname(dirHinarios), "eventos-coral.json");
+  const eventosCoral = fs.existsSync(arqEventos)
+    ? JSON.parse(fs.readFileSync(arqEventos, "utf8")) : { eventos: [], participacoes: [] };
+  const chaveMusica = (t) => N.chave(N.tituloLouvor(t).replace(/\(.*?\)/g, ""));
+  // Evento o dia inteiro, ou participação só em algumas músicas (reprise: o resto do culto é comum)
+  const diaInteiro = new Set([
+    ...(eventosCoral.eventos || []).flatMap((e) => e.datas),
+    ...(eventosCoral.participacoes || []).filter((p) => !p.musicas).map((p) => p.data),
+  ]);
+  const soAlgumas = new Map((eventosCoral.participacoes || []).filter((p) => p.musicas)
+    .map((p) => [p.data, new Set(p.musicas.map(chaveMusica))]));
+  const ehDoEvento = (data, it) => diaInteiro.has(data) || !!soAlgumas.get(data)?.has(chaveMusica(it.titulo));
+
+  const cantadaEmCultoComum = new Set();
+  cultos.forEach((c) => c.itens.forEach((it) => {
+    if (it?.tipo === "louvor" && it.louvor_id && !ehDoEvento(c.data, it)) cantadaEmCultoComum.add(it.louvor_id);
+  }));
+  const louvoresQueForamAoCoral = new Set();
+  cultos.forEach((c) => {
+    c.itens.forEach((it) => {
+      if (it?.tipo !== "louvor" || !it.louvor_id || !ehDoEvento(c.data, it)) return;
+      if (cantadaEmCultoComum.has(it.louvor_id)) return;
+      louvoresQueForamAoCoral.add(it.louvor_id);
+      it.tipo = "coral";
+      delete it.louvor_id;
+      rel.louvoresParaCoral++;
+    });
+  });
+  // O registro no catálogo de louvores só era usado nesses eventos: sai de lá (vai ao coral)
+  const apagarLouvor = db.prepare("DELETE FROM louvores WHERE id = ?");
+  louvoresQueForamAoCoral.forEach((id) => apagarLouvor.run(id));
+  if (louvoresQueForamAoCoral.size) {
+    // Reagrupa para os ids do catálogo saírem compactos já nesta rodada (sem buracos)
+    const antes = rel.louvoresAntes;
+    rel.fusoes = rel.fusoes.filter((f) => f.tipo !== "louvor"); // a 2ª passada relata de novo
+    rel.possiveis = rel.possiveis.filter((p) => p.tipo !== "louvor");
+    agrupar("louvor", "louvor_id", "louvores");
+    rel.louvoresAntes = antes;
+  }
+
+  // Títulos do coral definidos pelo João (mesmo título, letras diferentes → nomes distintos)
+  for (const regra of eventosCoral.titulos || []) {
+    const chaveTitulo = N.chave(regra.titulo), inicio = N.chave(regra.inicio);
+    cultos.forEach((c) => c.itens.forEach((it) => {
+      if (it?.tipo !== "coral" || N.chave(it.titulo || "") !== chaveTitulo) return;
+      if (!N.chave(N.textoDaLetra(it.letra || "")).startsWith(inicio)) return;
+      it.titulo = regra.novo;
+      rel.titulosAlterados++;
+    }));
+  }
+
+  const novosIdsCoral = agrupar("coral", "coral_id", "coral");
+
+  /* 2b. Cantatas: remapear para os ids novos do coral e criar as iniciais --- */
+  const insCantataMusica = db.prepare(
+    "INSERT OR IGNORE INTO cantata_musicas (cantata_id, coral_id, ordem) VALUES (?, ?, ?)");
+  const vinculos = db.prepare("SELECT cantata_id, coral_id, ordem FROM cantata_musicas ORDER BY cantata_id, ordem").all();
+  db.exec("DELETE FROM cantata_musicas");
+  vinculos.forEach((v) => {
+    const novo = novosIdsCoral.get(v.coral_id);
+    if (novo) insCantataMusica.run(v.cantata_id, novo, v.ordem);
+    else rel.cantataMusicasPerdidas++;
+  });
+
+  if (!db.prepare("SELECT 1 FROM config WHERE chave = 'cantatas_semeadas'").get()) {
+    const arqSementes = path.join(path.dirname(dirHinarios), "cantatas-iniciais.json");
+    const sementes = fs.existsSync(arqSementes) ? JSON.parse(fs.readFileSync(arqSementes, "utf8")).cantatas || [] : [];
+    for (const semente of sementes) {
+      let ids = [];
+      if (semente.culto) {
+        // Ordem do culto, com as repetições (a mesma música pode abrir e fechar a cantata)
+        const c = cultos.find((x) => x.data === semente.culto);
+        if (c) ids = c.itens.filter((it) => it?.tipo === "coral").map((it) => it.coral_id);
+      }
+      if (semente.marca) {
+        // Peças espalhadas por vários cultos: cada música entra uma vez
+        const marcadas = [];
+        cultos.forEach((c) => c.itens.forEach((it) => { if (it?.tipo === "coral" && it._marca === semente.marca) marcadas.push(it.coral_id); }));
+        ids = ids.concat([...new Set(marcadas)]);
+      }
+      ids = ids.filter(Boolean);
+      if (!ids.length) continue;
+      const cantataId = db.prepare("INSERT INTO cantatas (nome) VALUES (?) RETURNING id").get(semente.nome).id;
+      ids.forEach((id, i) => insCantataMusica.run(cantataId, id, i + 1));
+      rel.cantatasCriadas.push(`${semente.nome} (${ids.length} músicas)`);
+    }
+    db.prepare("INSERT OR REPLACE INTO config (chave, valor) VALUES ('cantatas_semeadas', ?)").run(new Date().toISOString());
+  }
+
+  // Uma cantata por evento (músicas do coral da primeira data, na ordem, com repetições).
+  // Cada nome é criado uma vez só: se o João excluir ou renomear, a curadoria não recria.
+  const registroEventos = db.prepare("SELECT valor FROM config WHERE chave = 'eventos_coral_criados'").get();
+  const eventosJaVistos = new Set(registroEventos ? JSON.parse(registroEventos.valor) : []);
+  for (const ev of eventosCoral.eventos || []) {
+    if (eventosJaVistos.has(ev.nome)) continue;
+    eventosJaVistos.add(ev.nome);
+    if (db.prepare("SELECT 1 FROM cantatas WHERE nome = ? COLLATE NOCASE").get(ev.nome)) continue;
+    const c = cultos.find((x) => x.data === ev.datas[0]);
+    const ids = c ? c.itens.filter((it) => it?.tipo === "coral").map((it) => it.coral_id).filter(Boolean) : [];
+    if (!ids.length) { rel.eventosSemMusicaDoCoral.push(ev.nome); continue; }
+    const cantataId = db.prepare("INSERT INTO cantatas (nome) VALUES (?) RETURNING id").get(ev.nome).id;
+    ids.forEach((id, i) => insCantataMusica.run(cantataId, id, i + 1));
+    rel.cantatasCriadas.push(`${ev.nome} (${ids.length} músicas)`);
+  }
+  db.prepare("INSERT OR REPLACE INTO config (chave, valor) VALUES ('eventos_coral_criados', ?)")
+    .run(JSON.stringify([...eventosJaVistos]));
 
   /* 3. Títulos das passagens ------------------------------------------ */
   for (const c of cultos) {
@@ -255,6 +385,7 @@ function curar(db, { dirHinarios, dirBiblias }) {
     }
   }
 
+  cultos.forEach((c) => c.itens.forEach((it) => { if (it) delete it._marca; }));
   const upd = db.prepare("UPDATE cultos SET itens = ? WHERE data_culto = ?");
   cultos.forEach((c) => upd.run(JSON.stringify(c.itens), c.data));
   return rel;

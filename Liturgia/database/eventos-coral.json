@@ -1,0 +1,49 @@
+{
+  "_uso": "Eventos em que o coral (ou o Departamento Infantil) se apresenta, levantados no histórico da liturgia e nos boletins de ipencruzilhada.org (28/09/2026). Regra do João: nesses eventos, música que também é cantada em culto comum continua louvor (grupo de louvor); música cantada só em eventos vai para o coral. 'participacoes' são cultos em que o coral cantou sem ser cantata (reprise, aniversário da igreja): contam como evento na regra, mas não viram cantata. Cada evento vira uma cantata com as músicas do coral da primeira data, na ordem — exceto se já existir cantata com o mesmo nome.",
+  "eventos": [
+    { "datas": ["2022-04-17"], "nome": "Messias Redentor", "grupo": "coro", "fonte": "boletim 17/04/2022" },
+    { "datas": ["2022-08-21"], "nome": "Aniversário do coro 76 anos (2022)", "grupo": "coro", "fonte": "boletins 10/07 a 14/08/2022" },
+    { "datas": ["2022-12-21", "2022-12-22", "2022-12-25"], "nome": "Cantata de Natal 2022", "grupo": "coro", "fonte": "boletins 11 a 25/12/2022 (sem nome)" },
+    { "datas": ["2023-09-09", "2023-09-10"], "nome": "Deus em nós", "grupo": "coro", "fonte": "boletins 03 e 10/09/2023 (77 anos do coro)" },
+    { "datas": ["2023-12-25"], "nome": "Imagine", "grupo": "coro", "fonte": "boletins 17 e 24/12/2023" },
+    { "datas": ["2024-03-31"], "nome": "Ajoelhai", "grupo": "coro", "fonte": "boletim 31/03/2024" },
+    { "datas": ["2024-08-31"], "nome": "Encontro de coros — 78 anos do coro (2024)", "grupo": "coro", "fonte": "boletins 11/08 a 08/09/2024" },
+    { "datas": ["2024-10-19"], "nome": "Encontro de quartetos (2024)", "grupo": "coro", "fonte": "boletins 06 e 13/10/2024" },
+    { "datas": ["2024-12-25"], "nome": "Tudo novo o Natal faz", "grupo": "coro", "fonte": "boletins 08 a 22/12/2024" },
+    { "datas": ["2025-12-25"], "nome": "Santo pra sempre", "grupo": "coro", "fonte": "boletins 14 e 21/12/2025" },
+    { "datas": ["2026-04-05"], "nome": "Olhos da fé", "grupo": "coro", "fonte": "boletins 08/03 a 05/04/2026" },
+    { "datas": ["2026-09-20", "2026-09-16"], "nome": "Jubileu de carvalho — 80 anos do coro (2026)", "grupo": "coro", "fonte": "boletins 13 e 20/09/2026" },
+
+    { "datas": ["2021-12-19"], "nome": "Cantata infantil", "grupo": "infantil", "fonte": "liturgia (marca Cantata Infantil)" },
+    { "datas": ["2022-04-10"], "nome": "Cantata de Páscoa infantil 2022", "grupo": "infantil", "fonte": "só liturgia" },
+    { "datas": ["2022-05-08"], "nome": "Dia das Mães 2022 (infantil)", "grupo": "infantil", "fonte": "só liturgia" },
+    { "datas": ["2022-08-14"], "nome": "Dia dos Pais 2022 (infantil)", "grupo": "infantil", "fonte": "só liturgia" },
+    { "datas": ["2022-12-18"], "nome": "Cantata de Natal infantil 2022", "grupo": "infantil", "fonte": "boletim 18/12/2022 (sem nome)" },
+    { "datas": ["2023-04-01", "2023-04-02"], "nome": "Cantata de Páscoa infantil 2023", "grupo": "infantil", "fonte": "só liturgia" },
+    { "datas": ["2023-05-14"], "nome": "Dia das Mães 2023 (infantil)", "grupo": "infantil", "fonte": "só liturgia" },
+    { "datas": ["2023-08-13"], "nome": "Dia dos Pais 2023 (infantil)", "grupo": "infantil", "fonte": "só liturgia" },
+    { "datas": ["2023-12-17"], "nome": "É Natal! Renasce a esperança", "grupo": "infantil", "fonte": "boletim 17/12/2023" },
+    { "datas": ["2024-03-24"], "nome": "Cantata de Páscoa infantil 2024", "grupo": "infantil", "fonte": "só liturgia" },
+    { "datas": ["2024-05-12"], "nome": "Cantata infantil", "grupo": "infantil", "fonte": "liturgia (marca Cantata Infantil)" },
+    { "datas": ["2024-12-22"], "nome": "Um rei diferente", "grupo": "infantil", "fonte": "boletins 15 e 22/12/2024" },
+    { "datas": ["2025-12-21"], "nome": "Jesus, a luz do mundo", "grupo": "infantil", "fonte": "boletins 14 e 21/12/2025" },
+    { "datas": ["2026-03-29"], "nome": "Ele é Jesus", "grupo": "infantil", "fonte": "boletins 08 a 29/03/2026" },
+    { "datas": ["2026-05-10"], "nome": "Cantata Dia das Mães 2026", "grupo": "infantil", "fonte": "liturgia" },
+    { "datas": ["2026-08-09"], "nome": "Dia dos Pais 2026 (infantil)", "grupo": "infantil", "fonte": "só liturgia" }
+  ],
+  "participacoes": [
+    { "data": "2021-12-26", "motivo": "cantata de Natal adulta 2021 (boletim 17/04/2022), músicas não digitadas" },
+    { "data": "2023-04-29", "musicas": ["Hosana", "Finale (Vamos dar glória)"], "motivo": "89 anos da IPE — reprise" },
+    { "data": "2024-04-28", "musicas": ["Aleluia ao Rei dos reis", "Cantai! Deus habita em vós"], "motivo": "90 anos da IPE — reprise" },
+    { "data": "2024-04-14", "musicas": ["Ajoelhai"], "motivo": "reprise: o coral cantou uma música só (João, 28/09/2026)" },
+    { "data": "2024-08-18", "musicas": ["Ajoelhai"], "motivo": "reprise: o coral cantou uma música só (João, 28/09/2026)" },
+    { "data": "2024-10-27", "musicas": ["Todos hão de se curvar"], "motivo": "reprise" },
+    { "data": "2024-12-29", "musicas": ["És meu Rei"], "motivo": "reprise" },
+    { "data": "2026-04-19", "musicas": ["Maravilhoso Deus"], "motivo": "reprise" },
+    { "data": "2026-04-25", "musicas": ["Vivo está Jesus"], "motivo": "92 anos da IPE — reprise" }
+  ],
+  "_titulos": "Títulos do coral definidos pelo João: a música com esse título e esse começo de letra recebe o novo título.",
+  "titulos": [
+    { "titulo": "Todos hão de se curvar", "inicio": "Um dia vamos o Rei contemplar", "novo": "Todos hão de se curvar (Fechamento)", "motivo": "fechamento da cantata Ajoelhai (2024), estrofes diferentes da abertura — João, 28/09/2026" }
+  ]
+}

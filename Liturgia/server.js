@@ -140,6 +140,107 @@ if (!fs.existsSync(dbDir)) {
 }
 
 // ===========================================================================
+// CORAL E CANTATAS
+// ===========================================================================
+
+/** Catálogo do coral: { cantatas: [{id, nome, musicas: [coral_id em ordem]}], musicas: [{id, titulo, letra}] } */
+app.get("/coral/catalogo", (_req, res) => {
+  try {
+    const db = new Database(CULTOS_DB_PATH, { readonly: true });
+    const musicas = db.prepare("SELECT id, titulo, letra FROM coral ORDER BY titulo COLLATE NOCASE")
+      .all().map((m) => ({ ...m, letra: JSON.parse(m.letra) }));
+    const cantatas = db.prepare("SELECT id, nome FROM cantatas ORDER BY nome COLLATE NOCASE").all();
+    const vinculo = db.prepare("SELECT coral_id FROM cantata_musicas WHERE cantata_id = ? ORDER BY ordem");
+    cantatas.forEach((c) => { c.musicas = vinculo.all(c.id).map((r) => r.coral_id); });
+    db.close();
+    res.json({ cantatas, musicas });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+const letraValida = (l) => Array.isArray(l) && l.length && l.every((x) => typeof x === "string" && x.trim());
+
+/** Música do coral cadastrada fora de uma liturgia: POST /coral {titulo, letra: [..], cantata_id?} */
+app.post("/coral", (req, res) => {
+  const titulo = normalizar.tituloLouvor(req.body.titulo || "");
+  const letra = req.body.letra;
+  if (!req.body.titulo || !letraValida(letra)) return res.status(400).json({ error: "Informe o título e a letra." });
+  try {
+    const db = new Database(CULTOS_DB_PATH);
+    const json = JSON.stringify(letra);
+    const igual = db.prepare("SELECT id FROM coral WHERE titulo = ? AND letra = ?").get(titulo, json);
+    const id = igual ? igual.id
+      : db.prepare("INSERT INTO coral (titulo, letra) VALUES (?, ?) RETURNING id").get(titulo, json).id;
+    const cantataId = Number(req.body.cantata_id) || 0;
+    if (cantataId && db.prepare("SELECT 1 FROM cantatas WHERE id = ?").get(cantataId)) {
+      const { n } = db.prepare("SELECT COALESCE(MAX(ordem), 0) AS n FROM cantata_musicas WHERE cantata_id = ?").get(cantataId);
+      db.prepare("INSERT INTO cantata_musicas (cantata_id, coral_id, ordem) VALUES (?, ?, ?)").run(cantataId, id, n + 1);
+    }
+    db.close();
+    res.json({ ok: true, id, titulo });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Nova cantata: POST /cantatas {nome} */
+app.post("/cantatas", (req, res) => {
+  const nome = normalizar.limparEspacos(req.body.nome || "");
+  if (!nome) return res.status(400).json({ error: "Informe o nome da cantata." });
+  try {
+    const db = new Database(CULTOS_DB_PATH);
+    const existe = db.prepare("SELECT id FROM cantatas WHERE nome = ? COLLATE NOCASE").get(nome);
+    if (existe) { db.close(); return res.status(409).json({ error: "Já existe uma cantata com esse nome." }); }
+    const id = db.prepare("INSERT INTO cantatas (nome) VALUES (?) RETURNING id").get(nome).id;
+    db.close();
+    res.json({ ok: true, id, nome });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Renomeia e define as músicas (na ordem, podendo repetir): PUT /cantatas/:id {nome, musicas: [coral_id, ...]} */
+app.put("/cantatas/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const nome = normalizar.limparEspacos(req.body.nome || "");
+  const musicas = Array.isArray(req.body.musicas) ? req.body.musicas.map(Number).filter(Boolean) : null;
+  if (!nome || !musicas) return res.status(400).json({ error: "Dados inválidos." });
+  try {
+    const db = new Database(CULTOS_DB_PATH);
+    if (!db.prepare("SELECT 1 FROM cantatas WHERE id = ?").get(id)) { db.close(); return res.status(404).json({ error: "Cantata não encontrada." }); }
+    const outra = db.prepare("SELECT id FROM cantatas WHERE nome = ? COLLATE NOCASE AND id <> ?").get(nome, id);
+    if (outra) { db.close(); return res.status(409).json({ error: "Já existe uma cantata com esse nome." }); }
+    db.transaction(() => {
+      db.prepare("UPDATE cantatas SET nome = ? WHERE id = ?").run(nome, id);
+      db.prepare("DELETE FROM cantata_musicas WHERE cantata_id = ?").run(id);
+      const ins = db.prepare("INSERT OR IGNORE INTO cantata_musicas (cantata_id, coral_id, ordem) VALUES (?, ?, ?)");
+      const existeMusica = db.prepare("SELECT 1 FROM coral WHERE id = ?");
+      musicas.filter((m) => existeMusica.get(m)).forEach((m, i) => ins.run(id, m, i + 1));
+    })();
+    db.close();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/** Exclui a cantata (as músicas continuam no coral): DELETE /cantatas/:id */
+app.delete("/cantatas/:id", (req, res) => {
+  try {
+    const db = new Database(CULTOS_DB_PATH);
+    db.transaction(() => {
+      db.prepare("DELETE FROM cantata_musicas WHERE cantata_id = ?").run(Number(req.params.id));
+      db.prepare("DELETE FROM cantatas WHERE id = ?").run(Number(req.params.id));
+    })();
+    db.close();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===========================================================================
 // BÍBLIA
 // ===========================================================================
 
