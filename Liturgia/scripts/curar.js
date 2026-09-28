@@ -46,9 +46,9 @@ function relatorioMarkdown(rel) {
     "",
     ...[...rel.hinosViraramLouvor].map(([t, n]) => `- ${t} (${n}×)`),
     "",
-    "## Hinos que faltavam no banco do hinário — entraram com o texto da igreja",
+    "## Hinos do Novo Cântico que faltam no banco do hinário — sem vínculo, texto só na data",
     "",
-    ...rel.hinosCompletados.map((t) => `- ${t}`),
+    ...[...rel.hinosForaDoBanco].map(([t, n]) => `- ${t} (${n}×)`),
     "",
     "## Número do hino não bate com o nome digitado (não vinculado — conferir)",
     "",
@@ -73,7 +73,7 @@ if (require.main === module) {
   const rel = executarCuradoria(banco);
   console.log(`Hinos: ${rel.hinos} (já cantados: ${rel.hinosCantados}) | itens de hino vinculados: ${rel.hinosVinculados}`);
   console.log(`Louvores: ${rel.louvoresAntes} → ${rel.louvoresDepois} | coral: ${rel.coralAntes} → ${rel.coralDepois}`);
-  console.log(`Títulos alterados: ${rel.titulosAlterados} | viraram louvor: ${rel.hinosViraramLouvor.size} | completados: ${rel.hinosCompletados.length} | divergências: ${rel.divergencias.size}`);
+  console.log(`Títulos alterados: ${rel.titulosAlterados} | viraram louvor: ${rel.hinosViraramLouvor.size} | fora do banco: ${rel.hinosForaDoBanco.size} | divergências: ${rel.divergencias.size}`);
   if (arquivoRelatorio) {
     fs.writeFileSync(arquivoRelatorio, relatorioMarkdown(rel));
     console.log(`Relatório: ${arquivoRelatorio}`);

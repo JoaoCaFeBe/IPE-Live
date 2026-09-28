@@ -20,11 +20,14 @@ function inicio() {
         const emInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (e.ctrlKey && e.key === 's') {
             e.preventDefault();
-            if (!$('#cardCorpo').hasClass('d-none')) salvar();
-        } else if (e.key === 'Delete' && !emInput) {
+            if (!$('#cardCorpo').hasClass('d-none') && !somenteConsulta) salvar();
+        } else if (e.key === 'Delete' && !emInput && !somenteConsulta) {
             if (!$('#excluir').hasClass('d-none')) excluir();
         }
     });
+    // Data de hoje no fuso da igreja: dia passado abre só para consulta
+    $.getJSON('/dados/hoje').done(r => { HOJE = r.hoje; });
+
     // Duplo clique na lista de liturgias para renomear
     $('#listaLiturgias').on('dblclick', 'li', function () { renomearLiturgia(this); });
 
@@ -60,6 +63,46 @@ function baixarArquivo() {
     $.downloadObj(Liturgia, $marcado.attr('arquivo'), 'text/plain');
 }
 
+/* ── DUPLICAR ───────────────────────────────────────────────────────────── */
+
+const dataBR = d => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+
+/** Item da lista de liturgias, na posição da data (lista é da mais nova para a mais antiga) */
+function garantirNaLista(arquivo) {
+    const $ul = $('#listaLiturgias');
+    let $li = $ul.find(`li[arquivo="${arquivo}"]`);
+    if ($li.length) return $li;
+    $li = $(`<li arquivo="${arquivo}" onclick="marcaLI(this); abreLiturgia('${arquivo}');">
+            <i class='fas fa-folder'></i>&nbsp;${dataBR(dataDoArquivo(arquivo))}</li>`);
+    const depois = $ul.find('li').filter(function () { return $(this).attr('arquivo') < arquivo; }).first();
+    if (depois.length) $li.insertBefore(depois); else $ul.append($li);
+    return $li;
+}
+
+function duplicarLiturgia() {
+    if (!documento) return;
+    const origem = dataDoArquivo(documento);
+    bootbox.prompt({
+        title: `Duplicar a liturgia de ${dataBR(origem)} para:`,
+        inputType: 'date',
+        value: HOJE || hojeLocal(),
+        min: HOJE || hojeLocal(),
+        centerVertical: true,
+        message: 'Se a data já tiver liturgia, os itens são acrescentados — o que já estiver lá não é repetido.',
+        callback: destino => {
+            if (!destino) return;
+            $.post('/dados/duplicar-liturgia', { origem, destino })
+                .done(r => {
+                    const partes = [`${r.acrescentados} ${r.acrescentados === 1 ? 'item copiado' : 'itens copiados'}`];
+                    if (r.repetidos) partes.push(`${r.repetidos} já ${r.repetidos === 1 ? 'estava' : 'estavam'} lá`);
+                    mostrarToast(`<i class="fas fa-copy"></i>&nbsp;${dataBR(destino)}: ${partes.join(', ')}`, 'success');
+                    garantirNaLista(r.arquivo).trigger('click')[0]?.scrollIntoView({ block: 'nearest' });
+                })
+                .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao duplicar a liturgia.'));
+        }
+    });
+}
+
 /* ── NOVA LITURGIA ──────────────────────────────────────────────────────── */
 
 function novaLiturgia() {
@@ -71,6 +114,7 @@ function novaLiturgia() {
     bootbox.prompt({
         title: 'Selecione a data',
         inputType: 'date',
+        min: HOJE || hojeLocal(),
         value: `${yyyy}-${mm}-${dd}`,
         callback: result => {
             if (!result) return;
@@ -104,10 +148,15 @@ function mostrarToast(mensagem, tipo = 'success') {
 
 function renomearLiturgia(el) {
     const arquivoAtual = $(el).attr('arquivo');
+    if (ehDiaPassado(arquivoAtual)) {
+        mostrarToast('<i class="fas fa-lock"></i>&nbsp;Dia passado: só consulta. Use Duplicar.', 'secondary');
+        return;
+    }
     const dataAtual = arquivoAtual.replace('.json', '');
     bootbox.prompt({
         title: 'Alterar data da liturgia',
         inputType: 'date',
+        min: HOJE || hojeLocal(),
         value: dataAtual,
         centerVertical: true,
         callback: result => {
@@ -132,8 +181,32 @@ function renomearLiturgia(el) {
 
 /* ── ABRIR LITURGIA ─────────────────────────────────────────────────────── */
 
+/* ── DIA PASSADO: SÓ CONSULTA ─────────────────────────────────────────── */
+
+let HOJE = null;             // "AAAA-MM-DD" vindo do servidor (fuso da igreja)
+let somenteConsulta = false; // liturgia aberta é de dia passado
+
+function hojeLocal() {
+    const tz = new Date().getTimezoneOffset() * 60000;
+    return new Date(Date.now() - tz).toISOString().split('T')[0];
+}
+
+const dataDoArquivo = arquivo => String(arquivo).replace('.json', '');
+const ehDiaPassado = arquivo => dataDoArquivo(arquivo) < (HOJE || hojeLocal());
+
+// Passado o dia, a liturgia não se edita: some o incluir, o arrastar e os botões
+// de edição; fica o Duplicar para levá-la a outra data
+function aplicarModoConsulta() {
+    document.body.classList.toggle('somente-consulta', somenteConsulta);
+    $('#menuIncluir').toggleClass('d-none', somenteConsulta);
+    $('#seloConsulta').toggleClass('d-none', !somenteConsulta);
+    $('#btnDuplicar').removeClass('d-none');
+    if (ordenador) ordenador.option('disabled', somenteConsulta);
+}
+
 function abreLiturgia(arquivo) {
     documento = arquivo; // apenas o nome, ex.: "2026-01-04.json"
+    somenteConsulta = ehDiaPassado(arquivo);
     query('#cardCorpo').classList.add('d-none');
 
     // Exibe o botão de download na navbar
@@ -143,6 +216,7 @@ function abreLiturgia(arquivo) {
         .done(retorno => {
             Liturgia = agruparComoPainel(retorno);
             renderizarLiturgia();
+            aplicarModoConsulta();
             query('#cardLiturgia').classList.remove('d-none');
         })
         .fail(() => bootbox.alert('Erro ao carregar a liturgia.'));
@@ -183,6 +257,7 @@ function adicionarItem(item) {
 /* ── NOVA SELEÇÃO ───────────────────────────────────────────────────────── */
 
 function novaSelecao(tipo) {
+    if (somenteConsulta) return;
     queryAll('#bodyLiturgia>ul>li.bg-warning')
         .forEach(el => el.classList.remove('bg-warning'));
     const fn = window['mostra' + tipo];
@@ -224,6 +299,7 @@ function ativarArrastar() {
 /* ── SALVAR / EXCLUIR ───────────────────────────────────────────────────── */
 
 function salvar() {
+    if (somenteConsulta) return;
     let item;
     try {
         item = JSON.parse($('#final').val());
@@ -263,6 +339,7 @@ function salvar() {
 }
 
 function excluir() {
+    if (somenteConsulta) return;
     const titulo = Liturgia[$('#bodyLiturgia>ul>li.bg-warning').index()]?.titulo || 'este item';
     bootbox.confirm({
         message: `Excluir <strong>${titulo}</strong>?`,

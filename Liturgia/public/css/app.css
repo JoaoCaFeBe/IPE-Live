@@ -524,3 +524,10 @@ texto {
 
 .hm-estrofe { margin: 0 0 .75rem; line-height: 1.5; }
 .hm-estrofe.refrao { font-style: italic; color: #3d1f6d; padding-left: .75rem; border-left: 3px solid #b9a3e3; }
+
+/* ── Dia passado: só consulta (capa.js: aplicarModoConsulta) ───────────── */
+
+body.somente-consulta #botoesLiturgia,
+body.somente-consulta #bodyCorpo .btn { display: none !important; }
+body.somente-consulta #bodyLiturgia li[data-tipo] { cursor: pointer; }
+body.somente-consulta #bodyLiturgia li[data-tipo]::after { content: none; }

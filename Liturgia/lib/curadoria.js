@@ -7,8 +7,9 @@
  *     Itens de hino ganham `hino_id` e o título padrão "Nome (NC 016)".
  *  2. Louvores e coral: versões da mesma música (título e letra parecidos) viram
  *     um registro só no catálogo, com a letra mais recente e o título mais usado.
- *     Hino que não é de hinário nenhum passa a ser louvor; número do Novo Cântico
- *     que falta no banco do hinário entra no catálogo com o texto da igreja.
+ *     O catálogo tem só o que está nos hinários (decisão do João, 28/09/2026). Hino que
+ *     não é de hinário nenhum passa a ser louvor; número do Novo Cântico que falta no
+ *     banco do hinário continua hino sem vínculo, com o texto só na data em que foi usado.
  *  3. Títulos normalizados em todos os itens. A letra/texto de cada item continua
  *     sendo a que foi projetada naquele culto.
  */
@@ -75,7 +76,7 @@ function curar(db, { dirHinarios, dirBiblias }) {
   const livros = bib.prepare("SELECT id, name FROM book ORDER BY id").all();
   bib.close();
 
-  const rel = { hinos: 0, hinosCantados: 0, hinosVinculados: 0, hinosViraramLouvor: new Map(), hinosCompletados: [],
+  const rel = { hinos: 0, hinosCantados: 0, hinosVinculados: 0, hinosViraramLouvor: new Map(), hinosForaDoBanco: new Map(),
     divergencias: new Map(), louvoresAntes: 0, louvoresDepois: 0, coralAntes: 0, coralDepois: 0, titulosAlterados: 0, fusoes: [], possiveis: [] };
 
   /* 1. Hinos: vincular cada item de hino ao hinário -------------------- */
@@ -123,22 +124,15 @@ function curar(db, { dirHinarios, dirBiblias }) {
     for (const it of c.itens) {
       if (it?.tipo !== "hino") continue;
       let h = acharHino(it.titulo) || acharPelaLetra(it.letra);
-      if (!h) {
-        // Número do Novo Cântico que falta no banco do hinário (ex.: 354A): entra com o texto da igreja
-        const lido = N.lerNumeroHino(it.titulo);
-        const variante = lido && /^[A-Z]$/.test(lido.variante) ? lido.variante : "";
-        const chaveNum = lido && `${lido.hinario}${lido.numero}${variante}`;
-        if (lido?.hinario === "NC" && !porNumero.has(chaveNum) && Array.isArray(it.letra) && it.letra.length) {
-          h = { hinario: "NC", numero: lido.numero, variante, letra: it.letra, origem: "igreja",
-            nome: corrigidos.NC?.[`${lido.numero}${variante}`] || N.tituloLouvor(lido.nome) };
-          catalogoHinos.push(h);
-          porNumero.set(chaveNum, h);
-          rel.hinosCompletados.push(N.tituloHino(h.nome, h.hinario, h.numero, h.variante));
-        }
-      }
       if (h) {
         h.usadoEm = c.data; // a letra padrão é a do hinário; dos cultos vem só a última data cantada
         it._hino = h;
+      } else if (N.lerNumeroHino(it.titulo)?.hinario === "NC") {
+        // Número do Novo Cântico que falta no banco do hinário (ex.: 354A): continua hino,
+        // sem vínculo e fora do catálogo — o texto digitado aparece só na data em que foi usado
+        delete it.hino_id;
+        const t = N.limparEspacos(it.titulo);
+        rel.hinosForaDoBanco.set(t, (rel.hinosForaDoBanco.get(t) || 0) + 1);
       } else {
         // Não é de hinário nenhum: passa a ser louvor (decisão do João, 28/09/2026)
         delete it.hino_id;
@@ -157,7 +151,7 @@ function curar(db, { dirHinarios, dirBiblias }) {
   for (const h of catalogoHinos) {
     h.titulo = N.tituloHino(h.nome, h.hinario, h.numero, h.variante);
     h.id = insHino.get(h.hinario, h.numero, h.variante, h.nome, h.titulo, JSON.stringify(h.letra),
-      h.origem || "hinario", h.usadoEm || null).id;
+      "hinario", h.usadoEm || null).id;
     rel.hinos++;
     if (h.usadoEm) rel.hinosCantados++;
   }

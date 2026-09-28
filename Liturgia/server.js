@@ -284,91 +284,92 @@ app.get("/Cultos", (_req, res) => {
 });
 
 /** Serve o JSON de um culto específico expandindo as referências das músicas */
+/** Itens do culto como a tela e o Live usam: hino vinculado com o texto do banco,
+ *  louvor/coral antigos sem letra expandidos pelo catálogo. null se a data não existe. */
+function lerCultoExpandido(db, dataCulto) {
+  const row = db.prepare("SELECT itens FROM cultos WHERE data_culto = ?").get(dataCulto);
+  if (!row) return null;
+  let itens = JSON.parse(row.itens);
+  const getLouvor = db.prepare(
+    "SELECT titulo, letra FROM louvores WHERE id = ?",
+  );
+  const getCoral = db.prepare(
+    "SELECT titulo, letra FROM coral WHERE id = ?",
+  );
+
+  const getHino = db.prepare("SELECT titulo, letra FROM hinos WHERE id = ?");
+
+  // Hino vinculado ao hinário mostra sempre o texto do banco (decisão do João, 28/09/2026:
+  // o que foi projetado diferente não é o padrão). Nos demais itens, a letra gravada
+  // é o que foi projetado naquele culto e prevalece; itens antigos sem letra são
+  // expandidos pelo catálogo (louvor_id/coral_id) ou pelo hinário.
+  itens = itens.map((item) => {
+    if (item && item.tipo === "hino" && item.hino_id) {
+      const h = getHino.get(item.hino_id);
+      if (h) return { ...item, titulo: h.titulo, letra: JSON.parse(h.letra) };
+    }
+    if (item && Array.isArray(item.letra) && item.letra.length) return item;
+    // Louvor
+    if (item && item.louvor_id) {
+      const m = getLouvor.get(item.louvor_id);
+      if (m) {
+        return { ...item, titulo: m.titulo, letra: JSON.parse(m.letra) };
+      }
+    }
+    // Coral
+    if (item && item.coral_id) {
+      const m = getCoral.get(item.coral_id);
+      if (m) {
+        return { ...item, titulo: m.titulo, letra: JSON.parse(m.letra) };
+      }
+    }
+
+    // Se for hino "legacy" que perdeu a louvor_id de cultos.sqlite (Porque limpamos na conversão)
+    if (
+      item &&
+      item.tipo === "hino" &&
+      item.titulo &&
+      (!item.letra || item.letra.length === 0)
+    ) {
+      try {
+        const { codigo, num, nome } = parseTituloHino(item.titulo);
+        if (codigo && num) {
+          const hdb = abrirHinario(codigo);
+          // Procura o hino pelo numero, como a tabela songs guarda
+          let row = hdb
+            .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
+            .get(`${codigo}%${Number(num)}%`);
+          if (!row) {
+            row = hdb
+              .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
+              .get(`%${codigo}%${Number(num)}%`);
+          }
+          if (!row && nome) {
+            row = hdb
+              .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
+              .get(`%${nome}%`);
+          }
+          if (row) {
+            item.letra = parseLyricsXml(row.lyrics);
+          }
+          hdb.close();
+        }
+      } catch (e) {
+        /* Silencioso se não achar, envia o vazio */
+      }
+    }
+    return item;
+  });
+  return itens;
+}
+
 app.get("/Cultos/:arquivo", (req, res) => {
   try {
     const dataCulto = req.params.arquivo.replace(".json", "");
     const db = new Database(CULTOS_DB_PATH, { readonly: true });
-    const row = db
-      .prepare("SELECT itens FROM cultos WHERE data_culto = ?")
-      .get(dataCulto);
-    if (!row) {
-      db.close();
-      return res.status(404).json([]);
-    }
-
-    let itens = JSON.parse(row.itens);
-    const getLouvor = db.prepare(
-      "SELECT titulo, letra FROM louvores WHERE id = ?",
-    );
-    const getCoral = db.prepare(
-      "SELECT titulo, letra FROM coral WHERE id = ?",
-    );
-
-    const getHino = db.prepare("SELECT titulo, letra FROM hinos WHERE id = ?");
-
-    // Hino vinculado ao hinário mostra sempre o texto do banco (decisão do João, 28/09/2026:
-    // o que foi projetado diferente não é o padrão). Nos demais itens, a letra gravada
-    // é o que foi projetado naquele culto e prevalece; itens antigos sem letra são
-    // expandidos pelo catálogo (louvor_id/coral_id) ou pelo hinário.
-    itens = itens.map((item) => {
-      if (item && item.tipo === "hino" && item.hino_id) {
-        const h = getHino.get(item.hino_id);
-        if (h) return { ...item, titulo: h.titulo, letra: JSON.parse(h.letra) };
-      }
-      if (item && Array.isArray(item.letra) && item.letra.length) return item;
-      // Louvor
-      if (item && item.louvor_id) {
-        const m = getLouvor.get(item.louvor_id);
-        if (m) {
-          return { ...item, titulo: m.titulo, letra: JSON.parse(m.letra) };
-        }
-      }
-      // Coral
-      if (item && item.coral_id) {
-        const m = getCoral.get(item.coral_id);
-        if (m) {
-          return { ...item, titulo: m.titulo, letra: JSON.parse(m.letra) };
-        }
-      }
-
-      // Se for hino "legacy" que perdeu a louvor_id de cultos.sqlite (Porque limpamos na conversão)
-      if (
-        item &&
-        item.tipo === "hino" &&
-        item.titulo &&
-        (!item.letra || item.letra.length === 0)
-      ) {
-        try {
-          const { codigo, num, nome } = parseTituloHino(item.titulo);
-          if (codigo && num) {
-            const hdb = abrirHinario(codigo);
-            // Procura o hino pelo numero, como a tabela songs guarda
-            let row = hdb
-              .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
-              .get(`${codigo}%${Number(num)}%`);
-            if (!row) {
-              row = hdb
-                .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
-                .get(`%${codigo}%${Number(num)}%`);
-            }
-            if (!row && nome) {
-              row = hdb
-                .prepare("SELECT lyrics FROM songs WHERE title LIKE ? LIMIT 1")
-                .get(`%${nome}%`);
-            }
-            if (row) {
-              item.letra = parseLyricsXml(row.lyrics);
-            }
-            hdb.close();
-          }
-        } catch (e) {
-          /* Silencioso se não achar, envia o vazio */
-        }
-      }
-      return item;
-    });
-
+    const itens = lerCultoExpandido(db, dataCulto);
     db.close();
+    if (!itens) return res.status(404).json([]);
     res.json(itens);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -379,6 +380,17 @@ app.get("/Cultos/:arquivo", (req, res) => {
 // DADOS
 // ===========================================================================
 
+/* ── Dia passado é só para consulta (decisão do João, 28/09/2026) ─────────── */
+
+/** "AAAA-MM-DD" de hoje no fuso da igreja */
+function hojeNaIgreja() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Recife" }).format(new Date());
+}
+const ehPassada = (dataCulto) => String(dataCulto) < hojeNaIgreja();
+const MSG_SO_CONSULTA = "Liturgia de dia passado é só para consulta. Use Duplicar para levá-la a outra data.";
+
+app.get("/dados/hoje", (_req, res) => res.json({ hoje: hojeNaIgreja() }));
+
 /** Cria novo arquivo de liturgia vazio no banco */
 app.post("/dados/nova-liturgia", (req, res) => {
   const arquivo = path.basename(
@@ -387,6 +399,7 @@ app.post("/dados/nova-liturgia", (req, res) => {
   if (!arquivo) return res.status(400).send("Arquivo inválido");
 
   const dataCulto = arquivo.replace(".json", "");
+  if (ehPassada(dataCulto)) return res.status(403).json({ error: "Não é possível criar liturgia em dia passado." });
   try {
     const db = new Database(CULTOS_DB_PATH);
     db.prepare(
@@ -409,6 +422,7 @@ app.post("/dados/salvar-liturgia", (req, res) => {
     return res.status(400).json({ error: "Dados inválidos" });
 
   const dataCulto = arquivo.replace(".json", "");
+  if (ehPassada(dataCulto)) return res.status(403).json({ error: MSG_SO_CONSULTA });
   try {
     let itens = JSON.parse(dados);
     const db = new Database(CULTOS_DB_PATH);
@@ -473,6 +487,53 @@ app.post("/dados/salvar-liturgia", (req, res) => {
   }
 });
 
+/**
+ * Duplica a liturgia de uma data para outra (hoje ou futura). Se o destino já tem
+ * itens, só acrescenta o que ainda não está lá — mesmo hino/louvor/coral (pelo
+ * vínculo ou pelo título) ou mesma passagem não entra de novo.
+ */
+app.post("/dados/duplicar-liturgia", (req, res) => {
+  const origem = String(req.body.origem || "").replace(".json", "");
+  const destino = String(req.body.destino || "").replace(".json", "");
+  const valida = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+  if (!valida(origem) || !valida(destino)) return res.status(400).json({ error: "Datas inválidas" });
+  if (origem === destino) return res.status(400).json({ error: "Escolha uma data diferente da original." });
+  if (ehPassada(destino)) return res.status(403).json({ error: "O destino precisa ser hoje ou uma data futura." });
+  try {
+    const db = new Database(CULTOS_DB_PATH);
+    const copiar = lerCultoExpandido(db, origem);
+    if (!copiar) { db.close(); return res.status(404).json({ error: "Liturgia de origem não encontrada." }); }
+    const row = db.prepare("SELECT itens FROM cultos WHERE data_culto = ?").get(destino);
+    const destinoItens = row ? JSON.parse(row.itens) : [];
+
+    // Identidades de um item: pelo vínculo com o catálogo e pelo tipo + título
+    const identidades = (it) => {
+      const k = [`${it.tipo}:${normalizar.chave(it.titulo)}`];
+      if (it.hino_id) k.push(`hino#${it.hino_id}`);
+      if (it.louvor_id) k.push(`louvor#${it.louvor_id}`);
+      if (it.coral_id) k.push(`coral#${it.coral_id}`);
+      return k;
+    };
+    const existentes = new Set(destinoItens.filter(Boolean).flatMap(identidades));
+    const acrescentados = [];
+    let repetidos = 0;
+    for (const it of copiar) {
+      if (!it) continue;
+      if (identidades(it).some((k) => existentes.has(k))) { repetidos++; continue; }
+      identidades(it).forEach((k) => existentes.add(k));
+      const novo = { ...it };
+      if (novo.tipo === "hino" && novo.hino_id) delete novo.letra; // texto vem sempre do banco
+      acrescentados.push(novo);
+    }
+    db.prepare("INSERT OR REPLACE INTO cultos (data_culto, itens) VALUES (?, ?)")
+      .run(destino, JSON.stringify(destinoItens.concat(acrescentados)));
+    db.close();
+    res.json({ ok: true, arquivo: destino + ".json", acrescentados: acrescentados.length, repetidos, criada: !row });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 /** Renomeia (troca a data de) um culto no SQLite */
 app.post("/dados/renomear-liturgia", (req, res) => {
   const antigo = path
@@ -483,6 +544,8 @@ app.post("/dados/renomear-liturgia", (req, res) => {
     .replace(".json", "");
   if (!antigo || !novo)
     return res.status(400).json({ error: "Dados inválidos" });
+  if (ehPassada(antigo)) return res.status(403).json({ error: MSG_SO_CONSULTA });
+  if (ehPassada(novo)) return res.status(403).json({ error: "Não é possível mover a liturgia para um dia passado." });
 
   try {
     const db = new Database(CULTOS_DB_PATH);
