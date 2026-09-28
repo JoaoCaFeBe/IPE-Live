@@ -16,6 +16,7 @@
 
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$ProgressPreference = "SilentlyContinue"   # no PowerShell 5.1 a barra de progresso torna o download lentíssimo
 
 $Raiz      = "C:\IPE"
 $Repo      = Join-Path $Raiz "IPE-Live"
@@ -63,6 +64,9 @@ function Rodar($exe, [string[]]$argumentos, $oQue) {
     if ($LASTEXITCODE -ne 0) { Falha "$oQue (código $LASTEXITCODE)." }
 }
 
+# Qualquer erro não previsto mostra a mensagem e espera o Enter (sem isso a janela some)
+trap { Falha $_.Exception.Message }
+
 Write-Host "IPE Live — instalação/atualização no computador da igreja" -ForegroundColor White
 Atualizar-Path
 
@@ -80,7 +84,9 @@ if (Existe "node") {
 }
 if ($precisaNode) {
     $base = "https://nodejs.org/dist/latest-v22.x"
-    $somas = (Invoke-WebRequest "$base/SHASUMS256.txt" -UseBasicParsing).Content -split "`n"
+    $conteudoSomas = (Invoke-WebRequest "$base/SHASUMS256.txt" -UseBasicParsing).Content
+    if ($conteudoSomas -is [byte[]]) { $conteudoSomas = [Text.Encoding]::ASCII.GetString($conteudoSomas) }
+    $somas = $conteudoSomas -split "`n"
     $linha = $somas | Where-Object { $_ -match 'node-v22\.[0-9.]+-x64\.msi\s*$' } | Select-Object -First 1
     if (-not $linha) { Falha "não achei o instalador do Node 22 em $base." }
     $hashEsperado, $arquivo = ($linha.Trim() -split '\s+')
@@ -124,6 +130,14 @@ if (-not (Test-Path (Join-Path $Live "server.js"))) { Falha "não encontrei $Liv
 
 # --- 3. Dependências ---------------------------------------------------------
 Passo "Dependências do Live"
+$pm2 = Join-Path $env:APPDATA "npm\pm2.cmd"
+if (Test-Path $pm2) {
+    # Atualização: o Live em execução trava arquivos de node_modules e o npm ci falharia.
+    # delete (e não stop) para o start abaixo reler o ecosystem.config.js.
+    $ErrorActionPreference = "Continue"
+    & $pm2 delete $App 2>$null | Out-Null
+    $ErrorActionPreference = "Stop"
+}
 Push-Location $Live
 Rodar "npm.cmd" @("ci", "--omit=dev", "--no-audit", "--no-fund") "falha no npm ci"
 Pop-Location
@@ -159,7 +173,7 @@ if (Test-Path $envArq) {
         "CULTOS_DIR=$CultosDir",
         "OBS_WS_HOST=localhost",
         "OBS_WS_PORT=4455",
-        "OBS_WS_PASS=$obsPass",
+        $(if ($obsPass -match '"') { "OBS_WS_PASS=$obsPass" } else { "OBS_WS_PASS=`"$obsPass`"" }),
         "SOCKET_TOKEN=",
         "SOCKET_SCHEMA_MODE=warn"
     ) -join "`r`n"
@@ -187,30 +201,21 @@ $pm2 = Join-Path $env:APPDATA "npm\pm2.cmd"
 if (-not (Test-Path $pm2)) { $pm2 = (Get-Command pm2 -ErrorAction SilentlyContinue).Source }
 if (-not $pm2) { Falha "o pm2 não foi encontrado depois de instalado." }
 
-$ErrorActionPreference = "Continue"
-$lista = (& $pm2 jlist 2>$null | Out-String)
-$ErrorActionPreference = "Stop"
-$jaNoPm2 = $lista -match ('"name":"' + $App + '"')
-if (-not $jaNoPm2) {
-    $ocupada = Get-NetTCPConnection -LocalPort $Porta -State Listen -ErrorAction SilentlyContinue
-    if ($ocupada) {
-        $proc = Get-Process -Id ($ocupada | Select-Object -First 1).OwningProcess -ErrorAction SilentlyContinue
-        Falha "a porta $Porta já está em uso por '$($proc.ProcessName)' (provavelmente o Live antigo). Feche-o e rode este instalador de novo."
-    }
-    Push-Location $Live
-    Rodar $pm2 @("start", "ecosystem.config.js") "falha ao iniciar o Live no pm2"
-    Pop-Location
-    Ok "Live iniciado"
-} else {
-    Rodar $pm2 @("restart", $App, "--update-env") "falha ao reiniciar o Live no pm2"
-    Ok "Live reiniciado"
+$ocupada = Get-NetTCPConnection -LocalPort $Porta -State Listen -ErrorAction SilentlyContinue
+if ($ocupada) {
+    $proc = Get-Process -Id ($ocupada | Select-Object -First 1).OwningProcess -ErrorAction SilentlyContinue
+    Falha "a porta $Porta já está em uso por '$($proc.ProcessName)' (provavelmente o Live antigo). Feche-o e rode este instalador de novo."
 }
+Push-Location $Live
+Rodar $pm2 @("start", "ecosystem.config.js") "falha ao iniciar o Live no pm2"
+Pop-Location
+Ok "Live iniciado"
 Rodar $pm2 @("save") "falha no pm2 save"
 
 $tarefa = "IPE Live"
 $acao = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$pm2`" resurrect"
 $gatilho = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
-$ajustes = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 5)
+$ajustes = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
 Register-ScheduledTask -TaskName $tarefa -Action $acao -Trigger $gatilho -Settings $ajustes -Description "Religa o IPE Live (pm2 resurrect) ao entrar no Windows" -Force | Out-Null
 Ok "religamento automático agendado (tarefa '$tarefa', ao entrar no Windows)"
 
