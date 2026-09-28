@@ -1,0 +1,3 @@
+# Scripts do Windows ficam com CRLF em qualquer checkout (e no download "raw" do GitHub)
+*.ps1 -text
+*.bat -text
