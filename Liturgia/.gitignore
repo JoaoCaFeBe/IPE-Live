@@ -33,6 +33,8 @@ database/Louvores.sqlite
 database/*.sqlite
 database/*.sqlite3
 database/*.db
+# Backups e arquivo temporário da importação do legado (scripts/importar-legado.js)
+database/*.sqlite.*
 
 # Editores e IDEs
 .vscode/

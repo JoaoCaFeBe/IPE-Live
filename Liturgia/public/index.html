@@ -60,7 +60,7 @@
                 <titulo><i class="fas fa-folder-open"></i>Liturgia</titulo>
                 <barra class="btn-toolbar btn-group-sm">
                     <div class="dropdown">
-                        <i class="fa fa-plus dropdown-toggle" id="dropdownMenu1" data-bs-toggle="dropdown"
+                        <i class="fa fa-plus" id="dropdownMenu1" data-bs-toggle="dropdown"
                             aria-haspopup="true" aria-expanded="false"></i>
                         <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="dropdownMenu1">
                             <li><a class="dropdown-item" onclick="novaSelecao('Passagem');"><i
@@ -84,16 +84,6 @@
         <div class="card d-none" id="cardCorpo" style="z-index:1;">
             <div class="card-header" id="headerCorpo">
                 <titulo><i class="fa fa-file"></i>Corpo</titulo>
-                <barra class="btn-toolbar btn-group-sm">
-                    <button id="up" class="btn btn-primary" type="button" onclick="up()" data-bs-toggle="tooltip"
-                        data-bs-placement="bottom" title="Subir">
-                        <i class="fas fa-arrow-up"></i>
-                    </button>
-                    <button id="down" class="btn btn-primary" type="button" onclick="down()" data-bs-toggle="tooltip"
-                        data-bs-placement="bottom" title="Descer">
-                        <i class="fas fa-arrow-down"></i>
-                    </button>
-                </barra>
             </div>
             <div class="card-body" id="bodyCorpo"
                 style="display:grid;grid-template-rows:auto 1fr;grid-row-gap:.25rem;padding:.25rem;">
@@ -125,11 +115,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/6.0.0/bootbox.min.js"></script>
+    <!-- Arrastar para ordenar os itens da liturgia -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.min.js"
+        integrity="sha512-csIng5zcB+XpulRUa+ev1zKo7zRNGpEaVfNB9On1no9KYTEY/rLGAEEpvgdw6nim1WdTuihZY1eqZ31K7/fZjw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <!-- Utilitários da aplicação -->
     <script src="/js/app.js"></script>
     <!-- Lógica principal de liturgia -->
     <script src="/js/capa.js"></script>
+    <!-- Escolha da passagem bíblica -->
+    <script src="/js/passagem.js"></script>
 </body>
 
 </html>

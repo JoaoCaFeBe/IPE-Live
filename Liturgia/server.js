@@ -4,6 +4,7 @@ const path = require("path");
 const Database = require("better-sqlite3");
 
 const cors = require("cors");
+const { garantirSchema } = require("./lib/schema");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const VAGALUME_API_KEY = process.env.VAGALUME_API_KEY;
@@ -302,8 +303,10 @@ app.get("/Cultos/:arquivo", (req, res) => {
       "SELECT titulo, letra FROM coral WHERE id = ?",
     );
 
-    // Expande louvores/coral através do louvor_id/coral_id ou resolvendo Hinos soltos
+    // A letra gravada no item é o que foi projetado naquele culto e prevalece.
+    // Itens antigos sem letra são expandidos pelo catálogo (louvor_id/coral_id) ou pelo hinário.
     itens = itens.map((item) => {
+      if (item && Array.isArray(item.letra) && item.letra.length) return item;
       // Louvor
       if (item && item.louvor_id) {
         const m = getLouvor.get(item.louvor_id);
@@ -400,55 +403,42 @@ app.post("/dados/salvar-liturgia", (req, res) => {
   try {
     let itens = JSON.parse(dados);
     const db = new Database(CULTOS_DB_PATH);
-    const insertLouvor = db.prepare(
-      "INSERT INTO louvores (titulo, letra) VALUES (?, ?) " +
-      "ON CONFLICT(titulo) DO UPDATE SET letra=excluded.letra RETURNING id",
-    );
-    const insertCoral = db.prepare(
-      "INSERT INTO coral (titulo, letra) VALUES (?, ?) " +
-      "ON CONFLICT(titulo) DO UPDATE SET letra=excluded.letra RETURNING id",
-    );
+
+    // Louvor e coral: o item guarda título e letra (retrato do culto) e aponta para o
+    // catálogo. Títulos se repetem entre músicas diferentes, então o catálogo nunca é
+    // localizado pelo título sozinho: edição vai pelo id; item novo reaproveita só
+    // registro com título E letra idênticos.
+    const catalogar = (tabela, item) => {
+      const titulo = (item.titulo || "Sem título").trim();
+      const letra = JSON.stringify(item.letra);
+      const campoId = tabela === "coral" ? "coral_id" : "louvor_id";
+      const id = Number(item[campoId]) || 0;
+      if (id && db.prepare(`SELECT 1 FROM ${tabela} WHERE id = ?`).get(id)) {
+        db.prepare(`UPDATE ${tabela} SET titulo = ?, letra = ? WHERE id = ?`).run(titulo, letra, id);
+        return id;
+      }
+      const igual = db
+        .prepare(`SELECT id FROM ${tabela} WHERE titulo = ? AND letra = ?`)
+        .get(titulo, letra);
+      if (igual) return igual.id;
+      return db
+        .prepare(`INSERT INTO ${tabela} (titulo, letra) VALUES (?, ?) RETURNING id`)
+        .get(titulo, letra).id;
+    };
 
     itens = itens.map((item) => {
       if (!item) return item;
-      // Coral — gerenciado na tabela coral
       if (item.tipo === "coral" && Array.isArray(item.letra)) {
-        let result;
-        if (item.coral_id) {
-          db.prepare("UPDATE coral SET titulo=?, letra=? WHERE id=?")
-            .run(item.titulo || "Sem título", JSON.stringify(item.letra), item.coral_id);
-          result = { id: item.coral_id };
-        } else {
-          result = insertCoral.get(
-            item.titulo || "Sem título",
-            JSON.stringify(item.letra),
-          );
-        }
-        return { tipo: item.tipo, coral_id: result.id };
+        return { tipo: "coral", titulo: item.titulo, letra: item.letra, coral_id: catalogar("coral", item) };
       }
-      // Louvor (que a gente gerencia localmente), inserimos/atualizamos na tabela Músicas
       if (item.tipo === "louvor" && Array.isArray(item.letra)) {
-        let result;
-        if (item.louvor_id) {
-          // Atualiza o registro existente diretamente pelo id
-          db.prepare("UPDATE louvores SET titulo=?, letra=? WHERE id=?")
-            .run(item.titulo || "Sem título", JSON.stringify(item.letra), item.louvor_id);
-          result = { id: item.louvor_id };
-        } else {
-          result = insertLouvor.get(
-            item.titulo || "Sem título",
-            JSON.stringify(item.letra),
-          );
-        }
-        return { tipo: item.tipo, louvor_id: result.id };
+        return { tipo: "louvor", titulo: item.titulo, letra: item.letra, louvor_id: catalogar("louvores", item) };
       }
-
-      // Se for hino (nós NUNCA salvamos Hinos na tabela louvores, pois eles são pegos diretamente de Hinarios.sqlite)
-      // Nós podemos apenas manter o item original (que já tem o `titulo` tipo "HNC 001 - Doxologia"), mas sem a array enorme let para poupar espaço
+      // Hino guarda a letra escolhida: resolver de novo pelo título no hinário
+      // já trocou hinos na migração de março/2026.
       if (item.tipo === "hino") {
-        return { tipo: "hino", titulo: item.titulo };
+        return { tipo: "hino", titulo: item.titulo, letra: Array.isArray(item.letra) ? item.letra : [] };
       }
-
       return item;
     });
 
@@ -713,7 +703,7 @@ app.post("/formularios/pesquisar-louvor", (req, res) => {
 app.get("/formularios/pesquisar-louvor-local", (_req, res) => {
   const louvores = carregarItens("louvor");
   const listaHtml = louvores
-    .map((l, i) => `<li codigo="${i}">${escHtml(l.titulo)}</li>`)
+    .map((l, i) => `<li codigo="${i}">${escHtml(l.titulo)}${inicioLetra(l.letra)}</li>`)
     .join("\n");
   res.json({
     formulario: /* html */ `
@@ -737,7 +727,7 @@ app.get("/formularios/pesquisar-louvor-local", (_req, res) => {
 app.get("/formularios/pesquisar-coral-local", (_req, res) => {
   const corais = carregarItens("coral");
   const listaHtml = corais
-    .map((l, i) => `<li codigo="${i}">${escHtml(l.titulo)}</li>`)
+    .map((l, i) => `<li codigo="${i}">${escHtml(l.titulo)}${inicioLetra(l.letra)}</li>`)
     .join("\n");
   res.json({
     formulario: /* html */ `
@@ -793,7 +783,7 @@ function carregarItens(tipo) {
     const db = new Database(CULTOS_DB_PATH, { readonly: true });
     const rows = db
       .prepare(
-        `SELECT titulo, letra FROM ${tabela} ORDER BY titulo COLLATE NOCASE`,
+        `SELECT id, titulo, letra FROM ${tabela} ORDER BY titulo COLLATE NOCASE, id DESC`,
       )
       .all();
     db.close();
@@ -802,10 +792,20 @@ function carregarItens(tipo) {
       tipo,
       titulo: r.titulo,
       letra: JSON.parse(r.letra),
+      [tipo === "coral" ? "coral_id" : "louvor_id"]: r.id,
     }));
   } catch (e) {
     return [];
   }
+}
+
+/** Início da letra, para distinguir na lista músicas diferentes com o mesmo título */
+function inicioLetra(letra) {
+  const primeira = String((letra || [])[0] || "")
+    .replace(/^refrao:/, "")
+    .split(/<br\s*\/?>/i)[0]
+    .trim();
+  return primeira ? ` <small class="text-muted">— ${escHtml(primeira.slice(0, 40))}</small>` : "";
 }
 
 function escHtml(str) {
@@ -819,6 +819,12 @@ function escHtml(str) {
 // ===========================================================================
 // INICIAR
 // ===========================================================================
+{
+  const db = new Database(CULTOS_DB_PATH);
+  garantirSchema(db);
+  db.close();
+}
+
 app.listen(PORT, () => {
   console.log(`✓ IPE-Liturgia: http://localhost:${PORT}`);
   console.log(`  Banco de dados: ${CULTOS_DB_PATH}`);

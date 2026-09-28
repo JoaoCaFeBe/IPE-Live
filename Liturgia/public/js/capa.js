@@ -141,18 +141,43 @@ function abreLiturgia(arquivo) {
 
     $.getJSON('/Cultos/' + arquivo + '?' + formatDate())
         .done(retorno => {
-            Liturgia = retorno;
-            $('#bodyLiturgia>ul').html('');
+            Liturgia = agruparComoPainel(retorno);
+            renderizarLiturgia();
             query('#cardLiturgia').classList.remove('d-none');
-            Object.entries(Liturgia).forEach(([id, modulo]) => {
-                $('#bodyLiturgia>ul').append(
-                    `<li class="${modulo.tipo}"
-              onclick="marcaLI(this); mostra${capitalize(modulo.tipo)}($(this).index());"
-              id="M${id}">${modulo.titulo}</li>`
-                );
-            });
         })
         .fail(() => bootbox.alert('Erro ao carregar a liturgia.'));
+}
+
+/* ── ORDEM IGUAL À DO PAINEL ────────────────────────────────────────────── */
+
+// O Painel do Live agrupa os itens por tipo, na ordem em que cada tipo aparece
+// pela primeira vez; dentro do grupo vale a ordem digitada. O editor mostra igual.
+function agruparComoPainel(itens) {
+    const tipos = [];
+    itens.forEach(i => { if (i && !tipos.includes(i.tipo)) tipos.push(i.tipo); });
+    return tipos.flatMap(t => itens.filter(i => i && i.tipo === t));
+}
+
+function renderizarLiturgia() {
+    const $ul = $('#bodyLiturgia>ul').empty();
+    Liturgia.forEach((modulo, id) => {
+        $('<li>')
+            .addClass(modulo.tipo)
+            .attr({ id: 'M' + id, 'data-tipo': modulo.tipo, onclick: `marcaLI(this); mostra${capitalize(modulo.tipo)}($(this).index());` })
+            .text(modulo.titulo || '')
+            .appendTo($ul);
+    });
+    ativarArrastar();
+}
+
+// Item novo entra no fim do grupo do seu tipo (ou no fim da lista, se o tipo é novo)
+function adicionarItem(item) {
+    let idx = Liturgia.length;
+    Liturgia.forEach((i, n) => { if (i && i.tipo === item.tipo) idx = n + 1; });
+    Liturgia.splice(idx, 0, item);
+    renderizarLiturgia();
+    $('#bodyLiturgia>ul>li:eq(' + idx + ')').click();
+    return idx;
 }
 
 /* ── NOVA SELEÇÃO ───────────────────────────────────────────────────────── */
@@ -173,34 +198,27 @@ function marcaLI(linha) {
     linha.classList.add('bg-warning');
 }
 
-/* ── MOVIMENTAÇÃO ───────────────────────────────────────────────────────── */
+/* ── ARRASTAR PARA ORDENAR ─────────────────────────────────────────────── */
 
-function movimentacao() {
-    const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
-    $('#up').attr('disabled', true);
-    $('#down').attr('disabled', true);
-    if (codigo >= 0) {
-        if (codigo > 0) $('#up').attr('disabled', false);
-        if (codigo < Liturgia.length - 1) $('#down').attr('disabled', false);
-    }
-}
-
-function up() {
-    const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
-    const items = queryAll('#bodyLiturgia>ul>li');
-    items[codigo].parentNode.insertBefore(items[codigo], items[codigo - 1]);
-    [Liturgia[codigo - 1], Liturgia[codigo]] = [Liturgia[codigo], Liturgia[codigo - 1]];
-    $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
-        .always(() => { $('#bodyLiturgia>ul>li:eq(' + (codigo - 1) + ')').click(); });
-}
-
-function down() {
-    const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
-    const items = queryAll('#bodyLiturgia>ul>li');
-    items[codigo].parentNode.insertBefore(items[codigo + 1], items[codigo]);
-    [Liturgia[codigo], Liturgia[codigo + 1]] = [Liturgia[codigo + 1], Liturgia[codigo]];
-    $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
-        .always(() => { $('#bodyLiturgia>ul>li:eq(' + (codigo + 1) + ')').click(); });
+// Só dentro do grupo do mesmo tipo: trocar de grupo não muda a ordem no Painel
+let ordenador = null;
+function ativarArrastar() {
+    if (ordenador || typeof Sortable === 'undefined') return;
+    ordenador = Sortable.create(query('#bodyLiturgia>ul'), {
+        animation: 150,
+        delay: 150,
+        delayOnTouchOnly: true, // no celular, toque longo arrasta e toque curto rola a lista
+        ghostClass: 'arrastando',
+        onMove: evt => evt.related.dataset.tipo === evt.dragged.dataset.tipo,
+        onEnd: evt => {
+            if (evt.oldIndex === evt.newIndex) return;
+            const [item] = Liturgia.splice(evt.oldIndex, 1);
+            Liturgia.splice(evt.newIndex, 0, item);
+            $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
+                .done(() => mostrarToast('<i class="fas fa-sort"></i>&nbsp;Ordem salva!', 'info'))
+                .fail(() => bootbox.alert('Erro ao salvar a nova ordem. Reabra a liturgia e tente de novo.'));
+        }
+    });
 }
 
 /* ── SALVAR / EXCLUIR ───────────────────────────────────────────────────── */
@@ -223,14 +241,7 @@ function salvar() {
         const el = query('#bodyLiturgia>ul>li.bg-warning');
         if (el) el.textContent = item.titulo;
     } else {
-        Liturgia.push(item);
-        const idx = Liturgia.length - 1;
-        $('#bodyLiturgia>ul').append(
-            `<li class="${item.tipo}"
-          onclick="marcaLI(this); mostra${capitalize(item.tipo)}($(this).index());"
-          id="M${idx}">${item.titulo}</li>`
-        );
-        $('#bodyLiturgia>ul>li:eq(' + idx + ')').click();
+        adicionarItem(item);
     }
     $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
         .done(resp => {
@@ -274,7 +285,6 @@ function excluir() {
 function mostraPassagem(codigo) {
     codigo = codigo ?? $('#bodyLiturgia>ul>li.bg-warning').index();
     if (codigo < 0) { passagemEscolher(-1); return; }
-    movimentacao();
     const passagem = $.passarObjeto(Liturgia[codigo]);
 
     $.post('/formularios/passagem')
@@ -432,7 +442,6 @@ function bibliaBuscar() {
 function mostraHino(codigo) {
     codigo = codigo ?? $('#bodyLiturgia>ul>li.bg-warning').index();
     if (codigo < 0) { hinoLocal(); return; }
-    movimentacao();
     const hino = $.passarObjeto(Liturgia[codigo]);
 
     $.post('/formularios/hino')
@@ -536,7 +545,6 @@ function hinarioSelecionarHino(id) {
 
 function mostraLouvor(codigo) {
     codigo = codigo ?? $('#bodyLiturgia>ul>li.bg-warning').index();
-    movimentacao();
     let louvor = (codigo >= 0)
         ? $.passarObjeto(Liturgia[codigo])
         : { tipo: 'louvor', titulo: '', letra: [] };
@@ -721,14 +729,7 @@ function louvorLocal() {
                     callback: () => {
                         const idx = $('#louvores>li.bg-warning').attr('codigo');
                         const salvar = $.passarObjeto(retorno.louvores[idx]);
-                        Liturgia.push(salvar);
-                        const codigo = Liturgia.length - 1;
-                        $('#bodyLiturgia>ul').append(
-                            `<li class="${salvar.tipo}"
-                  onclick="marcaLI(this); mostra${capitalize(salvar.tipo)}($(this).index());"
-                  id="M${codigo}">${salvar.titulo}</li>`
-                        );
-                        $('#bodyLiturgia>ul>li:eq(' + codigo + ')').click();
+                        adicionarItem(salvar);
                         $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
                             .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Louvor adicionado!'));
                     }
@@ -757,7 +758,6 @@ function louvorLocal() {
 
 function mostraCoral(codigo) {
     codigo = codigo ?? $('#bodyLiturgia>ul>li.bg-warning').index();
-    movimentacao();
     let coral = (codigo >= 0)
         ? $.passarObjeto(Liturgia[codigo])
         : { tipo: 'coral', titulo: '', letra: [] };
@@ -836,14 +836,7 @@ function coralLocal() {
                     callback: () => {
                         const idx = $('#corais>li.bg-warning').attr('codigo');
                         const salvar = $.passarObjeto(retorno.corais[idx]);
-                        Liturgia.push(salvar);
-                        const codigo = Liturgia.length - 1;
-                        $('#bodyLiturgia>ul').append(
-                            `<li class="${salvar.tipo}"
-                  onclick="marcaLI(this); mostra${capitalize(salvar.tipo)}($(this).index());"
-                  id="M${codigo}">${salvar.titulo}</li>`
-                        );
-                        $('#bodyLiturgia>ul>li:eq(' + codigo + ')').click();
+                        adicionarItem(salvar);
                         $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
                             .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Coral adicionado!'));
                     }
@@ -869,201 +862,6 @@ function coralLocal() {
 function hinoAlterar() {
     const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
     if (codigo >= 0) hinoLocal(codigo);
-}
-
-function passagemAlterar() {
-    const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
-    if (codigo >= 0) passagemEscolher(codigo);
-}
-
-/* ────────────────────────────────────────────────────────────────────────
-   PASSAGEM — modal de seleção bíblica
-   ──────────────────────────────────────────────────────────────────────── */
-
-function pmCarregarLivros() {
-    const versao = $('#pmSelVersao').val();
-    $.get('/biblia/livros', { versao }).done(livros => {
-        const sel = $('#pmSelLivro').empty().append('<option value="">Livro…</option>');
-        livros.forEach(l => $('<option>').val(l.id).text(l.name).appendTo(sel));
-        $('#pmCapDe, #pmCapAte').val('').attr({ min: 1, max: '', placeholder: 'cap.' });
-        $('#pmVDe,  #pmVAte').val('').attr({ min: 1, max: '', placeholder: 'vers.' });
-    });
-}
-
-function pmCarregarCapitulos() {
-    const versao = $('#pmSelVersao').val();
-    const livro = $('#pmSelLivro').val();
-    if (!livro) return;
-    $.get('/biblia/capitulos', { versao, livro }).done(({ total }) => {
-        const hint = `1–${total}`;
-        $('#pmCapDe').attr({ min: 1, max: total, placeholder: hint }).val(1);
-        $('#pmCapAte').attr({ min: 1, max: total, placeholder: hint }).val(total);
-        $('#pmVDe, #pmVAte').val('').attr({ min: 1, max: '', placeholder: 'vers.' });
-        pmCarregarVersos('inicio');
-        pmCarregarVersos('fim');
-    });
-}
-
-function pmCarregarVersos(qual) {
-    const versao = $('#pmSelVersao').val();
-    const livro = $('#pmSelLivro').val();
-    const capitulo = qual === 'inicio' ? $('#pmCapDe').val() : $('#pmCapAte').val();
-    const $inp = qual === 'inicio' ? $('#pmVDe') : $('#pmVAte');
-    if (!livro || !capitulo) return;
-    $.get('/biblia/versiculos-count', { versao, livro, capitulo }).done(({ total }) => {
-        const hint = `1–${total}`;
-        $inp.attr({ min: 1, max: total, placeholder: hint });
-        $inp.val(qual === 'inicio' ? 1 : total);
-    });
-}
-
-/** Valida e corrige campos numéricos de cap/v para garantir De ≤ Até e limites. */
-function pmValidar(origem) {
-    const maxCap = Number($('#pmCapDe').attr('max')) || 999;
-    let capDe = Math.min(Math.max(Number($('#pmCapDe').val()) || 1, 1), maxCap);
-    let capAte = Math.min(Math.max(Number($('#pmCapAte').val()) || 1, 1), maxCap);
-
-    if (origem === 'capDe' && capAte < capDe) { capAte = capDe; $('#pmCapAte').val(capAte); }
-    if (origem === 'capAte' && capAte < capDe) { capDe = capAte; $('#pmCapDe').val(capDe); }
-    $('#pmCapDe').val(capDe);
-    $('#pmCapAte').val(capAte);
-
-    // Recarrega versos do lado que mudou o capítulo
-    if (origem === 'capDe') pmCarregarVersos('inicio');
-    if (origem === 'capAte') pmCarregarVersos('fim');
-
-    // Valida versículos quando o capítulo é o mesmo
-    const maxVDe = Number($('#pmVDe').attr('max')) || 999;
-    const maxVAte = Number($('#pmVAte').attr('max')) || 999;
-    let vDe = Math.min(Math.max(Number($('#pmVDe').val()) || 1, 1), maxVDe);
-    let vAte = Math.min(Math.max(Number($('#pmVAte').val()) || 1, 1), maxVAte);
-
-    if (capDe === capAte) {
-        if (origem === 'vDe' && vAte < vDe) { vAte = vDe; $('#pmVAte').val(vAte); }
-        if (origem === 'vAte' && vAte < vDe) { vDe = vAte; $('#pmVDe').val(vDe); }
-    }
-    $('#pmVDe').val(vDe);
-    $('#pmVAte').val(vAte);
-}
-
-function pmBuscar() {
-    const versao = $('#pmSelVersao').val();
-    const livro = $('#pmSelLivro').val();
-    const capInicio = $('#pmCapDe').val();
-    const capFim = $('#pmCapAte').val() || capInicio;
-    const inicio = $('#pmVDe').val();
-    const fim = $('#pmVAte').val();
-    if (!livro || !capInicio) { mostrarToast('Selecione livro e capítulo', 'warning'); return; }
-    $.get('/biblia/versiculos', { versao, livro, capInicio, capFim, inicio, fim })
-        .done(({ livro: nomeLivro, versiculos }) => {
-            let tituloRef;
-            if (capInicio === capFim || !capFim) {
-                tituloRef = `${nomeLivro} ${capInicio}`;
-                if (inicio && fim && inicio !== fim) tituloRef += `:${inicio}-${fim}`;
-                else if (inicio) tituloRef += `:${inicio}`;
-            } else {
-                tituloRef = `${nomeLivro} ${capInicio}:${inicio || 1}-${capFim}:${fim || '?'}`;
-            }
-            $('#pmTitulo').val(tituloRef);
-            let original = '';
-            versiculos.forEach(v => { original += `[${nomeLivro}.${v.chapter}.${v.verse}] ${v.text}\n`; });
-            $('#pmOriginal').val(original.trim());
-        })
-        .fail(() => mostrarToast('Erro ao buscar versículos', 'danger'));
-}
-
-function passagemEscolher(codigoReplace) {
-    const html = /* html */`
-<div style="height:60vh;display:grid;grid-template-rows:auto auto auto 1fr;gap:.3rem;">
-  <div class="input-group input-group-sm">
-    <select id="pmSelVersao" class="form-select" style="max-width:11rem;">
-      <option value="ARA">Carregando versões…</option>
-    </select>
-    <select id="pmSelLivro" class="form-select">
-      <option value="">Livro…</option>
-    </select>
-  </div>
-  <div class="input-group input-group-sm">
-    <span class="input-group-text">De</span>
-    <input type="number" id="pmCapDe" class="form-control" placeholder="cap."
-      min="1" title="Capítulo inicial" style="max-width:5.5rem;">
-    <input type="number" id="pmVDe" class="form-control" placeholder="vers."
-      min="1" title="Versículo inicial" style="max-width:5.5rem;">
-    <span class="input-group-text">Até</span>
-    <input type="number" id="pmCapAte" class="form-control" placeholder="cap."
-      min="1" title="Capítulo final" style="max-width:5.5rem;">
-    <input type="number" id="pmVAte" class="form-control" placeholder="vers."
-      min="1" title="Versículo final" style="max-width:5.5rem;">
-    <button class="btn btn-primary" id="pmBtnBuscar" title="Buscar versículos">
-      <i class="fas fa-search me-1"></i>Buscar
-    </button>
-  </div>
-  <input type="text" id="pmTitulo" class="form-control form-control-sm"
-    placeholder="Referência" style="background:bisque;" readonly>
-  <textarea id="pmOriginal" class="form-control" style="resize:none;"
-    placeholder="Selecione o livro, capítulo e versículos acima…" readonly></textarea>
-</div>`;
-
-    bootbox.dialog({
-        title: 'Selecione a passagem',
-        message: html,
-        onEscape: true,
-        closeButton: true,
-        backdrop: true,
-        className: 'p-0',
-        size: 'extra-large',
-        centerVertical: true,
-        buttons: {
-            ok: {
-                label: 'Ok',
-                className: 'btn-info disabled botaoOK',
-                callback: () => {
-                    const passagem = arrumarPassagem($('#pmOriginal').val(), $('#pmTitulo').val());
-                    if (!passagem.titulo || !passagem.texto.length) return false;
-                    if (codigoReplace >= 0) {
-                        Liturgia[codigoReplace] = passagem;
-                        $('#bodyLiturgia>ul>li:eq(' + codigoReplace + ')').text(passagem.titulo);
-                        mostraPassagem(codigoReplace);
-                        $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
-                            .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Passagem atualizada!'));
-                    } else {
-                        Liturgia.push(passagem);
-                        const idx = Liturgia.length - 1;
-                        $('#bodyLiturgia>ul').append(
-                            `<li class="passagem"
-                  onclick="marcaLI(this); mostraPassagem($(this).index());"
-                  id="M${idx}">${passagem.titulo}</li>`
-                        );
-                        $('#bodyLiturgia>ul>li:eq(' + idx + ')').click();
-                        $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
-                            .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Passagem adicionada!'));
-                    }
-                }
-            }
-        }
-    })
-        .bind('shown.bs.modal', function () {
-            $('body').addClass('modal-open');
-            $('#pmSelVersao').on('change', pmCarregarLivros);
-            $('#pmSelLivro').on('change', pmCarregarCapitulos);
-            $('#pmCapDe').on('change', () => pmValidar('capDe'));
-            $('#pmCapAte').on('change', () => pmValidar('capAte'));
-            $('#pmVDe').on('change', () => pmValidar('vDe'));
-            $('#pmVAte').on('change', () => pmValidar('vAte'));
-            $('#pmCapDe, #pmCapAte, #pmVDe, #pmVAte').on('focus', function () { this.select(); });
-            $('#pmBtnBuscar').on('click', pmBuscar);
-            $.get('/biblia/versoes').done(versoes => {
-                const sel = $('#pmSelVersao').empty();
-                versoes.forEach(v => $('<option>').val(v.codigo).text(v.nome)
-                    .prop('selected', v.codigo === 'ARA').appendTo(sel));
-                pmCarregarLivros();
-            });
-            // habilita OK assim que houver texto buscado
-            $('#pmBtnBuscar').on('click.ok', () => setTimeout(() => {
-                if ($('#pmOriginal').val().trim()) query('.botaoOK').classList.remove('disabled');
-            }, 400));
-        })
-        .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
 }
 
 function hinoLocal(codigoReplace) {
@@ -1108,14 +906,7 @@ function hinoLocal(codigoReplace) {
                         $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
                             .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Hino atualizado!'));
                     } else {
-                        Liturgia.push(item);
-                        const idx = Liturgia.length - 1;
-                        $('#bodyLiturgia>ul').append(
-                            `<li class="hino"
-              onclick="marcaLI(this); mostraHino($(this).index());"
-              id="M${idx}">${item.titulo}</li>`
-                        );
-                        $('#bodyLiturgia>ul>li:eq(' + idx + ')').click();
+                        adicionarItem(item);
                         $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
                             .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Hino adicionado!'));
                     }

@@ -33,7 +33,18 @@ var query = document.querySelector.bind(document),
   queryName = document.getElementsByName.bind(document),
   socket = io(servidor, { transports: ["polling", "websocket"], auth: { token: window.SOCKET_TOKEN || "" } }),
   tzoffset = new Date().getTimezoneOffset() * 60000,
-  arquivo = new Date(Date.now() - tzoffset).toISOString().split("T")[0];
+  // Culto do dia; `?data=AAAA-MM-DD` abre outra data (ensaio, conferência antes do culto)
+  dataEscolhida = new URLSearchParams(location.search).get("data"),
+  arquivo = /^\d{4}-\d{2}-\d{2}$/.test(dataEscolhida || "")
+    ? dataEscolhida
+    : new Date(Date.now() - tzoffset).toISOString().split("T")[0];
+
+const trocarData = (data) => {
+  const params = new URLSearchParams(location.search);
+  if (data) params.set("data", data);
+  else params.delete("data");
+  location.search = params.toString();
+};
 
 socket.onAny((aplicativo, eventName, args) => {
   if (aplicativo === empresa) {
@@ -96,6 +107,7 @@ const formatarVersiculoParaExibicao = (texto) => {
 };
 // -----------------------------------------------------------------------------------------
 const inicio = () => {
+  queryId("dataCulto").value = arquivo;
   mensagem.addEventListener("keyup", function (e) {
     if (e.key === "Enter" || e.keyCode === 13) {
       socket.emit(empresa, "Alerta", mensagem.value);
@@ -318,7 +330,7 @@ const inicio = () => {
     })
     .fail((jqXHR, textStatus, errorThrown) => {
       $("body").append(`<div class="alert alert-danger m-3" role="alert">
-                <i class="fa-solid fa-triangle-exclamation"></i> Erro ao carregar o culto do dia (${arquivo}.json): ${textStatus}
+                <i class="fa-solid fa-triangle-exclamation"></i> Nenhuma liturgia encontrada para ${arquivo.split("-").reverse().join("/")} (${arquivo}.json): ${textStatus}
             </div>`);
     })
     .always(() => {

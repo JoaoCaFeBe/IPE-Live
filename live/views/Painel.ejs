@@ -48,7 +48,12 @@
             <button class="btn btn-warning" type="button" id="button-addon2"
                 onclick="if (parseInt(capitulo.value) > parseInt(capitulo.max)) capitulo.value=capitulo.max; listaVersiculos(livro.value, capitulo.value, versao.value);">Abrir</button>
         </div>
-        <input type="text" class="w-100" id='mensagem' name='mensagem' placeholder="Mensagem para o pulpito">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text" title="Data do culto"><i class="fa-solid fa-calendar-day"></i></span>
+            <input type="date" class="form-control" id="dataCulto" style="max-width: 16ch;"
+                onchange="trocarData(this.value)">
+            <input type="text" class="form-control" id='mensagem' name='mensagem' placeholder="Mensagem para o pulpito">
+        </div>
     </div>
 
 </body>
