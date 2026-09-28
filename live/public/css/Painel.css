@@ -140,3 +140,35 @@ input::-webkit-inner-spin-button {
   font-size: 0.75rem;
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
 }
+
+/* ── Seletor bíblico (js/BibliaSeletor.js) ─────────────────────────────── */
+
+.bs-modal .modal-content { color: #212529; }
+.bs-modal .modal-body { padding: .75rem; }
+.bs { display: flex; flex-direction: column; gap: .5rem; height: 70vh; }
+.bs #bsVersao { max-width: 7rem; }
+.bs #bsErro:empty { display: none; }
+.bs-corpo { display: grid; grid-template-columns: minmax(14rem, 45%) 1fr; gap: .75rem; flex: 1; min-height: 0; }
+.bs-livros-painel { overflow-y: auto; border-right: 1px solid #dee2e6; padding-right: .5rem; }
+.bs-rotulo { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; margin: .25rem 0; }
+.bs-livros { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: .25rem; margin-bottom: .5rem; }
+.bs-livro { display: flex; align-items: baseline; gap: .35rem; border: 1px solid #d0dde6; background: #f4f8fb; border-radius: .3rem; padding: .3rem .4rem; text-align: left; font-size: .8rem; line-height: 1.2; min-width: 0; }
+.bs-livro .abrev { font-weight: 700; color: #14506e; min-width: 1.9rem; }
+.bs-livro .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
+.bs-livro.ativo { background: #14506e; border-color: #14506e; }
+.bs-livro.ativo .abrev, .bs-livro.ativo .nome { color: #fff; }
+.bs-capitulos-painel { display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
+.bs-capitulos-painel > strong { font-size: 1.1rem; }
+.bs-capitulos { display: grid; grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr)); gap: .3rem; overflow-y: auto; align-content: start; }
+.bs-cap { padding: .55rem 0; font-size: .95rem; font-weight: 600; border: 1px solid #d0dde6; background: #fff; border-radius: .3rem; }
+.bs-cap:hover { background: #14506e; border-color: #14506e; color: #fff; }
+.bs-dica { font-size: .8rem; color: #6c757d; margin-top: auto; }
+
+@media (max-width: 768px) {
+  .bs { height: 80vh; }
+  .bs-corpo { grid-template-columns: 1fr; grid-template-rows: 45% 1fr; }
+  .bs-livros-painel { border-right: 0; border-bottom: 1px solid #dee2e6; }
+}
+
+/* Janela da Bíblia: versículo pedido pelo seletor (?ir=), ainda não projetado */
+label.proximo { outline: 3px dashed #ffc107; outline-offset: -3px; }

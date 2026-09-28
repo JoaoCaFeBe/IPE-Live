@@ -446,19 +446,18 @@ const inicio = () => {
     });
 };
 
-const capitulos = (cap) => {
-  capitulo.setAttribute(
-    "max",
-    livro.querySelector(`option[value='${cap}']`).getAttribute("capitulos"),
-  );
+const urlBiblia = (livro_id, capitulo, versao, nomeLivro, ir) => {
+  const q = new URLSearchParams({ nomeLivro, livro: livro_id, capitulo, biblia: versao });
+  if (ir) q.set("ir", ir);
+  return `Biblia?${q}`;
 };
 
 let _bibliaWin = null,
   _bibliaWinTimer = null;
 
-const listaVersiculos = (livro_id, capitulo, versao) => {
-  let nomeLivro = livro.options[livro.selectedIndex].text,
-    left = (screen.width - 350) / 2,
+// Abre a janela da Bíblia no capítulo; `ir` posiciona num versículo sem projetá-lo
+const listaVersiculos = (livro_id, capitulo, versao, nomeLivro, ir = null) => {
+  let left = (screen.width - 350) / 2,
     top = (screen.height - 800) / 4;
 
   // Fecha todos os accordions abertos (hino, louvor, passagem, coral)
@@ -468,13 +467,13 @@ const listaVersiculos = (livro_id, capitulo, versao) => {
 
   // Se já há uma janela aberta, foca ela em vez de abrir outra
   if (_bibliaWin && !_bibliaWin.closed) {
-    _bibliaWin.location.href = `Biblia?nomeLivro=${encodeURIComponent(nomeLivro)}&livro=${livro_id}&capitulo=${capitulo}&biblia=${versao}`;
+    _bibliaWin.location.href = urlBiblia(livro_id, capitulo, versao, nomeLivro, ir);
     _bibliaWin.focus();
     return;
   }
 
   _bibliaWin = window.open(
-    `Biblia?nomeLivro=${nomeLivro}&livro=${livro_id}&capitulo=${capitulo}&biblia=${versao}`,
+    urlBiblia(livro_id, capitulo, versao, nomeLivro, ir),
     `${nomeLivro}${capitulo}`,
     `toolbar=no,
                                     location=no,

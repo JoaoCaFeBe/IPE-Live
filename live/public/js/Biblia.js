@@ -25,6 +25,17 @@ const inicio = () => {
         }
     }
 
+    // Posiciona no versículo pedido pelo seletor do Painel (?ir=16) sem projetá-lo:
+    // fica destacado e a primeira seta (→/↓) projeta exatamente ele
+    const ir = parseInt(new URLSearchParams(window.location.search).get('ir')) || 0;
+    const irIdx = ir > 0 && ir <= botoes.length && !sel ? ir - 1 : null;
+    if (irIdx !== null) {
+        const rotulo = botoes[irIdx].nextElementSibling;
+        rotulo.classList.add('proximo');
+        rotulo.scrollIntoView({ block: 'center' });
+        botoes.forEach(b => b.addEventListener('change', () => rotulo.classList.remove('proximo'), { once: true }));
+    }
+
     // Navegação por teclado
     document.addEventListener('keydown', (e) => {
         if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(e.key)) return;
@@ -34,6 +45,12 @@ const inicio = () => {
         if (total === 0) return;
 
         const checked = query('input[type="radio"]:checked');
+        if (!checked && irIdx !== null) {
+            // Nada projetado ainda: qualquer seta projeta o versículo pedido pelo seletor
+            botoes[irIdx].checked = true;
+            botoes[irIdx].dispatchEvent(new Event('change'));
+            return;
+        }
         const idx = checked ? parseInt(checked.id.replace('btnPassagem', '')) : -1;
 
         const avancar = e.key === 'ArrowRight' || e.key === 'ArrowDown';

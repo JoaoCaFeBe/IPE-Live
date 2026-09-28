@@ -144,7 +144,9 @@ function hinoLocal(codigoReplace = -1) {
 
             $.get('/hinos/hinarios').done(hinarios => {
                 const sel = $('#hmHinario').empty();
-                hinarios.forEach(h => $('<option>').val(h.codigo).text(`${h.nome} (${h.codigo})`).appendTo(sel));
+                // Padrão da igreja: Novo Cântico (decisão do João, 28/09/2026)
+                hinarios.forEach(h => $('<option>').val(h.codigo).text(`${h.nome} (${h.codigo})`)
+                    .prop('selected', h.codigo === 'NC').appendTo(sel));
                 if (atual?.hino_id) {
                     // Alterar: abre no hinário e no número do hino atual
                     $.getJSON('/hinos/' + atual.hino_id).done(h => {
