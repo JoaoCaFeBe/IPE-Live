@@ -436,7 +436,10 @@ app.post("/dados/salvar-liturgia", (req, res) => {
       const letra = JSON.stringify(item.letra);
       const campoId = tabela === "coral" ? "coral_id" : "louvor_id";
       const id = Number(item[campoId]) || 0;
-      if (id && db.prepare(`SELECT 1 FROM ${tabela} WHERE id = ?`).get(id)) {
+      // A curadoria (scripts/curar.js) renumera o catálogo: um id vindo de uma tela aberta
+      // antes dela pode apontar para outra música. Só atualiza se o registro é o mesmo título.
+      const doId = id && db.prepare(`SELECT titulo FROM ${tabela} WHERE id = ?`).get(id);
+      if (doId && normalizar.chave(doId.titulo) === normalizar.chave(titulo)) {
         db.prepare(`UPDATE ${tabela} SET titulo = ?, letra = ? WHERE id = ?`).run(titulo, letra, id);
         return id;
       }

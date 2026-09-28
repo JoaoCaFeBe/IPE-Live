@@ -16,32 +16,85 @@ function limparEspacos(t) {
     .trim();
 }
 
-// Palavras que continuam maiúsculas quando um título em CAIXA ALTA vira frase
-const NOMES_PROPRIOS = new Set(
-  ("deus jesus cristo senhor espirito pai rei salvador cordeiro emanuel jeova javé jave messias " +
-    "israel sião siao jerusalem jerusalém belém belem calvario calvário golgota gólgota nazare nazaré " +
-    "maria jose josé abraao abraão davi moises moisés elias igreja trindade mestre").split(" "),
-);
+/* ── título em frase: só a primeira letra maiúscula (decisão do João, 28/09/2026) ── */
 
-/** "8-MUITO OBRIGADO JESUS" → "Muito obrigado Jesus" (só mexe no que está todo em maiúsculas) */
-function frase(t) {
-  const letras = t.replace(/[^A-Za-zÀ-ÿ]/g, "");
-  if (!letras || letras !== letras.toUpperCase()) return t;
-  let primeira = true;
-  return t.toLowerCase().replace(/[A-Za-zÀ-ÿ]+/g, (p) => {
-    const fica = primeira || NOMES_PROPRIOS.has(semAcento(p)) || NOMES_PROPRIOS.has(p);
-    primeira = false;
-    return fica ? p[0].toUpperCase() + p.slice(1) : p;
-  }).replace(/\b(Esp[ií]rito) santo\b/g, "$1 Santo");
+const lista = (txt) => new Set(semAcento(txt).toLowerCase().split(/\s+/).filter(Boolean));
+
+// Sempre maiúsculas: nomes e títulos de Deus (convenção da escrita gospel), nomes
+// próprios bíblicos, lugares e datas cristãs
+const SEMPRE_MAIUSCULA = lista(`
+  deus senhor jesus cristo espirito emanuel messias jeova jave yahweh yehovah altissimo
+  salvador redentor criador consolador cordeiro mestre trindade god lord christ dei
+  maria jose davi salomao moises abraao isaque jaco israel noe adao eva sara ana lazaro marta
+  nicodemos zaqueu barnabe elias eliseu paulo pedro andre filipe tome estevao sansao gideao
+  calebe bartimeu jairo raabe boaz noemi simeao ismael saul golias jonatas arao josue
+  genesis levitico deuteronomio rute samuel esdras neemias ester jo eclesiastes isaias
+  jeremias ezequiel daniel oseias joel amos obadias jonas miqueias naum habacuque sofonias
+  ageu zacarias malaquias mateus marcos lucas joao romanos corintios galatas efesios
+  filipenses colossenses tessalonicenses timoteo tito filemom hebreus tiago judas apocalipse
+  siao jerusalem belem nazare galileia jordao egito canaa calvario golgota getsemani betania
+  samaria juda sinai babilonia brasil jerico betel emaus ninive eden siloe
+  natal pascoa pentecostes`);
+
+// Maiúsculas só quando já vinham assim no meio do título: pronomes e títulos que se
+// referem a Deus em uns títulos e não em outros ("Meu Pai" × "meu pai é um presente")
+const SE_JA_MAIUSCULA = lista(`
+  pai filho rei amigo pastor rocha nome palavra verbo luz
+  tu te ti teu tua teus tuas ele dele nele seu sua seus suas vos vosso vossa`);
+
+/**
+ * "Vim Para Adorar-Te" → "Vim para adorar-Te"; "EU ME RENDO - Renascer Praise" →
+ * "Eu me rendo - Renascer Praise"; "Salmo 98 Vencedores por cristo" → "Salmo 98 vencedores por Cristo".
+ * Entre parênteses e depois de " - " (artista, grupo, cantata) fica como veio.
+ */
+function tituloFrase(titulo) {
+  const t = limparEspacos(titulo);
+  const m = t.match(/^(.*?\S)(\s[-–]\s.*)$/); // atribuição: "Título - Artista"
+  const principal = m ? m[1] : t;
+  const atribuicao = m ? m[2] : "";
+  const pedacos = principal.split(/(\([^)]*\))/); // ímpares = parênteses, preservados
+  // Todo em CAIXA ALTA não informa o que é nome: aí vale só a lista de nomes
+  const tudoMaiusculo = emCaixaAlta(pedacos.filter((_, i) => i % 2 === 0).join(" "));
+
+  let inicioDeFrase = true;
+  let anterior = "";
+  const convertido = pedacos.map((p, i) => {
+    // Parênteses (artista, formação) ficam como vieram, salvo se também estão em CAIXA ALTA
+    if (i % 2 === 1 && !emCaixaAlta(p)) { inicioDeFrase = false; return p; }
+    if (i % 2 === 1) inicioDeFrase = false;
+    return p.replace(/[A-Za-zÀ-ÿ]+|[.!?]\s|\s[/+]\s/g, (w) => {
+      if (!/[A-Za-zÀ-ÿ]/.test(w)) { inicioDeFrase = true; return w; }
+      const k = semAcento(w).toLowerCase();
+      const capital = w[0].toUpperCase() + w.slice(1).toLowerCase();
+      let saida;
+      if (!tudoMaiusculo && w.length >= 2 && w.length <= 4 && w === w.toUpperCase() && !inicioDeFrase) saida = w; // sigla (SAF, HCC)
+      else if (inicioDeFrase || SEMPRE_MAIUSCULA.has(k) || (k === "santo" && anterior === "espirito")) saida = capital;
+      else if (!tudoMaiusculo && w[0] !== w[0].toLowerCase() && SE_JA_MAIUSCULA.has(k)) saida = capital;
+      else saida = w.toLowerCase();
+      inicioDeFrase = false;
+      anterior = k;
+      return saida;
+    });
+  }).join("");
+  // Atribuição em CAIXA ALTA ("- DUETO") também vira minúscula, com os nomes de sempre
+  const atrib = emCaixaAlta(atribuicao)
+    ? atribuicao.replace(/[A-Za-zÀ-ÿ]+/g, (w) => (SEMPRE_MAIUSCULA.has(semAcento(w).toLowerCase())
+      ? w[0] + w.slice(1).toLowerCase() : w.toLowerCase()))
+    : atribuicao;
+  return convertido + atrib;
 }
+
+/** Louvor que é peça do coral: "MÚSICA 1 – Vem celebrar Cristo", "Música 1. um segredinho" */
+const ehMusicaDoCoral = (t) => /^\s*m[uú]sica(?![a-zà-ÿ])/i.test(t);
+/** Tira o prefixo "Música N –" das peças do coral */
+const semPrefixoMusica = (t) => limparEspacos(t).replace(/^m[uú]sica\s*\d*\s*[.:–-]*\s*/i, "");
 
 /** Título de louvor/coral: sem numeração na frente, sem caixa alta, sem espaço sobrando */
 function tituloLouvor(t) {
-  let s = limparEspacos(t)
+  const s = limparEspacos(t)
     .replace(/^\d{1,3}\s*(?:[-–.)]\s*|\s+)(?=\D)/, "") // "01 - ", "2-", "08 "
     .trim();
-  s = frase(s);
-  return s ? s[0].toUpperCase() + s.slice(1) : "Sem título";
+  return s ? tituloFrase(s) : "Sem título";
 }
 
 /* ── hinos ─────────────────────────────────────────────────────────────── */
@@ -85,7 +138,7 @@ function lerNumeroHino(titulo) {
 
 /** "Louvor a Deus (NC 016)", "Crer e Observar (NC 110A)" */
 function tituloHino(nome, hinario, numero, variante = "") {
-  return `${limparEspacos(nome)} (${hinario} ${String(numero).padStart(3, "0")}${variante || ""})`;
+  return `${tituloFrase(nome)} (${hinario} ${String(numero).padStart(3, "0")}${variante || ""})`;
 }
 
 /**
@@ -186,10 +239,20 @@ function semelhanca(a, b, limite = 500) {
   return (2 * comum) / (Math.max(a.length - 1, 0) + Math.max(b.length - 1, 0) || 1);
 }
 
+/** Título digitado todo em CAIXA ALTA (não diz quais palavras são nomes) */
+function emCaixaAlta(t) {
+  const letras = String(t || "").replace(/[^A-Za-zÀ-ÿ]/g, "");
+  return letras.length > 3 && letras === letras.toUpperCase();
+}
+
 module.exports = {
+  emCaixaAlta,
   chave,
   limparEspacos,
   tituloLouvor,
+  tituloFrase,
+  ehMusicaDoCoral,
+  semPrefixoMusica,
   lerNumeroHino,
   tituloHino,
   letraOpenLP,

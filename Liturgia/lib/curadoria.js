@@ -59,6 +59,7 @@ function carregarHinarios(dirHinarios) {
       if (!t) continue;
       const nomeCorreto = corrigidos[codigo]?.[`${t.numero}${t.variante}`];
       if (nomeCorreto) t.nome = nomeCorreto;
+      t.nome = N.tituloFrase(t.nome); // "Avante, ó Crentes" → "Avante, ó crentes"
       hinos.push({ hinario: codigo, ...t, letra: N.letraOpenLP(s.lyrics, s.verse_order) });
     }
     db.close();
@@ -77,7 +78,7 @@ function curar(db, { dirHinarios, dirBiblias }) {
   bib.close();
 
   const rel = { hinos: 0, hinosCantados: 0, hinosVinculados: 0, hinosViraramLouvor: new Map(), hinosForaDoBanco: new Map(),
-    divergencias: new Map(), louvoresAntes: 0, louvoresDepois: 0, coralAntes: 0, coralDepois: 0, titulosAlterados: 0, fusoes: [], possiveis: [] };
+    divergencias: new Map(), louvoresAntes: 0, louvoresDepois: 0, coralAntes: 0, coralDepois: 0, titulosAlterados: 0, louvoresParaCoral: 0, fusoes: [], possiveis: [] };
 
   /* 1. Hinos: vincular cada item de hino ao hinário -------------------- */
   const { hinos: catalogoHinos, corrigidos } = carregarHinarios(dirHinarios);
@@ -131,7 +132,8 @@ function curar(db, { dirHinarios, dirBiblias }) {
         // Número do Novo Cântico que falta no banco do hinário (ex.: 354A): continua hino,
         // sem vínculo e fora do catálogo — o texto digitado aparece só na data em que foi usado
         delete it.hino_id;
-        const t = N.limparEspacos(it.titulo);
+        const t = N.tituloFrase(it.titulo);
+        if (t !== it.titulo) { rel.titulosAlterados++; it.titulo = t; }
         rel.hinosForaDoBanco.set(t, (rel.hinosForaDoBanco.get(t) || 0) + 1);
       } else {
         // Não é de hinário nenhum: passa a ser louvor (decisão do João, 28/09/2026)
@@ -162,6 +164,17 @@ function curar(db, { dirHinarios, dirBiblias }) {
       if (it.titulo !== it._hino.titulo) { rel.titulosAlterados++; it.titulo = it._hino.titulo; }
       delete it._hino;
       rel.hinosVinculados++;
+    }
+  }
+
+  /* 2a. Peças do coral cadastradas como louvor ("MÚSICA 1 – ...", "Música 1. ...") */
+  for (const c of cultos) {
+    for (const it of c.itens) {
+      if (it?.tipo !== "louvor" || !N.ehMusicaDoCoral(it.titulo)) continue;
+      it.tipo = "coral";
+      it.titulo = N.semPrefixoMusica(it.titulo);
+      delete it.louvor_id;
+      rel.louvoresParaCoral++;
     }
   }
 
@@ -202,14 +215,17 @@ function curar(db, { dirHinarios, dirBiblias }) {
     const ins = db.prepare(`INSERT INTO ${tabela} (titulo, letra) VALUES (?, ?) RETURNING id`);
     for (const lista of grupos.values()) {
       for (const musica of lista) {
+        // Título mais usado entre as versões digitadas normalmente (as em CAIXA ALTA não dizem
+        // o que é nome, "REI" × "Rei"); só sem nenhuma delas vale a caixa alta. Empate: a mais recente.
+        const digitadas = musica.versoes.filter((v) => !N.emCaixaAlta(v.item.titulo));
+        const candidatas = digitadas.length ? digitadas : musica.versoes;
         const titulos = new Map();
-        musica.versoes.forEach((v) => {
+        candidatas.forEach((v) => {
           const t = N.tituloLouvor(v.item.titulo);
           titulos.set(t, (titulos.get(t) || 0) + 1);
         });
-        // Título mais usado; empate fica com o mais recente (última versão iterada)
         let titulo = "", maior = 0;
-        musica.versoes.forEach((v) => {
+        candidatas.forEach((v) => {
           const t = N.tituloLouvor(v.item.titulo);
           if (titulos.get(t) >= maior) { maior = titulos.get(t); titulo = t; }
         });

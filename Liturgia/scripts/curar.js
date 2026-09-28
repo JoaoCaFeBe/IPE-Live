@@ -39,7 +39,7 @@ function relatorioMarkdown(rel) {
     `- Hinos no catálogo: ${rel.hinos} (já cantados pela igreja: ${rel.hinosCantados}; letra sempre a do hinário)`,
     `- Itens de hino vinculados ao hinário: ${rel.hinosVinculados}`,
     `- Louvores no catálogo: ${rel.louvoresAntes} → ${rel.louvoresDepois}`,
-    `- Coral no catálogo: ${rel.coralAntes} → ${rel.coralDepois}`,
+    `- Coral no catálogo: ${rel.coralAntes} → ${rel.coralDepois} (louvores "Música…" passados ao coral: ${rel.louvoresParaCoral})`,
     `- Títulos de itens alterados: ${rel.titulosAlterados}`,
     "",
     "## Hinos que não são de hinário nenhum — passaram a louvor",
@@ -72,7 +72,7 @@ if (require.main === module) {
   fs.copyFileSync(banco, `${banco}.antes-curadoria-${carimbo}`);
   const rel = executarCuradoria(banco);
   console.log(`Hinos: ${rel.hinos} (já cantados: ${rel.hinosCantados}) | itens de hino vinculados: ${rel.hinosVinculados}`);
-  console.log(`Louvores: ${rel.louvoresAntes} → ${rel.louvoresDepois} | coral: ${rel.coralAntes} → ${rel.coralDepois}`);
+  console.log(`Louvores: ${rel.louvoresAntes} → ${rel.louvoresDepois} | coral: ${rel.coralAntes} → ${rel.coralDepois} (Música… → coral: ${rel.louvoresParaCoral})`);
   console.log(`Títulos alterados: ${rel.titulosAlterados} | viraram louvor: ${rel.hinosViraramLouvor.size} | fora do banco: ${rel.hinosForaDoBanco.size} | divergências: ${rel.divergencias.size}`);
   if (arquivoRelatorio) {
     fs.writeFileSync(arquivoRelatorio, relatorioMarkdown(rel));
