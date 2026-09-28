@@ -5,6 +5,7 @@ const Database = require("better-sqlite3");
 
 const cors = require("cors");
 const { garantirSchema } = require("./lib/schema");
+const normalizar = require("./lib/normalizar");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const VAGALUME_API_KEY = process.env.VAGALUME_API_KEY;
@@ -303,9 +304,17 @@ app.get("/Cultos/:arquivo", (req, res) => {
       "SELECT titulo, letra FROM coral WHERE id = ?",
     );
 
-    // A letra gravada no item é o que foi projetado naquele culto e prevalece.
-    // Itens antigos sem letra são expandidos pelo catálogo (louvor_id/coral_id) ou pelo hinário.
+    const getHino = db.prepare("SELECT titulo, letra FROM hinos WHERE id = ?");
+
+    // Hino vinculado ao hinário mostra sempre o texto do banco (decisão do João, 28/09/2026:
+    // o que foi projetado diferente não é o padrão). Nos demais itens, a letra gravada
+    // é o que foi projetado naquele culto e prevalece; itens antigos sem letra são
+    // expandidos pelo catálogo (louvor_id/coral_id) ou pelo hinário.
     itens = itens.map((item) => {
+      if (item && item.tipo === "hino" && item.hino_id) {
+        const h = getHino.get(item.hino_id);
+        if (h) return { ...item, titulo: h.titulo, letra: JSON.parse(h.letra) };
+      }
       if (item && Array.isArray(item.letra) && item.letra.length) return item;
       // Louvor
       if (item && item.louvor_id) {
@@ -428,16 +437,21 @@ app.post("/dados/salvar-liturgia", (req, res) => {
 
     itens = itens.map((item) => {
       if (!item) return item;
+      // Título no padrão da curadoria (sem numeração, sem caixa alta, sem espaço sobrando)
       if (item.tipo === "coral" && Array.isArray(item.letra)) {
-        return { tipo: "coral", titulo: item.titulo, letra: item.letra, coral_id: catalogar("coral", item) };
+        const titulo = normalizar.tituloLouvor(item.titulo);
+        return { tipo: "coral", titulo, letra: item.letra, coral_id: catalogar("coral", { ...item, titulo }) };
       }
       if (item.tipo === "louvor" && Array.isArray(item.letra)) {
-        return { tipo: "louvor", titulo: item.titulo, letra: item.letra, louvor_id: catalogar("louvores", item) };
+        const titulo = normalizar.tituloLouvor(item.titulo);
+        return { tipo: "louvor", titulo, letra: item.letra, louvor_id: catalogar("louvores", { ...item, titulo }) };
       }
       // Hino guarda a letra escolhida: resolver de novo pelo título no hinário
       // já trocou hinos na migração de março/2026.
       if (item.tipo === "hino") {
-        return { tipo: "hino", titulo: item.titulo, letra: Array.isArray(item.letra) ? item.letra : [] };
+        const hino = { tipo: "hino", titulo: normalizar.limparEspacos(item.titulo), letra: Array.isArray(item.letra) ? item.letra : [] };
+        if (item.hino_id) hino.hino_id = Number(item.hino_id);
+        return hino;
       }
       return item;
     });
@@ -449,8 +463,8 @@ app.post("/dados/salvar-liturgia", (req, res) => {
     // Devolve os IDs gerados para o cliente atualizar a memória
     const idMap = itens.map(item => {
       if (!item) return {};
-      if (item.louvor_id) return { louvor_id: item.louvor_id };
-      if (item.coral_id) return { coral_id: item.coral_id };
+      if (item.louvor_id) return { louvor_id: item.louvor_id, titulo: item.titulo };
+      if (item.coral_id) return { coral_id: item.coral_id, titulo: item.titulo };
       return {};
     });
     res.json({ ok: true, idMap });
@@ -496,6 +510,56 @@ app.post("/dados/renomear-liturgia", (req, res) => {
 // ===========================================================================
 // HINÁRIO
 // ===========================================================================
+
+/* ── Catálogo de hinos do banco (lib/curadoria.js monta a partir dos hinários) ── */
+
+const NOMES_HINARIOS = { NC: "Novo Cântico", CC: "Cantor Cristão", HC: "Harpa Cristã", HCC: "Hinário para o Culto Cristão" };
+
+/** Hinários com hinos no banco: GET /hinos/hinarios */
+app.get("/hinos/hinarios", (_req, res) => {
+  const db = new Database(CULTOS_DB_PATH, { readonly: true });
+  const rows = db.prepare("SELECT hinario, COUNT(*) AS total FROM hinos GROUP BY hinario").all();
+  db.close();
+  const ordem = Object.keys(NOMES_HINARIOS);
+  res.json(rows
+    .map((r) => ({ codigo: r.hinario, nome: NOMES_HINARIOS[r.hinario] || r.hinario, total: r.total }))
+    .sort((a, b) => ordem.indexOf(a.codigo) - ordem.indexOf(b.codigo)));
+});
+
+/** Busca por número, nome ou trecho da letra: GET /hinos?hinario=NC&q=amor */
+app.get("/hinos", (req, res) => {
+  const hinario = String(req.query.hinario || "NC");
+  const q = normalizar.chave(req.query.q || "");
+  const db = new Database(CULTOS_DB_PATH, { readonly: true });
+  const rows = db
+    .prepare("SELECT id, hinario, numero, variante, nome, titulo, letra, origem, usado_em FROM hinos WHERE hinario = ? ORDER BY numero, variante")
+    .all(hinario);
+  db.close();
+  const numero = /^\d+\s*[a-z]?$/.test(q) ? q.replace(/\s/g, "") : null;
+  const lista = rows
+    .map((r) => {
+      let onde = "";
+      if (!q) onde = "todos";
+      else if (numero && `${r.numero}${r.variante}`.toLowerCase() === numero) onde = "exato";
+      else if (numero && `${r.numero}${r.variante}`.toLowerCase().startsWith(numero)) onde = "numero";
+      else if (normalizar.chave(r.nome).includes(q)) onde = "nome";
+      else if (q.length >= 4 && normalizar.chave(JSON.parse(r.letra).join(" ").replace(/refrao:|<br\/?>/g, " ")).includes(q)) onde = "letra";
+      return onde && { id: r.id, hinario: r.hinario, numero: r.numero, variante: r.variante, nome: r.nome,
+        titulo: r.titulo, origem: r.origem, usado_em: r.usado_em, encontrado: onde };
+    })
+    .filter(Boolean);
+  const peso = { exato: 0, numero: 1, nome: 2, letra: 3, todos: 0 };
+  res.json(lista.sort((a, b) => peso[a.encontrado] - peso[b.encontrado]));
+});
+
+/** Hino completo: GET /hinos/12 */
+app.get("/hinos/:id", (req, res) => {
+  const db = new Database(CULTOS_DB_PATH, { readonly: true });
+  const r = db.prepare("SELECT * FROM hinos WHERE id = ?").get(Number(req.params.id));
+  db.close();
+  if (!r) return res.status(404).json({ error: "Hino não encontrado" });
+  res.json({ ...r, letra: JSON.parse(r.letra) });
+});
 
 /** Lista todos os hinários disponíveis */
 app.get("/hinario/lista", (_req, res) => {

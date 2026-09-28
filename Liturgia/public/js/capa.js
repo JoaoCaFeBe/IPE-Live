@@ -251,6 +251,11 @@ function salvar() {
                     if (!Liturgia[i]) return;
                     if (ids.louvor_id) Liturgia[i].louvor_id = ids.louvor_id;
                     if (ids.coral_id) Liturgia[i].coral_id = ids.coral_id;
+                    // Título normalizado pelo servidor (ex.: "2-CRISTO BOM MESTRE" → "Cristo bom Mestre")
+                    if (ids.titulo && ids.titulo !== Liturgia[i].titulo) {
+                        Liturgia[i].titulo = ids.titulo;
+                        $('#bodyLiturgia>ul>li').eq(i).text(ids.titulo);
+                    }
                 });
             }
             mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Salvo!');
@@ -465,78 +470,6 @@ function mostraHino(codigo) {
             $('#final').val(JSON.stringify(hino, undefined, 4));
             $('#excluir').removeClass('d-none');
         });
-}
-
-function arrumarHino() {
-    // Mantido para compatibilidade; não mais chamado pela UI de hino
-    let hino = { tipo: 'hino', titulo: $('#tituloHino').text(), letra: [] };
-    const div = document.getElementById('letraHino');
-    if (div) {
-        div.querySelectorAll('p').forEach(p => {
-            const refrao = p.classList.contains('fst-italic');
-            const l = p.innerHTML.replace(/<br>/gi, '\n').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-            hino.letra.push((refrao ? 'refrao:' : '') + l);
-        });
-    }
-    $('#final').val(JSON.stringify(hino, undefined, 4));
-}
-
-/* ────────────────────────────────────────────────────────────────────────
-   HINÁRIO — navegação e preenchimento automático de hinos
-   ──────────────────────────────────────────────────────────────────────── */
-
-/** Carrega a lista de hinários e inicializa com HNC como padrão. */
-function hinarioCarregarLista() {
-    if (!$('#selHinario').length) return;
-    $.get('/hinario/lista')
-        .done(lista => {
-            const sel = $('#selHinario').empty();
-            lista.forEach(h => {
-                $('<option>').val(h.codigo).text(h.nome)
-                    .prop('selected', h.codigo === 'HNC')
-                    .appendTo(sel);
-            });
-            hinarioBuscar();
-        })
-        .fail(() => mostrarToast('Erro ao carregar hinários', 'danger'));
-}
-
-/** Busca hinos pelo texto ou número digitado no campo de busca. */
-function hinarioBuscar() {
-    const hinario = $('#selHinario').val();
-    const q = $('#buscarHino').val().trim();
-    if (!hinario) return;
-    $.get('/hinario/buscar', { hinario, q })
-        .done(resultados => {
-            const ul = $('#resultadosHino').empty();
-            if (!resultados.length) {
-                $('<li class="list-group-item list-group-item-secondary py-1">').text('Nenhum resultado').appendTo(ul);
-                return;
-            }
-            resultados.forEach(h => {
-                $('<li class="list-group-item list-group-item-action py-1">')
-                    .text(h.tituloForm)
-                    .on('click', () => hinarioSelecionarHino(h.id))
-                    .appendTo(ul);
-            });
-        })
-        .fail(() => mostrarToast('Erro ao buscar hinos', 'danger'));
-}
-
-/** Carrega a letra completa do hino e preenche #titulo e #original. */
-function hinarioSelecionarHino(id) {
-    const hinario = $('#selHinario').val();
-    $.get('/hinario/hino', { hinario, id })
-        .done(hino => {
-            $('#titulo').val(hino.tituloForm);
-            $('#original').val('');
-            hino.letra.forEach(l => {
-                $('#original').val($('#original').val() + l.replace(/\{it\}|\{\/it\}/g, '').replace(/<br[/]>/gi, '\n') + '\n\n');
-            });
-            arrumarHino();
-            $('#resultadosHino').empty();
-        })
-        .fail(() => mostrarToast('Erro ao carregar letra do hino', 'danger'));
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -857,104 +790,4 @@ function coralLocal() {
             })
             .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
     });
-}
-
-function hinoAlterar() {
-    const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
-    if (codigo >= 0) hinoLocal(codigo);
-}
-
-function hinoLocal(codigoReplace) {
-    let hinoSel = null;
-
-    const html = /* html */`
-<hinos style="display:grid;grid-template-columns:42% 1fr;column-gap:.25rem;height:70vh;">
-  <pesquisa class="border-end" style="display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;">
-    <select id="selModalHinario" class="form-select form-select-sm border-0 border-bottom rounded-0 p-2">
-      <option value="HNC">Carregando hinários…</option>
-    </select>
-    <ul id="listaHinos" class="ulMenu selecionavel w-100 p-1"
-      style="overflow-y:auto;margin:0;list-style:none;padding-bottom:0;"></ul>
-    <div class="input-group input-group-sm border-top p-1">
-      <input type="text" id="buscaHino" class="form-control" placeholder="Pesquisar por número ou título" autofocus>
-      <span class="input-group-text"><i class="fa fa-search"></i></span>
-    </div>
-  </pesquisa>
-  <mostrar style="overflow:auto;padding:.5rem;"></mostrar>
-</hinos>`;
-
-    bootbox.dialog({
-        title: 'Selecione o hino',
-        message: html,
-        onEscape: true,
-        closeButton: true,
-        backdrop: true,
-        className: 'p-0',
-        size: 'extra-large',
-        centerVertical: true,
-        buttons: {
-            ok: {
-                label: 'Ok',
-                className: 'btn-info disabled botaoOK',
-                callback: () => {
-                    if (!hinoSel) return false;
-                    const item = { tipo: 'hino', titulo: hinoSel.tituloForm, letra: hinoSel.letra };
-                    if (codigoReplace >= 0) {
-                        Liturgia[codigoReplace] = item;
-                        $('#bodyLiturgia>ul>li:eq(' + codigoReplace + ')').text(item.titulo);
-                        mostraHino(codigoReplace);
-                        $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
-                            .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Hino atualizado!'));
-                    } else {
-                        adicionarItem(item);
-                        $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
-                            .done(() => mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Hino adicionado!'));
-                    }
-                }
-            }
-        }
-    })
-        .bind('shown.bs.modal', function () {
-            $('body').addClass('modal-open');
-
-            function carregarLista(hinario, q) {
-                $.get('/hinario/buscar', { hinario, q: q || '' }).then(hinos => {
-                    const ul = $('#listaHinos').empty();
-                    hinos.forEach(h => {
-                        $('<li>').attr('codigo', h.id).text(h.tituloForm).appendTo(ul);
-                    });
-                    ul.find('li').on('click', function () {
-                        marcaLI(this);
-                        const id = $(this).attr('codigo');
-                        const hinario = $('#selModalHinario').val();
-                        $.get('/hinario/hino', { hinario, id }).then(hino => {
-                            hinoSel = hino;
-                            const el = query('mostrar');
-                            el.innerHTML = `<h2>${hino.tituloForm}</h2><hr class="p-0 m-0 mt-1 mb-1">`;
-                            hino.letra.forEach(linha => { el.innerHTML += linha + '<br><br>'; });
-                            query('.botaoOK').classList.remove('disabled');
-                        });
-                    });
-                });
-            }
-
-            $.get('/hinario/lista').then(lista => {
-                const sel = $('#selModalHinario').empty();
-                lista.forEach(h => sel.append(`<option value="${h.codigo}">${h.nome}</option>`));
-                sel.val('HNC');
-                carregarLista('HNC', '');
-            });
-
-            $('#selModalHinario').on('change', function () {
-                hinoSel = null;
-                query('mostrar').innerHTML = '';
-                query('.botaoOK').classList.add('disabled');
-                carregarLista($(this).val(), $('#buscaHino').val());
-            });
-
-            $('#buscaHino').on('input', function () {
-                carregarLista($('#selModalHinario').val(), $(this).val());
-            }).focus().select();
-        })
-        .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
 }

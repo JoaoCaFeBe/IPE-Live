@@ -492,3 +492,35 @@ texto {
 #bodyLiturgia li[data-tipo]:hover::after { opacity: .6; }
 #bodyLiturgia li.arrastando { opacity: .35; outline: 2px dashed #f0d000; outline-offset: -2px; }
 .sortable-chosen { cursor: grabbing; }
+
+/* ── Escolha do hino (js/hino.js) — reaproveita o layout .pm da passagem ─ */
+
+.hm .pm-corpo { grid-template-columns: minmax(16rem, 36%) 1fr; }
+.hm #hmHinario { max-width: 16rem; }
+
+.hm-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0 .25rem 0 0;
+    overflow-y: auto;
+    border-right: 1px solid #dee2e6;
+}
+.hm-item {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    padding: .3rem .5rem;
+    border-radius: .25rem;
+    cursor: pointer;
+}
+.hm-item:hover { background: #f1ecfa; }
+.hm-item .num { font-weight: 700; color: #3d1f6d; min-width: 2.6rem; font-variant-numeric: tabular-nums; }
+.hm-item .nome { flex: 1; }
+.hm-item .usado { color: #e0a800; font-size: .75rem; }
+.hm-item .onde { color: #6c757d; font-size: .7rem; }
+.hm-item.ativo { background: #3d1f6d; color: #fff; }
+.hm-item.ativo .num, .hm-item.ativo .onde { color: #e0d0ff; }
+.hm-vazio { padding: .5rem; color: #6c757d; }
+
+.hm-estrofe { margin: 0 0 .75rem; line-height: 1.5; }
+.hm-estrofe.refrao { font-style: italic; color: #3d1f6d; padding-left: .75rem; border-left: 3px solid #b9a3e3; }

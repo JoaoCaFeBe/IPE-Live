@@ -36,6 +36,20 @@ function garantirSchema(db) {
     importado_em TEXT NOT NULL
   )`);
 
+  // Hinários (OpenLP) com o refrão na ordem cantada; usado_em = última vez que a igreja cantou
+  db.exec(`CREATE TABLE IF NOT EXISTS hinos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hinario TEXT NOT NULL,
+    numero INTEGER NOT NULL,
+    variante TEXT NOT NULL DEFAULT '',
+    nome TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    letra TEXT NOT NULL,
+    origem TEXT NOT NULL DEFAULT 'hinario',
+    usado_em TEXT
+  )`);
+  db.exec("CREATE INDEX IF NOT EXISTS hinos_numero ON hinos (hinario, numero)");
+
   for (const tabela of ["louvores", "coral"]) {
     const existe = db
       .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?")

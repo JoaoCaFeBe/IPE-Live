@@ -17,11 +17,13 @@
  *  - `mensagem` e `extra` não existem no sistema novo: saem de `itens`, mas o JSON
  *    original de cada data fica inteiro em `cultos_legado`.
  *  - Arquivo vazio ou inválido no legado é relatado e pulado.
+ *  - No fim roda a curadoria (scripts/curar.js): títulos, hinos e louvores duplicados.
  */
 const fs = require("fs");
 const path = require("path");
 const Database = require("better-sqlite3");
 const { garantirSchema } = require("../lib/schema");
+const { executarCuradoria } = require("./curar");
 
 const TIPOS_MIGRADOS = new Set(["passagem", "hino", "louvor"]);
 
@@ -179,6 +181,10 @@ async function main() {
     fs.renameSync(banco, `${banco}.antes-importacao-${carimbo}`);
   }
   fs.renameSync(temporario, banco);
+
+  // Mesmo padrão do banco em uso: títulos normalizados, catálogo de hinos, louvores sem duplicados
+  const cura = executarCuradoria(banco);
+  console.log(`Curadoria: louvores ${cura.louvoresAntes} → ${cura.louvoresDepois} | hinos vinculados ${cura.hinosVinculados} | títulos alterados ${cura.titulosAlterados}`);
 
   console.log(`Cultos: ${relatorio.cultos} | itens: ${relatorio.itens} | louvores no catálogo: ${relatorio.louvores}`);
   console.log(`Fora do sistema novo (guardados em cultos_legado): ${JSON.stringify(relatorio.descartados)}`);

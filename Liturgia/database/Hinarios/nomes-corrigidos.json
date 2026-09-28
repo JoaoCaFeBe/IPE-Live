@@ -1,0 +1,19 @@
+{
+  "_fonte": "Índice do hinário usado pela igreja: https://boomerang.dzign-e.net/ipcampinas/utils/link/hymnal.php (conferido em 28/09/2026). Corrige nomes cortados ou de outra edição no Hinário Novo Cântico.sqlite (OpenLP). Chave = número + variante.",
+  "NC": {
+    "21": "Deus de Abraão",
+    "51": "Cristo Coroado",
+    "52": "Glória e Coroação",
+    "56": "Ações de Graça e Súplica",
+    "61": "Ações de Graça",
+    "66": "Coração Quebrantado",
+    "76": "Compaixão",
+    "149": "Verdadeira Redenção",
+    "166": "Luz e Vida",
+    "271": "Ressurreição",
+    "318": "Ceifeiros do Senhor",
+    "323": "Santa Peleja",
+    "325A": "Jesus Cristo é o Senhor",
+    "354A": "A Escola Dominical"
+  }
+}
