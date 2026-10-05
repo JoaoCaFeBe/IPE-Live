@@ -452,29 +452,43 @@ const urlBiblia = (livro_id, capitulo, versao, nomeLivro, ir) => {
   return `Biblia?${q}`;
 };
 
-let _bibliaWin = null,
-  _bibliaWinTimer = null;
+const _bibliaWins = new Set();
+let _bibliaWinTimer = null;
+
+const monitorarJanelasBiblia = () => {
+  if (_bibliaWinTimer) return;
+
+  _bibliaWinTimer = setInterval(() => {
+    _bibliaWins.forEach((janela) => {
+      if (janela.closed) _bibliaWins.delete(janela);
+    });
+
+    if (_bibliaWins.size === 0) {
+      clearInterval(_bibliaWinTimer);
+      _bibliaWinTimer = null;
+      socket.emit(empresa, "fecharBiblia");
+    }
+  }, 500);
+};
 
 // Abre a janela da Bíblia no capítulo; `ir` posiciona num versículo sem projetá-lo
 const listaVersiculos = (livro_id, capitulo, versao, nomeLivro, ir = null) => {
-  let left = (screen.width - 350) / 2,
-    top = (screen.height - 800) / 4;
+  _bibliaWins.forEach((janela) => {
+    if (janela.closed) _bibliaWins.delete(janela);
+  });
+
+  const deslocamento = (_bibliaWins.size % 8) * 24;
+  let left = (screen.width - 350) / 2 + deslocamento,
+    top = (screen.height - 800) / 4 + deslocamento;
 
   // Fecha todos os accordions abertos (hino, louvor, passagem, coral)
   document.querySelectorAll(".accordion-collapse.show").forEach((el) => {
     bootstrap.Collapse.getOrCreateInstance(el).hide();
   });
 
-  // Se já há uma janela aberta, foca ela em vez de abrir outra
-  if (_bibliaWin && !_bibliaWin.closed) {
-    _bibliaWin.location.href = urlBiblia(livro_id, capitulo, versao, nomeLivro, ir);
-    _bibliaWin.focus();
-    return;
-  }
-
-  _bibliaWin = window.open(
+  const bibliaWin = window.open(
     urlBiblia(livro_id, capitulo, versao, nomeLivro, ir),
-    `${nomeLivro}${capitulo}`,
+    "_blank",
     `toolbar=no,
                                     location=no,
                                     status=no,
@@ -487,14 +501,8 @@ const listaVersiculos = (livro_id, capitulo, versao, nomeLivro, ir = null) => {
                                     left=${left}`,
   );
 
-  // Monitora o fechamento da janela e emite fecharBiblia automaticamente
-  if (_bibliaWinTimer) clearInterval(_bibliaWinTimer);
-  _bibliaWinTimer = setInterval(() => {
-    if (_bibliaWin && _bibliaWin.closed) {
-      clearInterval(_bibliaWinTimer);
-      _bibliaWinTimer = null;
-      _bibliaWin = null;
-      socket.emit(empresa, "fecharBiblia");
-    }
-  }, 500);
+  if (!bibliaWin) return;
+
+  _bibliaWins.add(bibliaWin);
+  monitorarJanelasBiblia();
 };

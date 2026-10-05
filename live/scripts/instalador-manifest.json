@@ -1,0 +1,27 @@
+{
+  "files": [
+    ".env.example",
+    "ecosystem.config.js",
+    "package-lock.json",
+    "package.json",
+    "server.js"
+  ],
+  "trees": [
+    {
+      "path": "database",
+      "extensions": [".sqlite"]
+    },
+    {
+      "path": "public",
+      "excludeNames": [".DS_Store"]
+    },
+    {
+      "path": "views",
+      "extensions": [".ejs"]
+    }
+  ],
+  "installerFiles": [
+    "scripts/instalar-windows.bat",
+    "scripts/instalar-windows.ps1"
+  ]
+}

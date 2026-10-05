@@ -18,7 +18,11 @@ function inicio() {
     // Atalhos de teclado
     $(document).on('keydown', e => {
         const emInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-        if (e.ctrlKey && e.key === 's') {
+        if (e.key === 'F10') {
+            e.preventDefault();
+            e.stopPropagation();
+            baixarInstaladorLive();
+        } else if (e.ctrlKey && e.key === 's') {
             e.preventDefault();
             if (!$('#cardCorpo').hasClass('d-none') && !somenteConsulta) salvar();
         } else if (e.key === 'Delete' && !emInput && !somenteConsulta) {
@@ -61,6 +65,17 @@ function baixarArquivo() {
         return;
     }
     $.downloadObj(Liturgia, $marcado.attr('arquivo'), 'text/plain');
+}
+
+function baixarInstaladorLive() {
+    mostrarToast('<i class="fas fa-download"></i>&nbsp;Preparando o instalador atualizado…', 'info');
+    const link = document.createElement('a');
+    link.href = `/downloads/IPE-Live-Windows.zip?${Date.now()}`;
+    link.download = 'IPE-Live-Windows.zip';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 }
 
 /* ── DUPLICAR ───────────────────────────────────────────────────────────── */

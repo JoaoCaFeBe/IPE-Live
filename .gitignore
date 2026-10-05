@@ -30,6 +30,9 @@ Liturgia/cultos/*
 # Logs
 *.log
 
+# Pacotes gerados para instalação no Windows
+/live/dist/
+
 # favicon servido pelo Express em Live/public/
 favicon.ico
 # Governança de IA — fonte em IA.Global/shared/projects/{NomeProjeto}/governanca/

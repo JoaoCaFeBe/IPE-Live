@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "package:windows": "node scripts/gerar-pacote-windows.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.2",

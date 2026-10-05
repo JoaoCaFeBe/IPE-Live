@@ -1,11 +1,11 @@
 ﻿# Instala (ou atualiza) o IPE Live no computador da igreja (Windows 10/11).
 #
 # Uso: duplo clique em instalar-windows.bat (ele chama este arquivo como administrador).
-# Rodar de novo = atualizar: puxa a versão nova, reinstala dependências e reinicia.
+# Rodar um pacote novo = atualizar: copia a versão nova, reinstala dependências e reinicia.
 #
 # O que faz, em ordem:
-#   1. Node.js 22 (instalador oficial do nodejs.org, conferido pelo SHA256) e Git (winget)
-#   2. Baixa/atualiza o projeto em C:\IPE\IPE-Live (o GitHub pede login na primeira vez)
+#   1. Node.js 22 (instalador oficial do nodejs.org, conferido pelo SHA256)
+#   2. Copia o Live incluído no pacote para C:\IPE\IPE-Live (sem GitHub)
 #   3. Instala as dependências do Live (npm ci)
 #   4. Cria o live\.env (pergunta o IP da máquina e a senha do OBS); se já existir, mantém
 #   5. Libera a porta 3001 no Firewall só para a rede local
@@ -22,7 +22,6 @@ $Raiz      = "C:\IPE"
 $Repo      = Join-Path $Raiz "IPE-Live"
 $Live      = Join-Path $Repo "live"
 $CultosDir = Join-Path $Raiz "cultos"
-$RepoUrl   = "https://github.com/JoaoCaFeBe/IPE-Live.git"
 $Porta     = 3001
 $App       = "IPE-Live"
 $Reserva   = "https://live.ipe.desklaser.cloud"
@@ -57,7 +56,7 @@ function Atualizar-Path {
 }
 function Existe($comando) { return [bool](Get-Command $comando -ErrorAction SilentlyContinue) }
 function Rodar($exe, [string[]]$argumentos, $oQue) {
-    # Programas externos (git, npm, pm2) escrevem progresso no stderr; no PowerShell 5.1 isso
+    # Programas externos (npm, pm2) escrevem progresso no stderr; no PowerShell 5.1 isso
     # vira exceção com ErrorActionPreference=Stop. Quem decide o erro aqui é o código de saída.
     $ErrorActionPreference = "Continue"
     & $exe @argumentos
@@ -70,7 +69,7 @@ trap { Falha $_.Exception.Message }
 Write-Host "IPE Live — instalação/atualização no computador da igreja" -ForegroundColor White
 Atualizar-Path
 
-# --- 1. Node.js 22 e Git -----------------------------------------------------
+# --- 1. Node.js 22 -----------------------------------------------------------
 Passo "Node.js 22"
 $precisaNode = $true
 if (Existe "node") {
@@ -104,40 +103,40 @@ if ($precisaNode) {
     Ok "Node $((& node -v).Trim()) instalado"
 }
 
-Passo "Git"
-if (Existe "git") { Ok "já instalado ($((& git --version).Trim()))" }
-else {
-    if (-not (Existe "winget")) { Falha "o Git não está instalado e o winget não existe nesta máquina. Instale o Git por https://git-scm.com/download/win e rode de novo." }
-    Rodar "winget" @("install", "--id", "Git.Git", "-e", "--source", "winget", "--silent", "--accept-package-agreements", "--accept-source-agreements") "falha ao instalar o Git"
-    Atualizar-Path
-    $gitPadrao = "C:\Program Files\Git\cmd"
-    if (-not (Existe "git") -and (Test-Path $gitPadrao)) { $env:Path += ";$gitPadrao" }
-    if (-not (Existe "git")) { Falha "o Git foi instalado mas não apareceu no PATH. Feche esta janela e rode de novo." }
-    Ok "Git instalado"
-}
-
 # --- 2. Projeto --------------------------------------------------------------
 Passo "Projeto em $Repo"
-if (Test-Path (Join-Path $Repo ".git")) {
-    Rodar "git" @("-C", $Repo, "pull", "--ff-only") "não consegui atualizar o projeto (git pull)"
-    Ok "atualizado"
-} else {
-    Write-Host "    O GitHub vai pedir login na primeira vez (janela do navegador)."
-    Rodar "git" @("clone", $RepoUrl, $Repo) "não consegui baixar o projeto (git clone)"
-    Ok "baixado"
+$pacoteLive = Join-Path $PSScriptRoot "live"
+if (-not (Test-Path (Join-Path $pacoteLive "server.js"))) {
+    # Ao executar pelo atalho instalado, o próprio Live já é a origem.
+    $pacoteLive = Split-Path $PSScriptRoot -Parent
 }
-if (-not (Test-Path (Join-Path $Live "server.js"))) { Falha "não encontrei $Live\server.js depois de baixar o projeto." }
+if (-not (Test-Path (Join-Path $pacoteLive "server.js")) -or -not (Test-Path (Join-Path $pacoteLive "package-lock.json"))) {
+    Falha "pacote incompleto: mantenha instalar-windows.bat, instalar-windows.ps1 e a pasta live juntos."
+}
+
+$pm2Existente = Join-Path $env:APPDATA "npm\pm2.cmd"
+if (Test-Path $pm2Existente) {
+    # A atualização precisa parar o processo antes do npm ci, pois módulos nativos ficam travados.
+    $ErrorActionPreference = "Continue"
+    & $pm2Existente delete $App 2>$null | Out-Null
+    $ErrorActionPreference = "Stop"
+}
+
+New-Item -ItemType Directory -Force -Path $Repo, $Live | Out-Null
+$origemResolvida = [IO.Path]::GetFullPath($pacoteLive).TrimEnd('\')
+$destinoResolvido = [IO.Path]::GetFullPath($Live).TrimEnd('\')
+if ($origemResolvida -ne $destinoResolvido) {
+    & robocopy.exe $pacoteLive $Live /MIR /XD node_modules dist /XF .env /R:2 /W:1 /NFL /NDL /NJH /NJS /NP
+    $codigoRobocopy = $LASTEXITCODE
+    if ($codigoRobocopy -ge 8) { Falha "não consegui copiar o Live do pacote (robocopy código $codigoRobocopy)." }
+    Ok "arquivos copiados do pacote, sem GitHub"
+} else {
+    Ok "arquivos já estão instalados; executando reparo"
+}
+if (-not (Test-Path (Join-Path $Live "server.js"))) { Falha "não encontrei $Live\server.js depois de copiar o pacote." }
 
 # --- 3. Dependências ---------------------------------------------------------
 Passo "Dependências do Live"
-$pm2 = Join-Path $env:APPDATA "npm\pm2.cmd"
-if (Test-Path $pm2) {
-    # Atualização: o Live em execução trava arquivos de node_modules e o npm ci falharia.
-    # delete (e não stop) para o start abaixo reler o ecosystem.config.js.
-    $ErrorActionPreference = "Continue"
-    & $pm2 delete $App 2>$null | Out-Null
-    $ErrorActionPreference = "Stop"
-}
 Push-Location $Live
 Rodar "npm.cmd" @("ci", "--omit=dev", "--no-audit", "--no-fund") "falha no npm ci"
 Pop-Location
@@ -231,11 +230,13 @@ Atalho "IPE Live - Reserva online" "$Reserva/Painel"
 Atalho "IPE Liturgia" $Liturgia
 $bat = Join-Path $Live "scripts\instalar-windows.bat"
 $wsh = New-Object -ComObject WScript.Shell
-$lnk = $wsh.CreateShortcut((Join-Path $desk "Atualizar IPE Live.lnk"))
+$lnk = $wsh.CreateShortcut((Join-Path $desk "Reparar IPE Live.lnk"))
 $lnk.TargetPath = $bat
 $lnk.WorkingDirectory = Split-Path $bat
 $lnk.Save()
-Ok "Painel, Projetor, Reserva online, Liturgia e 'Atualizar IPE Live'"
+$atalhoAntigo = Join-Path $desk "Atualizar IPE Live.lnk"
+if (Test-Path $atalhoAntigo) { Remove-Item $atalhoAntigo -Force }
+Ok "Painel, Projetor, Reserva online, Liturgia e 'Reparar IPE Live'"
 
 Passo "Teste"
 Start-Sleep -Seconds 4

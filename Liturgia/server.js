@@ -1,4 +1,5 @@
 const express = require("express");
+const archiver = require("archiver");
 const fs = require("fs");
 const path = require("path");
 const Database = require("better-sqlite3");
@@ -10,6 +11,96 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const VAGALUME_API_KEY = process.env.VAGALUME_API_KEY;
 if (!VAGALUME_API_KEY) console.warn("[vagalume] VAGALUME_API_KEY ausente — rotas /api/vagalume/* responderao 503");
+
+const INSTALLER_FILENAME = "IPE-Live-Windows.zip";
+const INSTALLER_ROOT = "IPE-Live-Windows";
+
+function resolverDiretorioLive() {
+  const candidatos = [
+    process.env.LIVE_INSTALLER_SOURCE,
+    path.resolve(__dirname, "..", "live"),
+    path.resolve(__dirname, "..", "IPE.Live"),
+  ].filter(Boolean);
+
+  return candidatos.find((diretorio) =>
+    fs.existsSync(path.join(diretorio, "server.js")) &&
+    fs.existsSync(path.join(diretorio, "scripts", "instalador-manifest.json"))
+  );
+}
+
+function arquivosDaArvore(diretorioLive, arvore) {
+  const raiz = path.join(diretorioLive, arvore.path);
+  if (!fs.existsSync(raiz)) throw new Error(`pasta obrigatória ausente: ${arvore.path}`);
+
+  const arquivos = [];
+  const visitar = (diretorio) => {
+    for (const item of fs.readdirSync(diretorio, { withFileTypes: true })) {
+      if (arvore.excludeNames?.includes(item.name)) continue;
+      const absoluto = path.join(diretorio, item.name);
+      if (item.isDirectory()) {
+        visitar(absoluto);
+      } else if (
+        item.isFile() &&
+        (!arvore.extensions || arvore.extensions.includes(path.extname(item.name)))
+      ) {
+        arquivos.push(path.relative(diretorioLive, absoluto));
+      }
+    }
+  };
+
+  visitar(raiz);
+  if (!arquivos.length) throw new Error(`pasta sem arquivos permitidos: ${arvore.path}`);
+  return arquivos;
+}
+
+function conteudoInstalador() {
+  const diretorioLive = resolverDiretorioLive();
+  if (!diretorioLive) throw new Error("diretório publicado do Live não encontrado");
+
+  const manifesto = JSON.parse(
+    fs.readFileSync(path.join(diretorioLive, "scripts", "instalador-manifest.json"), "utf8")
+  );
+  const arquivos = [
+    ...manifesto.files,
+    ...manifesto.installerFiles,
+    ...manifesto.trees.flatMap((arvore) => arquivosDaArvore(diretorioLive, arvore)),
+  ];
+
+  for (const arquivo of arquivos) {
+    if (!fs.existsSync(path.join(diretorioLive, arquivo))) {
+      throw new Error(`arquivo obrigatório ausente: ${arquivo}`);
+    }
+  }
+
+  return {
+    arquivos: [...new Set(arquivos)].sort(),
+    diretorioLive,
+    manifesto,
+  };
+}
+
+function leiaMeInstalador(diretorioLive) {
+  const versao = JSON.parse(
+    fs.readFileSync(path.join(diretorioLive, "package.json"), "utf8")
+  ).version;
+  const geradoEm = new Date().toLocaleString("pt-BR", {
+    timeZone: "America/Recife",
+  });
+
+  return [
+    "IPE Live — instalador para Windows 10/11",
+    "",
+    "1. Extraia todo o conteúdo do ZIP.",
+    "2. Dê duplo clique em instalar-windows.bat.",
+    "3. Aceite a permissão de administrador e informe o IP fixo e a senha do OBS.",
+    "",
+    "O instalador usa a internet para Node.js e pacotes npm públicos.",
+    "Nenhum acesso ao GitHub é necessário.",
+    `Versão do Live: ${versao}`,
+    `Pacote gerado em: ${geradoEm}`,
+    "",
+  ].join("\r\n");
+}
 
 // Diretório e banco de dados dos cultos (SQLite gerencia Músicas e Liturgias)
 const CULTOS_DB_PATH = process.env.CULTOS_DB_PATH
@@ -125,6 +216,45 @@ app.use(express.json());
 app.use("/js", (_req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   next();
+});
+
+// F10 na capa baixa sempre um ZIP novo, montado a partir do Live publicado.
+app.get(`/downloads/${INSTALLER_FILENAME}`, (_req, res) => {
+  try {
+    const { arquivos, diretorioLive, manifesto } = conteudoInstalador();
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    const falhar = (erro) => {
+      console.error("[instalador] erro ao gerar ZIP:", erro.message);
+      if (!res.headersSent) res.status(500).json({ error: "Não foi possível gerar o instalador." });
+      else res.destroy(erro);
+    };
+
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.attachment(INSTALLER_FILENAME);
+    archive.on("warning", falhar);
+    archive.on("error", falhar);
+    archive.pipe(res);
+
+    arquivos.forEach((arquivo) => {
+      archive.file(path.join(diretorioLive, arquivo), {
+        name: `${INSTALLER_ROOT}/live/${arquivo.normalize("NFC")}`,
+      });
+    });
+    manifesto.installerFiles.forEach((arquivo) => {
+      archive.file(path.join(diretorioLive, arquivo), {
+        name: `${INSTALLER_ROOT}/${path.basename(arquivo)}`,
+      });
+    });
+    archive.append(leiaMeInstalador(diretorioLive), {
+      name: `${INSTALLER_ROOT}/LEIA-ME.txt`,
+    });
+
+    archive.finalize().catch(falhar);
+  } catch (erro) {
+    console.error("[instalador] indisponível:", erro.message);
+    res.status(503).json({ error: "Instalador temporariamente indisponível." });
+  }
 });
 
 // Arquivos estáticos do próprio projeto (public/)
