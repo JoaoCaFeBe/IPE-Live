@@ -63,7 +63,8 @@ socket.onAny((aplicativo, eventName, args) => {
   }
 });
 
-// Agrupa as linhas de letra em slides de no máximo `max` linhas cada.
+// Balanceia as linhas de letra em slides de no máximo `max` linhas cada,
+// distribuindo as linhas excedentes nos primeiros slides.
 // Cada item do array corresponde a uma estrofe.
 // Ganha uma tag visual (idTag) para identificá-la.
 const agruparEmSlides = (letra, max = 4) => {
@@ -84,18 +85,19 @@ const agruparEmSlides = (letra, max = 4) => {
     contadorEstrofes++;
     let idTag = contadorEstrofes;
 
-    let bloco = { linhas: [], refrao: isRefrao, idTag: idTag };
+    const quantidadeSlides = Math.ceil(linhasItem.length / max);
+    const linhasPorSlide = Math.floor(linhasItem.length / quantidadeSlides);
+    const sobra = linhasItem.length % quantidadeSlides;
+    let inicioLinha = 0;
 
-    linhasItem.forEach((linha) => {
-      if (bloco.linhas.length >= max) {
-        slides.push(bloco);
-        bloco = { linhas: [], refrao: isRefrao, idTag: idTag };
-      }
-      bloco.linhas.push(linha);
-    });
-
-    if (bloco.linhas.length > 0) {
-      slides.push(bloco);
+    for (let i = 0; i < quantidadeSlides; i++) {
+      const tamanho = linhasPorSlide + (i < sobra ? 1 : 0);
+      slides.push({
+        linhas: linhasItem.slice(inicioLinha, inicioLinha + tamanho),
+        refrao: isRefrao,
+        idTag: idTag,
+      });
+      inicioLinha += tamanho;
     }
   });
 
