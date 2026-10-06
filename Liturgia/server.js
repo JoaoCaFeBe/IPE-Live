@@ -7,9 +7,12 @@ const Database = require("better-sqlite3");
 const cors = require("cors");
 const { garantirSchema } = require("./lib/schema");
 const normalizar = require("./lib/normalizar");
+const { criarServicoLetras } = require("./lib/letras");
+const envPath = path.join(__dirname, ".env");
+if (fs.existsSync(envPath)) process.loadEnvFile(envPath);
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VAGALUME_API_KEY = process.env.VAGALUME_API_KEY;
+const VAGALUME_API_KEY = (process.env.VAGALUME_API_KEY || "").trim();
 if (!VAGALUME_API_KEY) console.warn("[vagalume] VAGALUME_API_KEY ausente — rotas /api/vagalume/* responderao 503");
 
 const INSTALLER_FILENAME = "IPE-Live-Windows.zip";
@@ -1001,15 +1004,20 @@ const VAGALUME_TIMEOUT_MS = 5000;
 
 function vagalumeGet(endpoint, params, res) {
   if (!VAGALUME_API_KEY) {
-    return res.status(503).json({ error: "Vagalume desabilitado: API key ausente" });
+    return res.status(503).json({ error: "A pesquisa no Vagalume não está configurada neste ambiente." });
   }
   const qs = new URLSearchParams({ ...params, apikey: VAGALUME_API_KEY }).toString();
   const url = `${VAGALUME_API}${endpoint}?${qs}`;
 
   const req = https.get(url, (remote) => {
+    if (remote.statusCode !== 200) {
+      remote.resume();
+      return res.status(502).json({ error: "O Vagalume está indisponível ou recusou a consulta. Tente novamente mais tarde." });
+    }
     let data = "";
     remote.on("data", (chunk) => { data += chunk; });
     remote.on("end", () => {
+      if (res.headersSent) return;
       try { res.json(JSON.parse(data)); }
       catch (_) { res.status(502).json({ error: "Resposta inválida da Vagalume" }); }
     });
@@ -1022,7 +1030,7 @@ function vagalumeGet(endpoint, params, res) {
   });
 
   req.on("error", (err) => {
-    console.error(`[vagalume] erro de rede — ${endpoint} — ${err && err.message}`);
+    console.error(`[vagalume] erro de rede — ${endpoint} — ${err && err.code}`);
     if (!res.headersSent) res.status(502).json({ error: "Falha ao conectar à Vagalume" });
   });
 }
@@ -1039,10 +1047,29 @@ app.get("/api/vagalume/letra", (req, res) => {
   vagalumeGet("/search.php", { musid }, res);
 });
 
+const servicoLetras = criarServicoLetras();
+app.get("/api/letras/buscar", async (req, res) => {
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (!q || q.length > 200) return res.status(400).json({ error: "Informe o nome da música ou artista (até 200 caracteres)." });
+  const resultado = await servicoLetras.buscar(q);
+  res.status(resultado.status || 200).json(resultado);
+});
+
+app.get("/api/letras/letra", async (req, res) => {
+  const { provider, id, title, artist } = req.query;
+  if (!["lrclib", "lyricsovh"].includes(provider) || typeof id !== "string" || !/^\d{1,20}$/.test(id)
+    || typeof title !== "string" || !title.trim() || title.length > 300
+    || typeof artist !== "string" || !artist.trim() || artist.length > 300) {
+    return res.status(400).json({ error: "Selecione uma música válida na pesquisa." });
+  }
+  const resultado = await servicoLetras.letra({ provider, id, title: title.trim(), artist: artist.trim() });
+  res.status(resultado.status || 200).json(resultado);
+});
+
 app.post("/formularios/pesquisar-louvor", (req, res) => {
   const titulo = escHtml(req.body.titulo || "");
   res.send(/* html */ `
-<div style="display:grid;grid-template-rows:auto auto;grid-row-gap:.25rem;">
+<div class="pesquisa-louvor-form">
   <div class="input-group">
     <input id="pesquisaTitulo" type="text" class="form-control"
       placeholder="Nome da música / artista" value="${titulo}" autofocus>
@@ -1051,11 +1078,14 @@ app.post("/formularios/pesquisar-louvor", (req, res) => {
       <i class="fas fa-search"></i>
     </button>
   </div>
-  <div id="mostrarMusicas" class="d-none"
-    style="display:grid;grid-template-columns:35% 1fr;grid-column-gap:.25rem;">
+  <div id="mostrarMusicas" class="d-none">
     <ul id="listaMusicas" class="ulMenu selecionavel"
       style="border:1px solid silver;border-radius:.25rem;margin:0;"></ul>
-    <textarea class="form-control text-nowrap" id="letra" style="resize:none;"></textarea>
+    <div class="pesquisa-louvor-letra">
+      <small id="fonteLetra" class="text-muted">Confira artista, versão e letra antes de usar.</small>
+      <small id="estrofesLetra" class="text-muted"></small>
+      <textarea class="form-control text-nowrap" id="letra" aria-label="Letra do louvor"></textarea>
+    </div>
   </div>
 </div>`);
 });

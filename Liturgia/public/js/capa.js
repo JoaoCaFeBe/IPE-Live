@@ -210,12 +210,11 @@ const dataDoArquivo = arquivo => String(arquivo).replace('.json', '');
 const ehDiaPassado = arquivo => dataDoArquivo(arquivo) < (HOJE || hojeLocal());
 
 // Passado o dia, a liturgia não se edita: some o incluir, o arrastar e os botões
-// de edição; fica o Duplicar para levá-la a outra data
+// de edição.
 function aplicarModoConsulta() {
     document.body.classList.toggle('somente-consulta', somenteConsulta);
     $('#menuIncluir').toggleClass('d-none', somenteConsulta);
     $('#seloConsulta').toggleClass('d-none', !somenteConsulta);
-    $('#btnDuplicar').removeClass('d-none');
     if (ordenador) ordenador.option('disabled', somenteConsulta);
 }
 
@@ -645,14 +644,23 @@ function louvorAbrirEditor(tipo) {
         .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
 }
 
+function separarEstrofes(texto) {
+    return String(texto || '').replace(/\r\n?/g, '\n').trim()
+        .split(/\n[ \t]*\n(?:[ \t]*\n)*/).map(bloco => bloco.trim()).filter(Boolean);
+}
+
+function atualizarEstrofesPesquisa() {
+    const quantidade = separarEstrofes($('#letra').val()).length;
+    $('#estrofesLetra').text(`${quantidade} ${quantidade === 1 ? 'estrofe' : 'estrofes'} · Separe os blocos com uma linha em branco.`);
+}
+
 function arrumarLouvor() {
     const codigo = $('#bodyLiturgia>ul>li.bg-warning').index();
     let louvor = { tipo: 'louvor', titulo: $('#titulo').val(), letra: [] };
     if (codigo >= 0 && Liturgia[codigo]?.louvor_id) {
         louvor.louvor_id = Liturgia[codigo].louvor_id;
     }
-    $('#original').val().replace(/\n\n/g, '|').replace(/\n/g, '<br/>').split('|')
-        .forEach(l => { if (l.trim()) louvor.letra.push(l); });
+    louvor.letra = separarEstrofes($('#original').val()).map(bloco => bloco.replace(/\n/g, '<br/>'));
     $('#final').val(JSON.stringify(louvor, undefined, 4));
     // sincroniza exibição visual
     $('#tituloLouvor').text(louvor.titulo);
@@ -672,6 +680,7 @@ function pesquisarLouvor(titulo) {
         .done(formulario => {
             bootbox.dialog({
                 title: 'Pesquisar louvor',
+                className: 'pesquisa-louvor',
                 message: formulario,
                 size: 'extra-large',
                 centerVertical: true,
@@ -685,45 +694,63 @@ function pesquisarLouvor(titulo) {
                         callback: () => {
                             if ($('#letra').val().trim()) {
                                 $('#titulo').val($('#pesquisaTitulo').val());
-                                $('#original').val($('#letra').val());
+                                // A letra externa é texto; o catálogo guarda estrofes com HTML de quebra de linha.
+                                $('#original').val($('#letra').val().replace(/</g, '&lt;').replace(/>/g, '&gt;'));
                                 arrumarLouvor();
                             }
                         }
                     }
                 }
             })
-                .bind('shown.bs.modal', function () { $('body').addClass('modal-open'); $(this).find('[autofocus]').focus(); })
-                .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
+                .bind('shown.bs.modal', function () {
+                    $('body').addClass('modal-open');
+                    $(this).find('[autofocus]').focus();
+                    $('#letra').on('input', atualizarEstrofesPesquisa);
+                    atualizarEstrofesPesquisa();
+                })
+                .bind('hidden.bs.modal', function () {
+                    ++pesquisaLetraAtual;
+                    $('body').removeClass('modal-open');
+                });
         });
 }
 
+let pesquisaLetraAtual = 0;
 function pesquisaMusica(titulo) {
-    $.getJSON('/api/vagalume/buscar?q=' + encodeURIComponent(titulo))
+    const pesquisa = ++pesquisaLetraAtual;
+    $('#letra').val('');
+    atualizarEstrofesPesquisa();
+    $('#fonteLetra').text('Confira artista, versão e letra antes de usar.');
+    $('#listaMusicas').empty().append($('<li>', { class: 'text-muted p-1' }).text('Pesquisando músicas e verificando letras…'));
+    $('#mostrarMusicas').removeClass('d-none').css('display', 'grid');
+    $.getJSON('/api/letras/buscar', { q: titulo })
         .done(musicas => {
-            $('#listaMusicas').html('');
-            const docs = musicas?.response?.docs;
-            if (!docs || !docs.length) {
-                $('#listaMusicas').html('<li class="text-muted p-1">Nenhum resultado encontrado.</li>');
-            } else {
-                Object.values(docs).forEach(musica => {
-                    $('#listaMusicas').append(
-                        `<li id="${musica.id}" title="${musica.title}, ${musica.band}">${musica.title}, ${musica.band}</li>`
-                    );
-                });
-                $('#listaMusicas>li').off('click').on('click', function () {
-                    $.getJSON('/api/vagalume/letra?musid=' + $(this).attr('id'))
-                        .done(musica => {
-                            $('#pesquisaTitulo').val(musica.mus[0].name);
-                            $('#letra').val(musica.mus[0].text);
-                        })
-                        .fail(() => bootbox.alert('Erro ao carregar a letra.'));
-                });
+            if (pesquisa !== pesquisaLetraAtual) return;
+            $('#listaMusicas').empty();
+            const resultados = (musicas.results || []).filter(musica => typeof musica.text === 'string' && musica.text.trim());
+            if (!resultados.length) {
+                $('#listaMusicas').append($('<li>', { class: 'text-muted p-1' }).text('Nenhum resultado encontrado nas fontes gratuitas.'));
+                return;
             }
-            $('#mostrarMusicas').removeClass('d-none').css('display', 'grid');
+            resultados.forEach(musica => {
+                const nome = `${musica.title} — ${musica.artist}${musica.album ? ' (' + musica.album + ')' : ''}`;
+                $('<li>').text(nome).attr('title', nome).appendTo('#listaMusicas').on('click', function () {
+                    $('#listaMusicas>li').removeClass('bg-warning');
+                    $(this).addClass('bg-warning');
+                    $('#pesquisaTitulo').val(musica.title);
+                    $('#letra').val(musica.text);
+                    atualizarEstrofesPesquisa();
+                    const fonte = musica.provider === 'lrclib' ? 'LRCLIB' : 'Lyrics.ovh';
+                    $('#fonteLetra').text(`${musica.artist} · ${fonte}. Confira a versão e a letra antes de usar.`);
+                });
+            });
         })
-        .fail(() => {
-            $('#listaMusicas').html('<li class="text-danger p-1"><i class="fas fa-exclamation-triangle"></i>&nbsp;Erro na busca. Verifique a conexão.</li>');
-            $('#mostrarMusicas').removeClass('d-none').css('display', 'grid');
+        .fail(xhr => {
+            if (pesquisa !== pesquisaLetraAtual) return;
+            const mensagem = xhr.responseJSON?.error || (xhr.status === 0
+                ? 'O servidor da Liturgia não respondeu. Tente pesquisar novamente.'
+                : 'Não foi possível concluir a pesquisa. Tente novamente.');
+            $('#listaMusicas').empty().append($('<li>', { class: 'text-danger p-1' }).text(mensagem));
         });
 }
 

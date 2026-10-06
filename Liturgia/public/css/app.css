@@ -289,6 +289,45 @@ titulo i.fab {
 
 /* ── Bootbox ──────────────────────────────────────────────────────────── */
 
+.bootbox > .modal-dialog {
+    max-width: min(var(--bs-modal-width, 500px), calc(100vw - 1rem));
+    margin: .5rem auto;
+}
+.bootbox .modal-content {
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    min-width: 0;
+}
+.bootbox .modal-header, .bootbox .modal-footer { flex-shrink: 0; }
+.bootbox .modal-body { min-height: 0; overflow: auto; }
+
+.pesquisa-louvor .modal-content {
+    height: min(42rem, calc(100vh - 1rem));
+    height: min(42rem, calc(100dvh - 1rem));
+}
+.pesquisa-louvor .modal-body { display: flex; overflow: hidden; }
+.pesquisa-louvor .bootbox-body { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.pesquisa-louvor-form {
+    display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .25rem;
+    flex: 1; min-width: 0; min-height: 0;
+}
+.pesquisa-louvor #mostrarMusicas {
+    grid-template-columns: minmax(0, 35%) minmax(0, 1fr); gap: .25rem; min-height: 0;
+}
+.pesquisa-louvor #listaMusicas { min-height: 0; overflow-y: auto; }
+.pesquisa-louvor-letra {
+    display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: .25rem;
+    min-width: 0; min-height: 0;
+}
+.pesquisa-louvor #letra { resize: none; min-height: 0; height: 100%; overflow: auto; }
+.pesquisa-louvor #fonteLetra, .pesquisa-louvor #estrofesLetra { overflow-wrap: anywhere; }
+
+@media (max-width: 575px) {
+    .pesquisa-louvor #mostrarMusicas { grid-template-columns: 1fr; grid-template-rows: minmax(0, 35%) minmax(0, 1fr); }
+    .pesquisa-louvor .modal-header, .pesquisa-louvor .modal-footer { padding: .5rem; }
+    .pesquisa-louvor .modal-body { padding: .5rem; }
+}
+
 .bootbox-close-button {
     background-color: inherit !important;
     color: inherit !important;

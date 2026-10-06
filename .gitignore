@@ -12,6 +12,7 @@ Liturgia/cultos/*
 **/*.bak
 
 # Arquivos temporários criados pela IA (devem ser excluídos após o uso)
+/.playwright-mcp/
 **/.tmp_*
 .tmp_*
 
