@@ -24,7 +24,8 @@ function inicio() {
             baixarInstaladorLive();
         } else if (e.ctrlKey && e.key === 's') {
             e.preventDefault();
-            if (!$('#cardCorpo').hasClass('d-none') && !somenteConsulta) salvar();
+            if ($('.editor-trechos:visible').length) $('.editor-trechos:visible .et-salvar').trigger('click');
+            else if (!$('#cardCorpo').hasClass('d-none') && !somenteConsulta) salvar();
         } else if (e.key === 'Delete' && !emInput && !somenteConsulta) {
             if (!$('#excluir').hasClass('d-none')) excluir();
         }
@@ -226,7 +227,7 @@ function abreLiturgia(arquivo) {
     // Exibe o botão de download na navbar
     document.getElementById('itemBaixar').classList.remove('d-none');
 
-    $.getJSON('/Cultos/' + arquivo + '?' + formatDate())
+    $.getJSON('/Cultos/' + arquivo + '?vozes=1&t=' + formatDate())
         .done(retorno => {
             Liturgia = agruparComoPainel(retorno);
             renderizarLiturgia();
@@ -333,7 +334,7 @@ function salvar() {
     } else {
         adicionarItem(item);
     }
-    $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
+    return $.post('/dados/salvar-liturgia', { arquivo: documento, data: JSON.stringify(Liturgia) })
         .done(resp => {
             // Sincroniza IDs (louvor_id / coral_id) gerados pelo servidor de volta para a memória
             if (resp.idMap) {
@@ -584,64 +585,28 @@ function mostraLouvor(codigo) {
             $('#tituloLouvor').text(louvor.titulo);
             $('#titulo').val(louvor.titulo);
             const divLouvor = document.getElementById('letraLouvor');
-            if (divLouvor) {
-                divLouvor.innerHTML = '';
-                louvor.letra.forEach(l => {
-                    const isRefrao = l.startsWith('refrao:');
-                    const texto = l.replace(/^refrao:/, '').replace(/\{it\}|\{\/it\}/g, '').replace(/<br\/?>\s*/gi, '\n');
-                    divLouvor.innerHTML += `<p class="mb-2${isRefrao ? ' fst-italic text-primary' : ''}">${texto.replace(/\n/g, '<br>')}</p>`;
-                });
-            }
+            if (divLouvor) Trechos.renderizar(divLouvor, louvor.letra);
             $('#final').val(JSON.stringify(louvor, undefined, 4));
             $('#original').val('');
-            louvor.letra.forEach(l => {
-                $('#original').val($('#original').val() + l.replace(/\{it\}|\{\/it\}/g, '').replace(/<br[/]>/gi, '\n') + '\n\n');
-            });
+            $('#original').val(louvor.letra.map(Trechos.texto).join('\n\n'));
             $('#excluir').toggleClass('d-none', codigo < 0);
             if (codigo < 0) louvorAbrirEditor('louvor');
         });
 }
 
 function louvorAbrirEditor(tipo) {
-    const tituloAtual = ($('#titulo').val() || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const letraAtual = ($('#original').val() || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const icone = tipo === 'coral' ? 'fa-users' : 'fa-guitar';
-    const htmlModal = `
-<input type="text" class="form-control mb-2" id="modalEditTitulo"
-  style="background:bisque;" placeholder="T\u00edtulo" value="${tituloAtual}" autofocus>
-<textarea class="form-control" id="modalEditLetra" rows="14"
-  style="resize:none;"
-  placeholder="Cole a letra aqui&#10;Estrofes separadas por linha em branco">${letraAtual}</textarea>`;
-    const aplicar = () => {
-        $('#titulo').val($('#modalEditTitulo').val());
-        $('#original').val($('#modalEditLetra').val());
-        tipo === 'coral' ? arrumarCoral() : arrumarLouvor();
-        salvar();
-    };
-    const botoes = {};
-    if (tipo === 'louvor') {
-        botoes.pesquisar = {
-            label: '<i class="fas fa-search"></i> Pesquisar',
-            className: 'btn-success float-start',
-            callback() {
-                $('#titulo').val($('#modalEditTitulo').val());
-                pesquisarLouvor($('#modalEditTitulo').val());
-            }
-        };
-    }
-    botoes.cancelar = { label: 'Cancelar', className: 'btn-secondary' };
-    botoes.ok = { label: 'Ok', className: 'btn-primary', callback: aplicar };
-    bootbox.dialog({
-        title: `<i class="fas ${icone}"></i>&nbsp;${tipo === 'coral' ? 'Editar Coral' : 'Editar Louvor'}`,
-        message: htmlModal,
-        size: 'large',
-        centerVertical: true,
-        onEscape: true,
-        closeButton: true,
-        buttons: botoes
-    })
-        .bind('shown.bs.modal', function () { $('body').addClass('modal-open'); $('#modalEditTitulo').focus().select(); })
-        .bind('hidden.bs.modal', function () { $('body').removeClass('modal-open'); });
+    let item;
+    try { item = JSON.parse($('#final').val()); } catch { item = { tipo, titulo: $('#titulo').val(), letra: [] }; }
+    EditorTrechos.abrir({ tipo, titulo: item.titulo, letra: item.letra,
+        onPesquisar: tipo === 'louvor' ? titulo => { $('#titulo').val(titulo); pesquisarLouvor(titulo); } : undefined,
+        onSalvar: atualizado => {
+            const novo = { ...item, tipo, titulo: atualizado.titulo, letra: atualizado.letra };
+            $('#titulo').val(novo.titulo); $('#tituloLouvor').text(novo.titulo);
+            $('#original').val(novo.letra.map(Trechos.texto).join('\n\n'));
+            $('#final').val(JSON.stringify(novo)); Trechos.renderizar(document.getElementById('letraLouvor'), novo.letra);
+            return salvar();
+        }
+    });
 }
 
 function separarEstrofes(texto) {
@@ -795,7 +760,7 @@ function louvorLocal() {
                     const louvor = retorno.louvores[$(this).attr('codigo')];
                     const el = query('mostrar');
                     el.innerHTML = `<h2>${louvor.titulo}</h2><hr class="p-0 m-0 mt-1 mb-1">`;
-                    louvor.letra.forEach(linha => { el.innerHTML += linha + '<br><br>'; });
+                    const letra = document.createElement('div'); Trechos.renderizar(letra, louvor.letra); el.append(letra);
                     query('.botaoOK').classList.remove('disabled');
                 });
                 $(this).find('[autofocus]').focus().select();
@@ -825,19 +790,10 @@ function mostraCoral(codigo) {
             $('#tituloLouvor').text(coral.titulo);
             $('#titulo').val(coral.titulo);
             const divCoral = document.getElementById('letraLouvor');
-            if (divCoral) {
-                divCoral.innerHTML = '';
-                coral.letra.forEach(l => {
-                    const isRefrao = l.startsWith('refrao:');
-                    const texto = l.replace(/^refrao:/, '').replace(/\{it\}|\{\/it\}/g, '').replace(/<br\/?>\s*/gi, '\n');
-                    divCoral.innerHTML += `<p class="mb-2${isRefrao ? ' fst-italic text-primary' : ''}">${texto.replace(/\n/g, '<br>')}</p>`;
-                });
-            }
+            if (divCoral) Trechos.renderizar(divCoral, coral.letra);
             $('#final').val(JSON.stringify(coral, undefined, 4));
             $('#original').val('');
-            coral.letra.forEach(l => {
-                $('#original').val($('#original').val() + l.replace(/\{it\}|\{\/it\}/g, '').replace(/<br[/]>/gi, '\n') + '\n\n');
-            });
+            $('#original').val(coral.letra.map(Trechos.texto).join('\n\n'));
             $('#excluir').toggleClass('d-none', codigo < 0);
             if (codigo < 0) louvorAbrirEditor('coral');
         });

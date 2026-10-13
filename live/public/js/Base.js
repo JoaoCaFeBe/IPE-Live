@@ -34,8 +34,7 @@ var query = document.querySelector.bind(document),
     queryAll = document.querySelectorAll.bind(document),
     queryId = document.getElementById.bind(document),
     queryName = document.getElementsByName.bind(document),
-    socket = io(servidor, { transports: ["polling", "websocket"], auth: { token: window.SOCKET_TOKEN || "" } }),
-    atual;
+    socket = io(servidor, { transports: ["polling", "websocket"], auth: { token: window.SOCKET_TOKEN || "" } });
 
 // telaPrincipal será detectado em inicio() quando o DOM estiver completo
 let telaPrincipal = false;
@@ -50,6 +49,9 @@ var telaCfg = window.telaCfg || {
     integracaoOBS: false,
     juntarLinhasEmPares: false
 };
+
+// Limpar a tela invalida também os callbacks de uma troca ainda em animação.
+let geracaoExibicao = 0;
 
 function inicializarTela(config) {
     telaCfg = Object.assign(telaCfg, config);
@@ -176,6 +178,9 @@ function agruparLinhasEmPares(html, elementoAlvo) {
 // -----------------------------------------------------------------------------------------
 
 function _fecharJanela() {
+    geracaoExibicao++;
+    $('body>*').stop(true, true);
+    $('body>*>*').stop(true, true);
     $('body>*:visible').fadeOut(200, function () {
         $('body>*:visible>*').html('');
     });
@@ -207,20 +212,16 @@ function _alerta(args) {
     }
 }
 
-function _obsSceneChanged(args) {
-    atual = args;
-    _fecharJanela();
-}
-
 function _processarEvento(eventName, args) {
+    // Trocar a cena do OBS não altera mais o conteúdo das telas de exibição.
+    if (eventName === "obsSceneChanged") return;
+
     if (eventName === "fecharJanela") {
         _fecharJanela();
     } else if (eventName === "fecharBiblia") {
         _fecharBiblia();
     } else if (eventName === "Alerta") {
         _alerta(args);
-    } else if (eventName === "obsSceneChanged") {
-        _obsSceneChanged(args);
     } else {
         processarConteudo(args);
     }
@@ -249,29 +250,53 @@ function processarConteudo(conteudo) {
     if (conteudo.tipo.includes("hino") || conteudo.tipo.includes("louvor") || conteudo.tipo.includes("coral")) tipo = "louvor";
     else tipo = conteudo.tipo;
 
+    const vozes = !telaCfg.juntarLinhasEmPares && Trechos.ehPar(conteudo.vozesProjetor) ? conteudo.vozesProjetor : conteudo.vozes;
+    const dueto = Trechos.ehPar(vozes);
     let elem = telaCfg.elementoConteudo; // 'corpo' ou 'rodape'
     let cb = telaCfg.callbackFadeIn;     // callback opcional
 
     if ((tipo === 'louvor') || (tipo === 'passagem')) {
+        const geracao = geracaoExibicao;
         conteudo.corpo = decodeURI(conteudo.corpo).replace(/\{st\}([^}]*)\{\/st\}/g, '<span style="color: #ffc107 !important; font-weight: bold;">$1</span>').replace(/\{it\}|\{\/it\}/g, '').trim();
         if (tipo === 'passagem') conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
+
+        const alvoAtual = document.querySelector(`body>${tipo}>${elem}`);
+        if (dueto && !telaCfg.juntarLinhasEmPares && alvoAtual?.dataset.quadroVozes === JSON.stringify(vozes) && alvoAtual.classList.contains('com-vozes') && alvoAtual.querySelector('.conteudo-vozes') &&
+            $(`body>${tipo}>titulo`).html() === sanitizar(conteudo.titulo) && $(`body>${tipo}`).is(':visible')) {
+            // Invalida uma troca pendente, preservando as quatro linhas sem piscar.
+            geracaoExibicao++;
+            $('body>*').stop(true, true);
+            $(`body>*:not(${tipo})`).hide();
+            $(`body>${tipo}`).show(); $(alvoAtual).stop(true, true).show();
+            return;
+        }
 
         new Promise((resolve) => {
             if ($(`body>${tipo}>titulo`).html() !== conteudo.titulo) {
                 $(`body>${tipo}`).fadeOut(200, () => resolve(true));
             } else resolve(false);
         }).then(() => {
+            if (geracao !== geracaoExibicao) return;
             return new Promise((resolve) => {
                 $(`body>${tipo}>${elem}`).fadeOut(200, () => resolve(true));
             });
         }).then(() => {
+            if (geracao !== geracaoExibicao) return;
             $(`body>*:not(${tipo})`).fadeOut(200, function () {
+                if (geracao !== geracaoExibicao) return;
                 // Sanitizacao (SEC-001): titulo e corpo vem via Socket.IO de cliente nao confiavel
                 $(`body>${tipo}>titulo`).html(sanitizar(conteudo.titulo));
                 // Inserir conteúdo primeiro para que a medição use o texto real
                 const elementoAlvo = document.querySelector(`body>${tipo}>${elem}`);
-                definirHtmlSeguro(elementoAlvo, conteudo.corpo);
-                if (conteudo.corpo && telaCfg.juntarLinhasEmPares) {
+                elementoAlvo.classList.toggle('com-vozes', dueto);
+                if (dueto) {
+                    const quadro = JSON.stringify(vozes);
+                    // A segunda metade do OBS conserva o DOM do quadro completo.
+                    if (elementoAlvo.dataset.quadroVozes !== quadro || !elementoAlvo.querySelector('.conteudo-vozes')) Trechos.renderizarDueto(elementoAlvo, vozes);
+                    elementoAlvo.dataset.quadroVozes = quadro;
+                }
+                else { delete elementoAlvo.dataset.quadroVozes; definirHtmlSeguro(elementoAlvo, conteudo.corpo); }
+                if (!dueto && conteudo.corpo && telaCfg.juntarLinhasEmPares) {
                     definirHtmlSeguro(elementoAlvo, agruparLinhasEmPares(conteudo.corpo, elementoAlvo));
                 }
                 // Só exibe o elem se houver conteúdo

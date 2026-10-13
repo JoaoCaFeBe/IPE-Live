@@ -601,3 +601,32 @@ body.somente-consulta #bodyLiturgia li[data-tipo]::after { content: none; }
   .cm .pm-corpo { grid-template-columns: 1fr; grid-template-rows: 55% 1fr; }
   .cm-lista { border-right: 0; border-bottom: 1px solid #dee2e6; }
 }
+
+/* Trechos de louvor/coral, inclusive duas vozes no catálogo e no editor. */
+.conteudo-vozes { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; }
+.coluna-voz { min-width:0; }
+.coluna-voz + .coluna-voz { border-left:1px solid #adb5bd; padding-left:1rem; }
+.voz-nome { font-weight:bold; margin-bottom:.5rem; overflow-wrap:anywhere; }
+.voz-linha { overflow-wrap:anywhere; }
+.vozes-alinhadas { row-gap:0; }
+.vozes-alinhadas > .coluna-voz { display:contents; }
+.vozes-alinhadas .voz-nome, .vozes-alinhadas .voz-linha { min-width:0; }
+.vozes-alinhadas .voz-linha { min-height:1.5em; line-height:1.5; }
+.vozes-alinhadas > .coluna-voz + .coluna-voz > * { border-left:1px solid #adb5bd; padding-left:1rem; }
+.et-layout { display:grid; grid-template-columns:190px minmax(0,1fr); gap:1.25rem; }
+.et-lista .btn { white-space:normal; overflow-wrap:anywhere; min-height:44px; }
+.et-duas, .et-previas { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; }
+.et-editor label { font-size:.9rem; font-weight:600; }
+.et-editor textarea { line-height:1.6; }
+.et-normal { display:block; width:100%; }
+.et-editor legend { font-size:.9rem; font-weight:600; }
+.et-check { display:inline-flex; gap:.4rem; align-items:center; min-height:44px; margin-right:1rem; }
+.et-editor .btn { min-height:44px; }
+.editor-trechos .modal-footer .btn { min-height:44px; }
+.et-previa { background:#000; color:#fff; padding:1rem; border-radius:.35rem; min-height:115px; text-align:center; font-weight:bold; }
+.et-previa .voz-nome { color:#ffc107; font-size:.7rem; text-transform:uppercase; }
+.et-previa .voz-linha { font-size:.9rem; }
+.et-obs { background:#252e38; }
+.et-obs .et-linha { font-weight:400; }
+.et-linha { overflow-wrap:anywhere; }
+@media(max-width:767px) { .et-layout,.et-duas,.et-previas { grid-template-columns:minmax(0,1fr); } .et-lista { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.3rem; } }

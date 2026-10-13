@@ -54,6 +54,19 @@ mulheres {
   backdrop-filter: invert(1);
 }
 
+/* Limpeza compacta ao lado do seletor bíblico, sem estourar telas estreitas. */
+.painel-projecao > .btn {
+  min-height: 44px;
+}
+
+#btnLimparTexto {
+  flex: 0 0 auto;
+}
+
+#btnBiblia {
+  min-width: 0;
+}
+
 /*.scrollJC:hover::-webkit-scrollbar {
     display: initial;
 }*/
@@ -65,6 +78,15 @@ input::-webkit-inner-spin-button {
 }
 
 /* ---- Cores por tipo de seção ---- */
+.accordion-flush .accordion-item {
+  background-color: transparent;
+}
+
+.accordion-flush .accordion-item:last-of-type .accordion-button.collapsed {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 #hinos .accordion-button {
   background-color: #3d1f6d;
   color: #e0d0ff;
@@ -172,3 +194,20 @@ input::-webkit-inner-spin-button {
 
 /* Janela da Bíblia: versículo pedido pelo seletor (?ir=), ainda não projetado */
 label.proximo { outline: 3px dashed #ffc107; outline-offset: -3px; }
+
+/* Um botão seleciona o par inteiro; cada coluna mantém seus versos legíveis. */
+.btn-group-vertical > label.painel-dueto { padding-top:2rem !important; padding-right:.75rem !important; }
+.painel-dueto .badge { top:.5rem !important; transform:none !important; }
+.painel-dueto .conteudo-vozes { gap:.5rem; }
+.painel-dueto .coluna-voz + .coluna-voz { padding-left:.5rem; }
+.painel-dueto .vozes-alinhadas > .coluna-voz + .coluna-voz > * { padding-left:.5rem; }
+.painel-dueto .voz-nome { font-size:.75rem; color:white; text-transform:none; margin-bottom:.25rem; }
+.btn-group-vertical > label.painel-dueto .linha-truncate { white-space:normal !important; overflow:visible; text-overflow:clip; }
+/* Refrão em ciano precisa de texto escuro, inclusive quando selecionado. */
+.btn-group-vertical > label.btn-info { color:#10222a !important; }
+.painel-dueto .conteudo-vozes { color:#fff; }
+.painel-dueto.btn-info .conteudo-vozes { color:#10222a; }
+.painel-dueto .voz-nome { color:inherit; }
+.btn-group-vertical > .btn-check:checked + label.painel-dueto { outline:2px solid #ffc107; outline-offset:-2px; }
+.btn-group-vertical > label.btn-secondary { color:#fff !important; }
+.btn-group-vertical > .btn-check:checked + label.btn-secondary, .btn-group-vertical > .btn-check:checked + label.btn-info { outline:2px solid #ffc107; outline-offset:-2px; }

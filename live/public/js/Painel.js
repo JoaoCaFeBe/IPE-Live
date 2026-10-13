@@ -46,6 +46,10 @@ const trocarData = (data) => {
   location.search = params.toString();
 };
 
+const limparTexto = () => {
+  socket.emit(empresa, "fecharBiblia");
+};
+
 socket.onAny((aplicativo, eventName, args) => {
   if (aplicativo === empresa) {
     if (painelOBS && eventName === "obsSceneChanged") {
@@ -72,7 +76,14 @@ const agruparEmSlides = (letra, max = 4) => {
   let contadorEstrofes = 0;
 
   (letra || []).forEach((item) => {
-    const str = (item || "").trim();
+    if (Trechos.ehDueto(item)) {
+      contadorEstrofes++;
+      const pares = Trechos.divisoes(item);
+      pares.forEach(({ legenda: vozes, projetor: vozesProjetor }, i) => slides.push({ linhas: [], vozes, vozesProjetor, refrao: Boolean(item.refrao), idTag: contadorEstrofes, parte: i + 1, total: pares.length }));
+      return;
+    }
+    if (typeof item !== 'string') return;
+    const str = item.trim();
     if (!str) return;
     const isRefrao = str.startsWith("refrao:");
     const conteudo = isRefrao ? str.slice("refrao:".length).trim() : str;
@@ -104,6 +115,16 @@ const agruparEmSlides = (letra, max = 4) => {
   return slides;
 };
 
+const htmlSlideVozes = vozes => {
+  const bloco = document.createElement('div');
+  Trechos.renderizarDueto(bloco, vozes);
+  bloco.querySelectorAll('.voz-linha').forEach(linha => linha.classList.add('linha-truncate'));
+  return bloco.innerHTML;
+};
+const vozesDaSelecao = (button, atributo = 'data-vozes') => {
+  try { const vozes = JSON.parse(button.getAttribute(atributo)); return Trechos.ehPar(vozes) ? vozes : undefined; } catch { return undefined; }
+};
+
 const formatarVersiculoParaExibicao = (texto) => {
   return texto.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, "$1.$2. ");
 };
@@ -116,7 +137,7 @@ const inicio = () => {
     }
   });
 
-  $.getJSON(`${cultosUrl}/${arquivo}.json`)
+  $.getJSON(`${cultosUrl}/${arquivo}.json?vozes=1`)
     .done((definicoes) => {
       let hino = 0,
         louvor = 0,
@@ -164,9 +185,9 @@ const inicio = () => {
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
                 letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
+                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`;
               }
-              const textoLimpo = slide.linhas
+              const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
                 .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
                 .join("");
               const textoCorpo = slide.linhas.join("<br>");
@@ -175,7 +196,7 @@ const inicio = () => {
               $(
                 `#colapseHino${hino} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnHino${hino}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnHino${hino}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" ${slide.vozes ? `data-vozes="${escAttr(JSON.stringify(slide.vozes))}" data-vozes-projetor="${escAttr(JSON.stringify(slide.vozesProjetor))}"` : ""} autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} ${slide.vozes ? "painel-dueto" : ""} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -224,9 +245,9 @@ const inicio = () => {
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
                 letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
+                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`;
               }
-              const textoLimpo = slide.linhas
+              const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
                 .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
                 .join("");
               const textoCorpo = slide.linhas.join("<br>");
@@ -235,7 +256,7 @@ const inicio = () => {
               $(
                 `#colapseCoral${louvor} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" ${slide.vozes ? `data-vozes="${escAttr(JSON.stringify(slide.vozes))}" data-vozes-projetor="${escAttr(JSON.stringify(slide.vozesProjetor))}"` : ""} autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} ${slide.vozes ? "painel-dueto" : ""} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -279,9 +300,9 @@ const inicio = () => {
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
                 letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}</span>`;
+                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`;
               }
-              const textoLimpo = slide.linhas
+              const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
                 .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
                 .join("");
               const textoCorpo = slide.linhas.join("<br>");
@@ -290,7 +311,7 @@ const inicio = () => {
               $(
                 `#colapseLouvor${louvor} .accordion-body .btn-group-vertical`,
               ).append(
-                `<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
+                `<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" ${slide.vozes ? `data-vozes="${escAttr(JSON.stringify(slide.vozes))}" data-vozes-projetor="${escAttr(JSON.stringify(slide.vozesProjetor))}"` : ""} autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} ${slide.vozes ? "painel-dueto" : ""} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
               );
             });
             break;
@@ -413,6 +434,8 @@ const inicio = () => {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
                   titulo: this.getAttribute("titulo"),
                   corpo: encodeURI(corpoCompleto),
+                  vozes: vozesDaSelecao(this),
+                  vozesProjetor: vozesDaSelecao(this, "data-vozes-projetor"),
                 },
               );
             }
@@ -439,10 +462,14 @@ const inicio = () => {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
                   titulo: this.getAttribute("titulo"),
                   corpo: encodeURI(corpoCompleto),
+                  vozes: vozesDaSelecao(this),
+                  vozesProjetor: vozesDaSelecao(this, "data-vozes-projetor"),
                 },
               );
             }
           });
+          // O cartão visível é o label; duplo clique deve reenviar mesmo já marcado.
+          button.nextElementSibling.addEventListener("dblclick", () => button.dispatchEvent(new MouseEvent("dblclick")));
         },
       );
     });

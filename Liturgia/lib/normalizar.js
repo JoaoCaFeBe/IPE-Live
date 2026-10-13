@@ -4,6 +4,8 @@
  *   passagem: "João 3:16-18"      hino: "Louvor a Deus (NC 016)"      louvor: "Grande é o Senhor"
  */
 
+const Trechos = require("../public/js/trechos");
+
 const semAcento = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
 const chave = (s) => semAcento(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -223,7 +225,7 @@ function tituloPassagem(titulo, livros) {
 /* ── semelhança de letras (curadoria dos louvores) ─────────────────────── */
 
 function textoDaLetra(letra) {
-  return chave((letra || []).join(" ").replace(/refrao:/g, " ").replace(/<br\s*\/?>/gi, " "));
+  return chave((letra || []).map(Trechos.texto).join(" ").replace(/refrao:/g, " ").replace(/<br\s*\/?>/gi, " "));
 }
 
 /** Coeficiente de Dice sobre bigramas do início da letra (0..1) */

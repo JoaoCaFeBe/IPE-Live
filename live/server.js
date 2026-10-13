@@ -107,7 +107,7 @@ app.get("/api/cultos/:arquivo", (req, res) => {
   }
 
   // Fallback - Redireciona para baixar da URL original
-  res.redirect(`${fallbackUrl}/${arquivo}`);
+  res.redirect(`${fallbackUrl}/${arquivo}${req.query.vozes === "1" ? "?vozes=1" : ""}`);
 });
 
 app.get("/", (req, res) => res.redirect("/Painel"));

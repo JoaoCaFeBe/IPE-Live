@@ -9,7 +9,7 @@
 let cm = null; // estado do modal aberto
 
 const cmMusica = id => cm.catalogo.musicas.find(m => m.id === id);
-const cmInicio = m => String((m.letra || [])[0] || '').replace(/^refrao:/, '').split(/<br\s*\/?>/i)[0].trim();
+const cmInicio = m => Trechos.texto((m.letra || [])[0]).replace(/^refrao:/, '').split(/<br\s*\/?>|\n/i)[0].trim();
 
 function cmCarregar() {
     return $.getJSON('/coral/catalogo').done(catalogo => { cm.catalogo = catalogo; cmDesenhar(); });
@@ -74,14 +74,7 @@ function cmMostrar(id) {
     if (!m) return;
     $('#cmCabecalho').text(m.titulo);
     const $t = $('#cmLetra').empty();
-    m.letra.forEach(estrofe => {
-        const $p = $('<p class="hm-estrofe">').toggleClass('refrao', estrofe.startsWith('refrao:'));
-        estrofe.replace(/^refrao:/, '').split(/<br\s*\/?>/i).forEach((l, i) => {
-            if (i) $p.append('<br>');
-            $p.append(document.createTextNode(l));
-        });
-        $t.append($p);
-    });
+    Trechos.renderizar($t[0], m.letra);
     $t.scrollTop(0);
 }
 
@@ -242,50 +235,11 @@ function cmLetraDoTexto(texto) {
 }
 
 function cmNovaMusica() {
-    const opcoes = cm.catalogo.cantatas.map(c => `<option value="${c.id}"></option>`).join('');
-    const html = /* html */`
-<input type="text" id="nmTitulo" class="form-control mb-2" placeholder="Título da música" style="background:bisque;">
-<select id="nmCantata" class="form-select mb-2">
-  <option value="">Sem cantata (avulsa)</option>${opcoes}
-</select>
-<textarea id="nmLetra" class="form-control" rows="12" style="resize:none;"
-  placeholder="Cole a letra aqui&#10;Estrofes separadas por linha em branco&#10;Comece a estrofe com &quot;Refrão:&quot; para marcar o refrão"></textarea>`;
-    bootbox.dialog({
-        title: '<i class="fas fa-users me-2"></i>Nova música do coral',
-        message: html,
-        size: 'large',
-        centerVertical: true,
-        onEscape: true,
-        buttons: {
-            cancelar: { label: 'Cancelar', className: 'btn-outline-secondary' },
-            salvar: {
-                label: '<i class="fas fa-check"></i>&nbsp;Cadastrar', className: 'btn-primary',
-                callback: () => {
-                    const titulo = $('#nmTitulo').val().trim();
-                    const letra = cmLetraDoTexto($('#nmLetra').val());
-                    if (!titulo || !letra.length) { bootbox.alert('Informe o título e a letra.'); return false; }
-                    const cantata_id = $('#nmCantata').val();
-                    $.ajax({ url: '/coral', method: 'POST', contentType: 'application/json',
-                        data: JSON.stringify({ titulo, letra, cantata_id }) })
-                        .done(() => {
-                            mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Música cadastrada no coral!');
-                            cm.abertos.add(cantata_id ? Number(cantata_id) : 'avulsas');
-                            cmCarregar();
-                        })
-                        .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao cadastrar a música.'));
-                }
-            }
-        }
-    }).on('shown.bs.modal', function () {
-        // Nomes das cantatas entram como texto (não HTML)
-        $('#nmCantata option[value!=""]').each(function () {
-            this.textContent = cm.catalogo.cantatas.find(c => c.id === Number(this.value))?.nome || '';
-        });
-        $('#nmTitulo').trigger('focus');
+    EditorTrechos.abrir({ tipo: 'coral', titulo: '', letra: [], cantatas: cm.catalogo.cantatas,
+        onSalvar: musica => $.ajax({ url: '/coral', method: 'POST', contentType: 'application/json', data: JSON.stringify(musica) })
+            .then(() => { mostrarToast('<i class="fas fa-check-circle"></i>&nbsp;Música cadastrada no coral!'); cm.abertos.add(musica.cantata_id ? Number(musica.cantata_id) : 'avulsas'); return cmCarregar(); })
     });
 }
-
-/* ── modal ─────────────────────────────────────────────────────────────── */
 
 const normalizarBusca = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 

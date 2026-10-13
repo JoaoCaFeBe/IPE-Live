@@ -7,6 +7,7 @@ const Database = require("better-sqlite3");
 const cors = require("cors");
 const { garantirSchema } = require("./lib/schema");
 const normalizar = require("./lib/normalizar");
+const Trechos = require("./public/js/trechos");
 const { criarServicoLetras } = require("./lib/letras");
 const envPath = path.join(__dirname, ".env");
 if (fs.existsSync(envPath)) process.loadEnvFile(envPath);
@@ -292,7 +293,7 @@ app.get("/coral/catalogo", (_req, res) => {
   }
 });
 
-const letraValida = (l) => Array.isArray(l) && l.length && l.every((x) => typeof x === "string" && x.trim());
+const letraValida = Trechos.letraValida;
 
 /** Música do coral cadastrada fora de uma liturgia: POST /coral {titulo, letra: [..], cantata_id?} */
 app.post("/coral", (req, res) => {
@@ -604,7 +605,7 @@ app.get("/Cultos/:arquivo", (req, res) => {
     const itens = lerCultoExpandido(db, dataCulto);
     db.close();
     if (!itens) return res.status(404).json([]);
-    res.json(itens);
+    res.json(req.query.vozes === "1" ? itens : itens.map(item => item && Array.isArray(item.letra) ? { ...item, letra: Trechos.legado(item.letra) } : item));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -659,6 +660,9 @@ app.post("/dados/salvar-liturgia", (req, res) => {
   if (ehPassada(dataCulto)) return res.status(403).json({ error: MSG_SO_CONSULTA });
   try {
     let itens = JSON.parse(dados);
+    if (!Array.isArray(itens) || itens.some(item => item && ["louvor", "coral"].includes(item.tipo) && item.letra !== undefined && !letraValida(item.letra))) {
+      return res.status(400).json({ error: "Informe a letra de cada trecho e os nomes das duas vozes." });
+    }
     const db = new Database(CULTOS_DB_PATH);
 
     // Louvor e coral: o item guarda título e letra (retrato do culto) e aponta para o
@@ -1192,9 +1196,9 @@ function carregarItens(tipo) {
 
 /** Início da letra, para distinguir na lista músicas diferentes com o mesmo título */
 function inicioLetra(letra) {
-  const primeira = String((letra || [])[0] || "")
+  const primeira = Trechos.texto((letra || [])[0])
     .replace(/^refrao:/, "")
-    .split(/<br\s*\/?>/i)[0]
+    .split(/<br\s*\/?>|\n/i)[0]
     .trim();
   return primeira ? ` <small class="text-muted">— ${escHtml(primeira.slice(0, 40))}</small>` : "";
 }

@@ -1,0 +1,13 @@
+/* As duas vozes são uma unidade em todas as telas de saída. */
+.conteudo-vozes { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; width:100%; }
+.coluna-voz { min-width:0; }
+.coluna-voz + .coluna-voz { border-left:1px solid rgba(255,255,255,.45); padding-left:1rem; }
+.voz-nome { color:#ffc107; font-size:.5em; font-weight:bold; text-transform:uppercase; margin-bottom:.6em; overflow-wrap:anywhere; }
+.voz-linha { overflow-wrap:anywhere; }
+.vozes-alinhadas { row-gap:0; }
+.vozes-alinhadas > .coluna-voz { display:contents; }
+.vozes-alinhadas .voz-nome, .vozes-alinhadas .voz-linha { min-width:0; }
+.vozes-alinhadas .voz-linha { min-height:1.5em; line-height:1.5; }
+.vozes-alinhadas > .coluna-voz + .coluna-voz > * { border-left:1px solid rgba(255,255,255,.45); padding-left:1rem; }
+body>*>corpo.com-vozes { font-size:100%; }
+body>*>rodape.com-vozes { font-size:90%; }

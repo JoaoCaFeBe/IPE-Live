@@ -24,12 +24,16 @@
 
 <body class="px-1 bg-dark container-fluid scrollJC" onload="inicio();">
     <div class="sticky-top bg-dark pt-1 pb-1" style="z-index: 1050; box-shadow: 0 4px 6px -6px #222;">
-        <div class="input-group mb-1 biblia">
-            <button type="button" class="btn btn-warning w-100 text-start d-flex align-items-center gap-2"
+        <div class="btn-group d-flex mb-1 biblia painel-projecao" role="group" aria-label="Controles de projeção">
+            <button type="button" class="btn btn-warning text-start d-flex align-items-center gap-2"
                 id="btnBiblia" onclick="abrirSeletorBiblico()" title="Escolher versão, livro e capítulo">
-                <i class="fa-solid fa-book-bible"></i>
+                <i class="fa-solid fa-book-bible flex-shrink-0"></i>
                 <span id="bibliaAtual" class="flex-grow-1 text-truncate">Bíblia — escolher livro e capítulo</span>
-                <i class="fa-solid fa-chevron-down small"></i>
+                <i class="fa-solid fa-chevron-down small flex-shrink-0"></i>
+            </button>
+            <button type="button" class="btn btn-secondary" id="btnLimparTexto" onclick="limparTexto()"
+                title="Limpar o texto das telas sem fechar as janelas bíblicas">
+                <i class="fa-solid fa-eraser" aria-hidden="true"></i> Limpar
             </button>
         </div>
         <script>
