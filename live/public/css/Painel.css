@@ -208,6 +208,29 @@ label.proximo { outline: 3px dashed #ffc107; outline-offset: -3px; }
 .painel-dueto .conteudo-vozes { color:#fff; }
 .painel-dueto.btn-info .conteudo-vozes { color:#10222a; }
 .painel-dueto .voz-nome { color:inherit; }
-.btn-group-vertical > .btn-check:checked + label.painel-dueto { outline:2px solid #ffc107; outline-offset:-2px; }
 .btn-group-vertical > label.btn-secondary { color:#fff !important; }
-.btn-group-vertical > .btn-check:checked + label.btn-secondary, .btn-group-vertical > .btn-check:checked + label.btn-info { outline:2px solid #ffc107; outline-offset:-2px; }
+
+/* Estrofe no ar (o que está na tela agora): fundo amarelo do botão Título, texto preto e o selo
+   "Na tela". Vence a cor amarela de "já projetada" que o Painel.js põe no texto da estrofe. */
+.btn-group-vertical > .btn-check:checked + label.btn-secondary,
+.btn-group-vertical > .btn-check:checked + label.btn-info {
+  background-color:#ffc107 !important; border-color:#ffc107 !important; color:#000 !important; font-weight:600;
+}
+.btn-group-vertical > .btn-check:checked + label.position-relative:not(.painel-dueto) { padding-right:7.5rem !important; }
+.btn-group-vertical > .btn-check:checked + label.painel-dueto .conteudo-vozes { color:#000; }
+.selos-estrofe { display:flex; gap:.35rem; align-items:center; }
+.selos-estrofe .badge { font-size:.75rem; box-shadow:0 0 3px rgba(0, 0, 0, 0.5); }
+.painel-dueto .selos-estrofe { top:.5rem !important; transform:none !important; }
+.selo-no-ar { display:none !important; background:#000; color:#ffc107; }
+.btn-check:checked + label .selo-no-ar { display:inline-flex !important; gap:.25rem; align-items:center; }
+.selo-roxo { background:#6f42c1; color:#fff; }
+
+/* Estado vazio e página de erro do Live: aviso neutro no escuro, com o próximo passo. */
+.estado-vazio { margin:2.5rem 1.5rem; display:flex; flex-direction:column; align-items:center; gap:.75rem; text-align:center; color:#fff; }
+.estado-erro { min-height:100vh; margin:0 auto; padding:1.5rem; box-sizing:border-box; justify-content:center; max-width:30rem; }
+.estado-icone { color:#adb5bd; }
+.estado-titulo { margin:0; font-size:1.125rem; font-weight:600; }
+.estado-texto { margin:0; color:#adb5bd; }
+.estado-dica { font-size:.875rem; }
+.estado-acao { min-height:44px; padding:.5rem 1.25rem; font-weight:600; }
+

@@ -9,7 +9,8 @@ body {
     height: 100%;
     padding: 0;
     margin: 0;
-    background-image: url('/img/Background.jpg');
+    /* Véu claro (82%) sobre a foto, na mesma camada do fundo: o body é a grade da página. */
+    background-image: linear-gradient(rgba(248, 249, 250, 0.82), rgba(248, 249, 250, 0.82)), url('/img/Background.jpg');
     background-size: cover;
     background-position: center top;
     background-attachment: fixed;
@@ -41,8 +42,6 @@ td>i::after {
     display: grid;
     grid-template-rows: auto 1fr auto;
     height: 100%;
-    background-color: rgba(248, 249, 250, 0.82);
-    backdrop-filter: blur(2px);
 }
 
 .janela {
@@ -555,7 +554,7 @@ texto {
 .hm-item:hover { background: #f1ecfa; }
 .hm-item .num { font-weight: 700; color: #3d1f6d; min-width: 2.6rem; font-variant-numeric: tabular-nums; }
 .hm-item .nome { flex: 1; }
-.hm-item .usado { color: #e0a800; font-size: .75rem; }
+.hm-item .usado { color: #8a6200; font-weight: 600; font-size: .75rem; }
 .hm-item .onde { color: #6c757d; font-size: .7rem; }
 .hm-item.ativo { background: #3d1f6d; color: #fff; }
 .hm-item.ativo .num, .hm-item.ativo .onde { color: #e0d0ff; }
@@ -587,7 +586,7 @@ body.somente-consulta #bodyLiturgia li[data-tipo]::after { content: none; }
 .cm-musica:hover { background: #fdf3e3; }
 .cm-musica .form-check-input { margin-top: 0; flex-shrink: 0; cursor: pointer; }
 .cm-musica .titulo { white-space: nowrap; }
-.cm-musica .inicio { color: #8a8a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.cm-musica .inicio { color: #6c757d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .cm-musica.marcada { background: #fff3cd; }
 .cm-ordem { font-size: .75rem; font-weight: 700; color: #fff; background: #7e4600; border-radius: 1rem; min-width: 1.3rem; text-align: center; }
 .cm-ordem:empty { display: none; }

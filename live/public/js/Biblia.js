@@ -4,11 +4,26 @@ var query = document.querySelector.bind(document),
     queryName = document.getElementsByName.bind(document),
     socket = io(servidor, { transports: ["polling", "websocket"], auth: { token: window.SOCKET_TOKEN || "" } });
 // -----------------------------------------------------------------------------------------
+// O versículo marcado (amarelo) só continua marcado enquanto é ele que está na tela: limpar,
+// fechar, ou o Painel projetar outra coisa tira a marca. O servidor devolve tudo a todos; o eco
+// atrasado de um envio desta janela nunca tira a marca do que foi enviado depois.
+const pendentes = [];
+socket.onAny((aplicativo, eventName, args) => {
+    if (aplicativo !== empresa) return;
+    const i = pendentes.indexOf(`${eventName}|${JSON.stringify(args === undefined ? false : args)}`);
+    if (i !== -1) { pendentes.splice(0, i + 1); return; }
+    const mudaATela = eventName === 'fecharBiblia' || eventName === 'fecharJanela'
+        || (args && typeof args === 'object' && 'corpo' in args);
+    if (mudaATela) queryAll('input[type="radio"]:checked').forEach((input) => { input.checked = false; });
+});
 const inicio = () => {
     const botoes = queryAll('input[type="radio"]');
     botoes.forEach((button) => {
         button.addEventListener('change', function () {
-            socket.emit(empresa, 'passagem', { tipo: 'passagem', titulo: this.getAttribute('titulo'), corpo: encodeURI(this.nextElementSibling.innerHTML) });
+            const payload = { tipo: 'passagem', titulo: this.getAttribute('titulo'), corpo: encodeURI(this.nextElementSibling.innerHTML) };
+            pendentes.push(`passagem|${JSON.stringify(payload)}`);
+            if (pendentes.length > 50) pendentes.shift();
+            socket.emit(empresa, 'passagem', payload);
         });
     });
 

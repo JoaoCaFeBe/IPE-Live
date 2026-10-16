@@ -110,6 +110,27 @@ app.get("/api/cultos/:arquivo", (req, res) => {
   res.redirect(`${fallbackUrl}/${arquivo}${req.query.vozes === "1" ? "?vozes=1" : ""}`);
 });
 
+// Lista dos cultos cadastrados ("AAAA-MM-DD.json"): do diretório local, se houver; senão, da Liturgia.
+// O Painel usa para oferecer o próximo culto quando a data aberta não tem liturgia.
+app.get("/api/cultos", async (_req, res) => {
+  const cultosDir = process.env.CULTOS_DIR;
+  const fallbackUrl = process.env.CULTOS_URL || "/Liturgia/cultos";
+  const ehCulto = (f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(String(f));
+  const locais = cultosDir && fs.existsSync(cultosDir) ? fs.readdirSync(cultosDir).filter(ehCulto) : [];
+  if (!locais.length) return res.redirect(fallbackUrl);
+  // Mesma fonte da leitura de cada culto: o local primeiro, e a Liturgia remota para o resto.
+  let remotos = [];
+  if (/^https?:\/\//.test(fallbackUrl)) {
+    try {
+      const r = await fetch(fallbackUrl, { signal: AbortSignal.timeout(4000) });
+      if (r.ok) remotos = (await r.json()).filter(ehCulto);
+    } catch (e) {
+      console.error("[api/cultos] lista remota indisponível:", e.message);
+    }
+  }
+  res.json([...new Set([...locais, ...remotos])].sort().reverse());
+});
+
 app.get("/", (req, res) => res.redirect("/Painel"));
 
 // 1. Painel Administrativo de Controle O.B.S./Tela
@@ -143,9 +164,12 @@ app.get("/Painel", (req, res) => {
     });
   } catch (e) {
     console.error("Erro na rota Painel:", e);
-    res
-      .status(500)
-      .send("🔧 Erro ao carregar o Banco SQLite local: " + e.message);
+    // Versão gravada na sessão que não abre não pode prender o operador: volta à padrão.
+    delete req.session.biblia;
+    res.status(500).render("Erro", {
+      titulo: "Não consegui abrir a Bíblia",
+      texto: "Recarregue o Painel. Se continuar, avise quem cuida do sistema.",
+    });
   }
 });
 
@@ -204,7 +228,12 @@ app.get("/Biblia", (req, res) => {
       maxCapituloAnterior,
     });
   } catch (e) {
-    res.status(500).send("🔧 Erro ao pesquisar os versos: " + e.message);
+    console.error("Erro na rota Biblia:", e);
+    delete req.session.biblia;
+    res.status(500).render("Erro", {
+      titulo: "Não consegui abrir esta versão da Bíblia",
+      texto: "Escolha a versão de novo no Painel. Se continuar, avise quem cuida do sistema.",
+    });
   }
 });
 

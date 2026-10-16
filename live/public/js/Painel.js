@@ -46,12 +46,43 @@ const trocarData = (data) => {
   location.search = params.toString();
 };
 
+// Envios deste Painel ainda sem eco do servidor (que devolve tudo a todos, inclusive a quem enviou).
+// A estrofe marcada (fundo amarelo e selo "Na tela") só continua marcada enquanto é ela que está
+// na tela: limpar, fechar, ou outra tela/painel projetar outra coisa tira a marca. O eco atrasado
+// de um envio nosso nunca tira a marca do que foi enviado depois.
+const pendentes = [];
+const chaveEnvio = (evento, args) => `${evento}|${JSON.stringify(args === undefined ? false : args)}`;
+const enviar = (evento, payload) => {
+  pendentes.push(chaveEnvio(evento, payload));
+  if (pendentes.length > 50) pendentes.shift();
+  if (payload === undefined) socket.emit(empresa, evento);
+  else socket.emit(empresa, evento, payload);
+};
+const projetar = (tipo, payload) => enviar(tipo, payload);
+const tirarDoAr = () => {
+  queryAll(".btn-group-vertical > .btn-check:checked").forEach((input) => {
+    input.checked = false;
+  });
+};
+// true quando o evento recebido é eco de um envio nosso (e o tira da fila).
+const ehEcoProprio = (evento, args) => {
+  const i = pendentes.indexOf(chaveEnvio(evento, args));
+  if (i === -1) return false;
+  pendentes.splice(0, i + 1);
+  return true;
+};
+const mudaATela = (evento, args) =>
+  evento === "fecharBiblia" || evento === "fecharJanela" ||
+  Boolean(args && typeof args === "object" && "corpo" in args);
+
 const limparTexto = () => {
-  socket.emit(empresa, "fecharBiblia");
+  tirarDoAr();
+  enviar("fecharBiblia");
 };
 
 socket.onAny((aplicativo, eventName, args) => {
   if (aplicativo === empresa) {
+    if (!ehEcoProprio(eventName, args) && mudaATela(eventName, args)) tirarDoAr();
     if (painelOBS && eventName === "obsSceneChanged") {
       $("body>div:not(.form-check):not(.biblia)").hide();
       $(".accordion-button:not(.collapsed)").addClass("collapsed");
@@ -66,6 +97,10 @@ socket.onAny((aplicativo, eventName, args) => {
     }
   }
 });
+
+// Selos à direita da estrofe: "Na tela" (só aparece com a estrofe no ar, pelo CSS) e a letra.
+const selosEstrofe = (letraHtml = "") =>
+  `<span class="selos-estrofe position-absolute top-50 end-0 translate-middle-y me-2"><span class="badge selo-no-ar"><i class="fa-solid fa-tower-broadcast"></i> Na tela</span>${letraHtml}</span>`;
 
 // Balanceia as linhas de letra em slides de no máximo `max` linhas cada,
 // distribuindo as linhas excedentes nos primeiros slides.
@@ -173,19 +208,19 @@ const inicio = () => {
                                     `);
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
               const cor = slide.refrao ? "btn-info" : "btn-secondary";
-              let tagHtml = "";
+              let tagHtml = selosEstrofe();
               let letraTag = "";
               if (slide.idTag) {
                 const corBadge = [
                   "bg-danger",
                   "bg-success",
                   "bg-primary",
-                  "bg-warning text-dark",
+                  "selo-roxo", // amarelo é só "na tela"
                   "bg-dark",
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
                 letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`;
+                tagHtml = selosEstrofe(`<span class="badge ${corBadge}" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`);
               }
               const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
                 .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
@@ -233,19 +268,19 @@ const inicio = () => {
                                     `);
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
               const cor = slide.refrao ? "btn-info" : "btn-secondary";
-              let tagHtml = "";
+              let tagHtml = selosEstrofe();
               let letraTag = "";
               if (slide.idTag) {
                 const corBadge = [
                   "bg-danger",
                   "bg-success",
                   "bg-primary",
-                  "bg-warning text-dark",
+                  "selo-roxo", // amarelo é só "na tela"
                   "bg-dark",
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
                 letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`;
+                tagHtml = selosEstrofe(`<span class="badge ${corBadge}" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`);
               }
               const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
                 .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
@@ -288,19 +323,19 @@ const inicio = () => {
                                     `);
             agruparEmSlides(definicao.letra).forEach((slide, idx) => {
               const cor = slide.refrao ? "btn-info" : "btn-secondary";
-              let tagHtml = "";
+              let tagHtml = selosEstrofe();
               let letraTag = "";
               if (slide.idTag) {
                 const corBadge = [
                   "bg-danger",
                   "bg-success",
                   "bg-primary",
-                  "bg-warning text-dark",
+                  "selo-roxo", // amarelo é só "na tela"
                   "bg-dark",
                   "bg-light text-dark",
                 ][(slide.idTag - 1) % 6];
                 letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = `<span class="badge ${corBadge} position-absolute top-50 end-0 translate-middle-y me-2" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`;
+                tagHtml = selosEstrofe(`<span class="badge ${corBadge}" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`);
               }
               const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
                 .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
@@ -351,15 +386,43 @@ const inicio = () => {
         }
       });
     })
-    .fail((jqXHR, textStatus, errorThrown) => {
-      $("body").append(`<div class="alert alert-danger m-3" role="alert">
-                <i class="fa-solid fa-triangle-exclamation"></i> Nenhuma liturgia encontrada para ${arquivo.split("-").reverse().join("/")} (${arquivo}.json): ${textStatus}
+    .fail((jqXHR) => {
+      const dataBR = (d) => d.split("-").reverse().join("/");
+      if (jqXHR.status !== 404) {
+        // Falha de verdade (Liturgia fora do ar, rede): aí sim, vermelho.
+        $("body").append(`<div class="alert alert-danger m-3" role="alert">
+                <i class="fa-solid fa-triangle-exclamation"></i> Não consegui carregar a liturgia de ${dataBR(arquivo)}. Confira a conexão com a Liturgia e recarregue o Painel.
             </div>`);
+        return;
+      }
+      // Dia sem culto é o estado normal fora dos cultos: aviso neutro e o próximo culto cadastrado.
+      const diaSemana = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: "UTC" })
+        .format(new Date(`${arquivo}T12:00:00Z`)).replace("-feira", "");
+      const $vazio = $(`<div class="estado-vazio" role="status">
+                <i class="fa-regular fa-calendar fa-2x estado-icone" aria-hidden="true"></i>
+                <div class="estado-titulo">Não há liturgia para ${diaSemana}, ${dataBR(arquivo)}</div>
+                <div class="estado-texto estado-proximo d-none"></div>
+                <button type="button" class="btn btn-light estado-acao d-none"></button>
+                <div class="estado-texto estado-dica">Ou escolha outra data no campo acima.</div>
+            </div>`);
+      $("body").append($vazio);
+      $.getJSON(cultosUrl).done((lista) => {
+        const proximo = (Array.isArray(lista) ? lista : [])
+          .map((f) => String(f).replace(".json", ""))
+          .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d > arquivo)
+          .sort()[0];
+        if (!proximo) return;
+        const diaProximo = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: "UTC" })
+          .format(new Date(`${proximo}T12:00:00Z`)).replace("-feira", "");
+        $vazio.find(".estado-proximo").text(`O próximo culto cadastrado é ${diaProximo}, ${dataBR(proximo)}.`).removeClass("d-none");
+        $vazio.find(".estado-acao").text(`Abrir o culto de ${dataBR(proximo)}`).removeClass("d-none")
+          .on("click", () => trocarData(proximo));
+      });
     })
     .always(() => {
       queryAll(".accordion-item").forEach((item) => {
         item.addEventListener("hide.bs.collapse", function () {
-          socket.emit(empresa, "fecharJanela");
+          enviar("fecharJanela");
           // Limpa seleção e cor amarela dos itens do accordion que fechou
           this.querySelectorAll(
             'input[type="radio"], input[type="checkbox"]',
@@ -414,8 +477,7 @@ const inicio = () => {
           button.addEventListener("change", function () {
             this.nextElementSibling.style.color = "yellow";
             if (this.nextElementSibling.innerHTML === "Título") {
-              socket.emit(
-                empresa,
+              projetar(
                 $(this).parents(".accordion-item").attr("tipo"),
                 {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
@@ -427,8 +489,7 @@ const inicio = () => {
               const corpoCompleto = this.getAttribute("corpo")
                 ? decodeURIComponent(this.getAttribute("corpo"))
                 : this.nextElementSibling.innerHTML;
-              socket.emit(
-                empresa,
+              projetar(
                 $(this).parents(".accordion-item").attr("tipo"),
                 {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
@@ -442,8 +503,7 @@ const inicio = () => {
           });
           button.addEventListener("dblclick", function () {
             if (this.nextElementSibling.innerHTML === "Título") {
-              socket.emit(
-                empresa,
+              projetar(
                 $(this).parents(".accordion-item").attr("tipo"),
                 {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
@@ -455,8 +515,7 @@ const inicio = () => {
               const corpoCompleto = this.getAttribute("corpo")
                 ? decodeURIComponent(this.getAttribute("corpo"))
                 : this.nextElementSibling.innerHTML;
-              socket.emit(
-                empresa,
+              projetar(
                 $(this).parents(".accordion-item").attr("tipo"),
                 {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
@@ -495,7 +554,9 @@ const monitorarJanelasBiblia = () => {
     if (_bibliaWins.size === 0) {
       clearInterval(_bibliaWinTimer);
       _bibliaWinTimer = null;
-      socket.emit(empresa, "fecharBiblia");
+      // Fechar a última janela da Bíblia limpa as telas: nada fica marcado como no ar.
+      tirarDoAr();
+      enviar("fecharBiblia");
     }
   }, 500);
 };
