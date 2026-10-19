@@ -58,6 +58,8 @@ inicializarTela({
     delayEventos: 0,
     limparNaMensagem: true,
     callbackFadeIn: visibilidadeRelogio,
+    // Verso que quebra não deixa palavra sozinha embaixo (mesma regra do Projetor).
+    aoRenderizar: (tipo, conteudo, elementoAlvo) => versosEmBlocos(elementoAlvo),
     integracaoOBS: false,
     aoIniciar: sincronizarHora
 });

@@ -109,6 +109,35 @@ function ajustarAltura(elemento, fracao, minimo = 0.5) {
     });
 }
 
+// Verso que quebra não deixa uma palavra sozinha embaixo (João, 19/10/2026): cada verso vira um
+// bloco .verso com text-wrap: balance (Projetor.css), e as duas últimas palavras ficam presas por
+// espaço rígido, o que já resolve em navegador que não conhece o balance. Só move nós já
+// sanitizados; não cria HTML. Usado pelo Projetor e pela TV; nas duas vozes, vale por linha.
+const prenderUltimasPalavras = texto => String(texto).replace(/\s+(\S+)\s*$/, '\u00a0$1');
+
+function _prenderNoFim(elemento) {
+    const ultimo = [...elemento.childNodes].reverse().find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+    if (ultimo) ultimo.textContent = prenderUltimasPalavras(ultimo.textContent);
+}
+
+function versosEmBlocos(elemento) {
+    if (!elemento || elemento.querySelector('.verso')) return;
+    const vozes = elemento.querySelectorAll('.voz-linha');
+    if (elemento.querySelector('.conteudo-vozes')) { vozes.forEach(_prenderNoFim); return; }
+    const versos = [[]];
+    Array.from(elemento.childNodes).forEach(no => {
+        if (no.nodeName === 'BR') versos.push([]);
+        else versos[versos.length - 1].push(no);
+    });
+    elemento.replaceChildren(...versos.filter(v => v.some(n => n.textContent.trim())).map(nos => {
+        const verso = document.createElement('span');
+        verso.className = 'verso';
+        verso.append(...nos);
+        _prenderNoFim(verso);
+        return verso;
+    }));
+}
+
 // "Louvor a Deus (NC 016)" → rótulo "Hino · Novo Cântico 16" e nome "Louvor a Deus";
 // "A / B" (dois cânticos juntos) → dois nomes. Usado pela abertura do Projetor e pela Legenda.
 const HINARIOS = { NC: 'Novo Cântico' };

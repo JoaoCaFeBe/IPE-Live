@@ -3,7 +3,7 @@
 .coluna-voz { min-width:0; }
 .coluna-voz + .coluna-voz { border-left:1px solid rgba(255,255,255,.45); padding-left:1rem; }
 .voz-nome { color:#ffc107; font-size:.5em; font-weight:bold; text-transform:uppercase; margin-bottom:.6em; overflow-wrap:anywhere; }
-.voz-linha { overflow-wrap:anywhere; }
+.voz-linha { overflow-wrap:anywhere; text-wrap:balance; }
 .vozes-alinhadas { row-gap:0; }
 .vozes-alinhadas > .coluna-voz { display:contents; }
 .vozes-alinhadas .voz-nome, .vozes-alinhadas .voz-linha { min-width:0; }
