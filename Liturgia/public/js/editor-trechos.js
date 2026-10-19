@@ -83,24 +83,22 @@ const EditorTrechos = (() => {
             });
         }
         function linhasLegenda(linhas) {
-            // Referência Full HD da legenda: fonte 16px + 1vw + 1vh = 46px;
-            // descontar margem e padding de 16px em cada lado (1856px úteis).
-            // Medir texto simples, sem executar HTML recebido da letra.
+            // Mesma regra da legenda animada do Live (LegendaAnimada.js, 19/10/2026): até 3 versos
+            // empilhados; com 4 ou mais, juntam-se em pares "verso · verso" quando o par cabe.
+            // Referência Full HD: texto a 1,95vw (37px, peso 600) e 1455px úteis
+            // (84vw menos o quadrado do símbolo e o padding). Mede texto simples, sem executar HTML.
+            if (linhas.length < 4) return linhas.map(Trechos.plano);
             const medidor = document.createElement('span');
-            Object.assign(medidor.style, { position: 'absolute', left: '-99999px', visibility: 'hidden', whiteSpace: 'nowrap', fontFamily: getComputedStyle($root[0]).fontFamily, fontSize: '46px', fontWeight: '400' });
+            Object.assign(medidor.style, { position: 'absolute', left: '-99999px', visibility: 'hidden', whiteSpace: 'nowrap', fontFamily: getComputedStyle($root[0]).fontFamily, fontSize: '37px', fontWeight: '600' });
             // O modal ainda pode estar oculto na primeira prévia; medir no body visível.
             document.body.append(medidor);
             const resultado = [];
             try {
                 for (let i = 0; i < linhas.length; i++) {
                     const atual = Trechos.plano(linhas[i]);
-                    const cantor = s => /<strong[^>]*>.*?<\/strong>/i.test(s);
-                    if (i + 1 < linhas.length && !cantor(linhas[i]) && !cantor(linhas[i + 1])) {
+                    if (i + 1 < linhas.length) {
                         medidor.textContent = atual + ' · ' + Trechos.plano(linhas[i + 1]);
-                        // O separador do Live acrescenta 0.15em de padding de cada lado.
-                        if (medidor.getBoundingClientRect().width + 0.3 * 46 <= 1856) {
-                            resultado.push(medidor.textContent); i++; continue;
-                        }
+                        if (medidor.getBoundingClientRect().width <= 1455) { resultado.push(medidor.textContent); i++; continue; }
                     }
                     resultado.push(atual);
                 }

@@ -625,7 +625,9 @@ body.somente-consulta #bodyLiturgia li[data-tipo]::after { content: none; }
 .et-previa { background:#000; color:#fff; padding:1rem; border-radius:.35rem; min-height:115px; text-align:center; font-weight:bold; }
 .et-previa .voz-nome { color:#ffc107; font-size:.7rem; text-transform:uppercase; }
 .et-previa .voz-linha { font-size:.9rem; }
-.et-obs { background:#252e38; }
-.et-obs .et-linha { font-weight:400; }
+/* Prévia da legenda do OBS: o azul-petróleo da legenda animada do Live (19/10/2026). */
+.et-obs { background:rgba(0,110,118,.94); }
+.et-obs .voz-nome { color:#c6f1ef; }
+.et-obs .et-linha { font-weight:600; }
 .et-linha { overflow-wrap:anywhere; }
 @media(max-width:767px) { .et-layout,.et-duas,.et-previas { grid-template-columns:minmax(0,1fr); } .et-lista { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.3rem; } }

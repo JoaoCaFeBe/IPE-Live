@@ -11,7 +11,13 @@
  *   delayEventos     : 0 | 1500             — delay no processamento de eventos
  *   callbackFadeIn   : function | null       — callback após fadeIn de conteúdo
  *   aoIniciar        : function | null       — código extra executado em inicio()
+ *   aoRenderizar     : function | null       — (tipo, conteudo, elementoAlvo) depois de montar o conteúdo, antes de aparecer
+ *   renderizar       : function | null       — ({tipo, conteudo, corpo, referencia, vozes}) a tela desenha tudo sozinha
+ *   aoLimpar         : function | null       — saída da tela que desenha sozinha (Limpar / fechar a Bíblia)
+ *   fadeEntrada      : ms | undefined        — fade ao sair da tela parada (padrão: TRANSICAO)
+ *   fadeSaida        : ms | undefined        — fade ao limpar a tela (padrão: 200)
  *   integracaoOBS    : true | false          — ativar integração direta com OBS
+ *   referenciaExata  : true | false          — passagem mostra "Livro cap:vers" do versículo na tela, sem o número no texto
  */
 
 // Sanitizacao de HTML recebido via Socket.IO ou consumido do Liturgia (SEC-001, SEC-013).
@@ -50,6 +56,9 @@ var telaCfg = window.telaCfg || {
     juntarLinhasEmPares: false
 };
 
+// Duração de cada etapa da troca no Projetor e na TV (eram 200 ms; o João pediu resposta mais rápida).
+const TRANSICAO = 120;
+
 // Limpar a tela invalida também os callbacks de uma troca ainda em animação.
 let geracaoExibicao = 0;
 
@@ -71,6 +80,65 @@ function _obterLarguraUtilElemento(elementoAlvo) {
     // Fallback conservador: desconta margens/paddings e aplica fator de segurança de 80%
     // para evitar aceitar pares de linhas que na prática causam quebra de linha
     return Math.max(0, (larguraViewport - margemX - paddingX) * 0.80);
+}
+
+// Mede um elemento que pode estar oculto (ele ou um ancestral), sem nada aparecer na tela.
+function _comAncestraisVisiveis(elemento, medir) {
+    const ocultos = [];
+    for (let el = elemento; el && el !== document.body; el = el.parentElement) {
+        if (window.getComputedStyle(el).display !== 'none') continue;
+        ocultos.push({ el, display: el.style.display, visibility: el.style.visibility });
+        el.style.display = '';
+        if (window.getComputedStyle(el).display === 'none') el.style.display = 'block';
+        el.style.visibility = 'hidden';
+    }
+    try { return medir(); }
+    finally { ocultos.forEach(({ el, display, visibility }) => { el.style.display = display; el.style.visibility = visibility; }); }
+}
+
+// Diminui a letra até o bloco caber na fração da altura da tela, sem passar do mínimo.
+function ajustarAltura(elemento, fracao, minimo = 0.5) {
+    if (!elemento) return;
+    elemento.style.fontSize = '';
+    _comAncestraisVisiveis(elemento, () => {
+        const limite = window.innerHeight * fracao;
+        const base = parseFloat(window.getComputedStyle(elemento).fontSize);
+        for (let escala = 0.95; elemento.getBoundingClientRect().height > limite && escala >= minimo; escala -= 0.05) {
+            elemento.style.fontSize = `${base * escala}px`;
+        }
+    });
+}
+
+// "Louvor a Deus (NC 016)" → rótulo "Hino · Novo Cântico 16" e nome "Louvor a Deus";
+// "A / B" (dois cânticos juntos) → dois nomes. Usado pela abertura do Projetor e pela Legenda.
+const HINARIOS = { NC: 'Novo Cântico' };
+
+function textoPuro(html) {
+    // Documento inerte: o título vira texto sem executar nada.
+    return new DOMParser().parseFromString(String(html || ''), 'text/html').body.textContent.trim();
+}
+
+function rotuloENomes(conteudo) {
+    const tipo = String(conteudo.categoria || conteudo.tipo || '');
+    let titulo = textoPuro(conteudo.titulo);
+    let rotulo = tipo.includes('hino') ? 'Hino' : tipo.includes('coral') ? 'Coral' : tipo.includes('passagem') ? 'Leitura bíblica' : 'Louvor';
+    const numero = titulo.match(/\s*\(([A-Z]{2,4})\s*0*(\d+)\)\s*$/);
+    if (numero) {
+        rotulo += ` · ${HINARIOS[numero[1]] || numero[1]} ${numero[2]}`;
+        titulo = titulo.slice(0, numero.index).trim();
+    }
+    const nomes = titulo.split(/\s+\/\s+/).map(n => n.trim()).filter(Boolean);
+    return { rotulo, nomes: nomes.length ? nomes : [titulo] };
+}
+
+// "Ester 4:1-17" + "11. Todos..." → "Ester 4:11"; "Juízes 1:3-7" + "1.3. Disse..." → "Juízes 1:3".
+// Sem número reconhecível, fica o título como veio e o texto intacto.
+function referenciaExata(titulo, corpo) {
+    const t = String(titulo || '').trim();
+    const versiculo = String(corpo).match(/^(?:(\d+)\.)?(\d+)\.\s*/);
+    const livro = t.match(/^(.+?)\s+(\d+)(?:\s*[:\-–].*)?$/);
+    if (!versiculo || !livro) return { referencia: t, corpo };
+    return { referencia: `${livro[1]} ${versiculo[1] || livro[2]}:${versiculo[2]}`, corpo: corpo.slice(versiculo[0].length) };
 }
 
 function _linhaCabeNoContainer(linhaHtml, elementoAlvo, larguraMaxima) {
@@ -179,10 +247,12 @@ function agruparLinhasEmPares(html, elementoAlvo) {
 
 function _fecharJanela() {
     geracaoExibicao++;
+    // Tela que desenha o próprio conteúdo (Legenda animada) cuida também da saída.
+    if (typeof telaCfg.aoLimpar === 'function') return telaCfg.aoLimpar();
     $('body>*').stop(true, true);
     $('body>*>*').stop(true, true);
-    $('body>*:visible').fadeOut(200, function () {
-        $('body>*:visible>*').html('');
+    $('body>*:not(.recado):visible').fadeOut(telaCfg.fadeSaida || 200, function () {
+        $('body>*:not(.recado):visible>*').html('');
     });
 }
 
@@ -190,26 +260,34 @@ function _fecharBiblia() {
     _fecharJanela();
 }
 
+// Recado do Painel para o púlpito: tela cheia por 5 segundos, com a barra do tempo que falta.
+// Um recado novo substitui o anterior e recomeça a contagem. O texto entra como texto, nunca como HTML.
+const DURACAO_RECADO = 5000;
+let _recadoTimer = null;
+
 function _alerta(args) {
-    if (telaCfg.temAlerta) {
-        if (!$('body').hasClass('modal-open')) {
-            var dialog = bootbox.dialog({
-                message: args,
-                centerVertical: true,
-                closeButton: false,
-                className: 'bg-danger text-dark text-center',
-                onShow: function () {
-                    $('body').addClass('modal-open');
-                    setTimeout(function () {
-                        dialog.modal('hide');
-                    }, 5000);
-                },
-                onHidden: function () {
-                    $('body').removeClass('modal-open');
-                }
-            });
-        }
+    if (!telaCfg.temAlerta) return;
+    const texto = String(args ?? '').trim();
+    if (!texto) return;
+    let recado = document.querySelector('body>.recado');
+    if (!recado) {
+        recado = document.createElement('div');
+        recado.className = 'recado';
+        recado.setAttribute('role', 'alert');
+        recado.innerHTML = '<div class="recado-rotulo">Mensagem para o púlpito</div><div class="recado-texto"></div><div class="recado-barra"></div>';
+        recado.querySelector('.recado-barra').style.animationDuration = `${DURACAO_RECADO}ms`;
+        document.body.append(recado);
     }
+    const textoEl = recado.querySelector('.recado-texto');
+    const barra = recado.querySelector('.recado-barra');
+    textoEl.textContent = texto;
+    barra.style.animationName = 'none';
+    void barra.offsetWidth;
+    barra.style.animationName = '';
+    recado.classList.add('visivel');
+    ajustarAltura(textoEl, 0.6, 0.3);
+    clearTimeout(_recadoTimer);
+    _recadoTimer = setTimeout(() => recado.classList.remove('visivel'), DURACAO_RECADO);
 }
 
 function _processarEvento(eventName, args) {
@@ -259,6 +337,12 @@ function processarConteudo(conteudo) {
         const geracao = geracaoExibicao;
         conteudo.corpo = decodeURI(conteudo.corpo).replace(/\{st\}([^}]*)\{\/st\}/g, '<span style="color: #ffc107 !important; font-weight: bold;">$1</span>').replace(/\{it\}|\{\/it\}/g, '').trim();
         if (tipo === 'passagem') conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
+        let referencia = null;
+        if (tipo === 'passagem' && telaCfg.referenciaExata) ({ referencia, corpo: conteudo.corpo } = referenciaExata(conteudo.titulo, conteudo.corpo));
+        if (typeof telaCfg.renderizar === 'function') {
+            geracaoExibicao++;
+            return telaCfg.renderizar({ tipo, conteudo, corpo: conteudo.corpo, referencia, vozes: dueto ? vozes : null });
+        }
 
         const alvoAtual = document.querySelector(`body>${tipo}>${elem}`);
         if (dueto && !telaCfg.juntarLinhasEmPares && alvoAtual?.dataset.quadroVozes === JSON.stringify(vozes) && alvoAtual.classList.contains('com-vozes') && alvoAtual.querySelector('.conteudo-vozes') &&
@@ -266,23 +350,23 @@ function processarConteudo(conteudo) {
             // Invalida uma troca pendente, preservando as quatro linhas sem piscar.
             geracaoExibicao++;
             $('body>*').stop(true, true);
-            $(`body>*:not(${tipo})`).hide();
+            $(`body>*:not(${tipo}):not(.recado)`).hide();
             $(`body>${tipo}`).show(); $(alvoAtual).stop(true, true).show();
             return;
         }
 
         new Promise((resolve) => {
             if ($(`body>${tipo}>titulo`).html() !== conteudo.titulo) {
-                $(`body>${tipo}`).fadeOut(200, () => resolve(true));
+                $(`body>${tipo}`).fadeOut(TRANSICAO, () => resolve(true));
             } else resolve(false);
         }).then(() => {
             if (geracao !== geracaoExibicao) return;
             return new Promise((resolve) => {
-                $(`body>${tipo}>${elem}`).fadeOut(200, () => resolve(true));
+                $(`body>${tipo}>${elem}`).fadeOut(TRANSICAO, () => resolve(true));
             });
         }).then(() => {
             if (geracao !== geracaoExibicao) return;
-            $(`body>*:not(${tipo})`).fadeOut(200, function () {
+            $(`body>*:not(${tipo}):not(.recado)`).fadeOut(TRANSICAO, function () {
                 if (geracao !== geracaoExibicao) return;
                 // Sanitizacao (SEC-001): titulo e corpo vem via Socket.IO de cliente nao confiavel
                 $(`body>${tipo}>titulo`).html(sanitizar(conteudo.titulo));
@@ -299,11 +383,15 @@ function processarConteudo(conteudo) {
                 if (!dueto && conteudo.corpo && telaCfg.juntarLinhasEmPares) {
                     definirHtmlSeguro(elementoAlvo, agruparLinhasEmPares(conteudo.corpo, elementoAlvo));
                 }
+                if (referencia) elementoAlvo.dataset.ref = referencia;
+                else delete elementoAlvo.dataset.ref;
+                if (typeof telaCfg.aoRenderizar === 'function') telaCfg.aoRenderizar(tipo, conteudo, elementoAlvo);
                 // Só exibe o elem se houver conteúdo
                 if (elementoAlvo.innerHTML.trim()) {
-                    $(`body>${tipo}>${elem}`).fadeIn(200);
+                    $(`body>${tipo}>${elem}`).fadeIn(TRANSICAO);
                 }
-                $(`body>${tipo}`).fadeIn(200, cb);
+                // Vindo da tela parada (bloco oculto), entra com o fade de entrada da tela.
+                $(`body>${tipo}`).fadeIn($(`body>${tipo}`).is(':visible') ? TRANSICAO : (telaCfg.fadeEntrada || TRANSICAO), cb);
             });
         });
     }

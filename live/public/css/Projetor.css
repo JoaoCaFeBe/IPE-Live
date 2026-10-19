@@ -81,3 +81,137 @@ mulheres {
     float: right !important;
     width: 50% !important;
 }
+/* Na parede da igreja o preto não acende: só a luz aparece. A letra do louvor ocupa a tela
+   sozinha, sem faixa de título, maior e mais grossa (proposta 1, aprovada em 19/10/2026).
+   Só o Projetor (body.projetor); a Televisão usa esta folha e continua como estava. */
+body.projetor>louvor {
+    grid-template-rows: 1fr;
+}
+
+/* Borda fina quase preta em volta da letra, sem sombra (João, 19/10/2026): o preto puro não é
+   projetado, o quase preto é. Contorno sólido de 0,02em nas oito direções, sem deslocamento. */
+body.projetor {
+    --sombra-projetor: #141414;
+    --sombra-largura: 0.02em;
+    text-shadow:
+        var(--sombra-largura) 0 0 var(--sombra-projetor),
+        calc(-1 * var(--sombra-largura)) 0 0 var(--sombra-projetor),
+        0 var(--sombra-largura) 0 var(--sombra-projetor),
+        0 calc(-1 * var(--sombra-largura)) 0 var(--sombra-projetor),
+        var(--sombra-largura) var(--sombra-largura) 0 var(--sombra-projetor),
+        calc(-1 * var(--sombra-largura)) var(--sombra-largura) 0 var(--sombra-projetor),
+        var(--sombra-largura) calc(-1 * var(--sombra-largura)) 0 var(--sombra-projetor),
+        calc(-1 * var(--sombra-largura)) calc(-1 * var(--sombra-largura)) 0 var(--sombra-projetor);
+}
+
+body.projetor>louvor>titulo {
+    display: none;
+}
+
+body.projetor>louvor>corpo,
+body.projetor>louvor>abertura {
+    grid-area: 1 / 1;
+}
+
+/* Versículo que cabe na parede (proposta 4, aprovada pelo João em 19/10/2026): sem a faixa de
+   título, a referência exata em cima, em maiúsculas espaçadas, e a letra grande que diminui
+   (Projetor.js) até caber. */
+body.projetor>passagem {
+    grid-template-rows: 1fr;
+}
+
+body.projetor>passagem>titulo {
+    display: none;
+}
+
+body.projetor>passagem>corpo {
+    grid-area: 1 / 1;
+    font-size: 150%;
+    font-weight: 900;
+    line-height: 1.25;
+    padding: 0 5vw;
+}
+
+body.projetor>passagem>corpo[data-ref]::before {
+    content: attr(data-ref);
+    display: block;
+    font-size: 40%;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 0.6em;
+}
+
+body.projetor>passagem>abertura {
+    grid-area: 1 / 1;
+}
+
+/* Botão Título da leitura bíblica: a mesma abertura do louvor, no lugar da faixa e do versículo. */
+body.projetor>passagem.abertura {
+    grid-template-rows: 1fr;
+}
+
+body.projetor>passagem.abertura>titulo,
+body.projetor>passagem.abertura>corpo {
+    display: none !important;
+}
+
+body.projetor>louvor>corpo {
+    font-size: 130%;
+    font-weight: 900;
+    line-height: 1.25;
+    padding: 0 5vw;
+}
+
+body.projetor>louvor>corpo.com-vozes {
+    font-size: 110%;
+}
+
+/* O nome do louvor aparece sozinho no botão Título: tipo em cima, nome grande no centro;
+   dois cânticos juntos ("A / B") viram duas linhas com um traço entre elas (proposta 3). */
+body.projetor>louvor>abertura,
+body.projetor>passagem>abertura {
+    display: none;
+    margin: auto;
+    padding: 0 5vw;
+    text-align: center;
+    font-weight: 900;
+    color: white;
+}
+
+body.projetor>louvor.abertura>abertura,
+body.projetor>passagem.abertura>abertura {
+    display: block;
+    animation: abertura-aparece 200ms ease-out;
+}
+
+/* Símbolo da igreja nas cores originais acima do tipo (19/10/2026, a pedido do João). */
+body.projetor .abertura-simbolo {
+    width: 2.2em;
+    height: 2.2em;
+    margin: 0 auto 0.45em;
+    background: url("../img/Simbolo.png") center / contain no-repeat;
+}
+
+body.projetor .abertura-rotulo {
+    font-size: 50%;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 0.5em;
+}
+
+body.projetor .abertura-nome {
+    font-size: 170%;
+    line-height: 1.15;
+}
+
+body.projetor .abertura-separador {
+    width: 3em;
+    height: 0.12em;
+    background-color: white;
+    margin: 0.5em auto;
+}
+
+@keyframes abertura-aparece {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

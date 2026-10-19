@@ -247,7 +247,7 @@ const inicio = () => {
                 `<div id="corais" class="accordion accordion-flush"></div>`,
               );
 
-            $("#corais").append(`<div class="accordion-item" tipo="louvor">
+            $("#corais").append(`<div class="accordion-item" tipo="louvor" categoria="coral">
                                                         <h2 class="accordion-header" id="coral${louvor}">
                                                             <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseCoral${louvor}" aria-expanded="true" aria-controls="colapseCoral${louvor}">
                                                                 <i class="fa-solid fa-users"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
@@ -371,6 +371,11 @@ const inicio = () => {
                                                                 </div>
                                                             </div>
                                                         </div>`);
+            // Botão Título: abre a leitura no Projetor e a tarja na Legenda, como no louvor.
+            $(`#colapsePassagem${passagem} .accordion-body .btn-group-vertical`).append(`
+                                        <input type="radio" class="btn-check" name="btnPassagem${passagem}" id="btnPassagem${passagem}Titulo" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
+                                        <label class="btn btn-warning text-truncate" for="btnPassagem${passagem}Titulo">Título</label>
+                                    `);
             definicao.texto.forEach((valor, indice) => {
               const versiculoExibicao = formatarVersiculoParaExibicao(valor);
               $(
@@ -481,6 +486,8 @@ const inicio = () => {
                 $(this).parents(".accordion-item").attr("tipo"),
                 {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
+                  // O coral viaja como "louvor"; a categoria deixa a abertura dizer "Coral".
+                  categoria: $(this).parents(".accordion-item").attr("categoria"),
                   titulo: this.getAttribute("titulo"),
                   corpo: "",
                 },
@@ -493,6 +500,8 @@ const inicio = () => {
                 $(this).parents(".accordion-item").attr("tipo"),
                 {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
+                  // O coral viaja como "louvor"; a categoria deixa a abertura dizer "Coral".
+                  categoria: $(this).parents(".accordion-item").attr("categoria"),
                   titulo: this.getAttribute("titulo"),
                   corpo: encodeURI(corpoCompleto),
                   vozes: vozesDaSelecao(this),
@@ -507,6 +516,8 @@ const inicio = () => {
                 $(this).parents(".accordion-item").attr("tipo"),
                 {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
+                  // O coral viaja como "louvor"; a categoria deixa a abertura dizer "Coral".
+                  categoria: $(this).parents(".accordion-item").attr("categoria"),
                   titulo: this.getAttribute("titulo"),
                   corpo: "",
                 },
@@ -519,6 +530,8 @@ const inicio = () => {
                 $(this).parents(".accordion-item").attr("tipo"),
                 {
                   tipo: $(this).parents(".accordion-item").attr("tipo"),
+                  // O coral viaja como "louvor"; a categoria deixa a abertura dizer "Coral".
+                  categoria: $(this).parents(".accordion-item").attr("categoria"),
                   titulo: this.getAttribute("titulo"),
                   corpo: encodeURI(corpoCompleto),
                   vozes: vozesDaSelecao(this),

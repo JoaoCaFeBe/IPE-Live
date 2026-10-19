@@ -8,73 +8,127 @@ body {
     color: white;
 }
 
+/* Fora do OBS (navegador comum), a cruz de fundo ajuda a ver a legenda; no OBS o fundo
+   continua transparente, sobre a câmera. A classe vem de Legendas.js. */
+body.fora-do-obs {
+    background: url("../img/Background.jpg") center / cover no-repeat, #222;
+}
+
 body {
-    font-size: calc(100% + 1vw + 1vh);
     background: transparent;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
-body>* {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
+/* Legenda do OBS (aprovada em 19/10/2026): um bloco só, centralizado embaixo, com o símbolo da
+   igreja nas cores originais num quadrado branco e o texto na faixa azul-petróleo escura. O azul-petróleo
+   não é preto, então o filtro do OBS que tira o preto não o apaga. A animação está em
+   js/LegendaAnimada.js; os tamanhos usam vw porque o OBS abre a página em 1920×1080. */
+.legenda-ipe {
+    --ipe-claro: #0dabaa;
+    --ipe-escuro: rgba(0, 110, 118, .94);
+    --ipe-rotulo: #c6f1ef;
+    --margem: 2.5vw;
+    --raio: .45vw;
+    position: absolute;
+    left: 50%;
+    bottom: var(--margem);
+    transform: translateX(-50%);
+    display: flex;
+    align-items: stretch;
+    max-width: calc(100% - 2 * var(--margem));
+    filter: drop-shadow(0 .15vw .5vw rgba(0, 0, 0, .28));
+    visibility: hidden;
+}
+
+.legenda-ipe.visivel {
+    visibility: visible;
+}
+
+.legenda-marca {
+    flex: 0 0 auto;
+    width: 5.4vw;
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    place-items: center;
+    background: #fff;
+    border-radius: var(--raio) 0 0 var(--raio);
+    position: relative;
+    z-index: 1;
 }
 
-body>*>titulo {
-    background-color: rgba(0, 0, 0, 0.8);
-    padding: 1rem;
-    margin: 1rem;
-    border-radius: 3rem 0;
-    font-weight: bolder;
-    font-size: 100%;
-    text-align: left;
-    text-shadow: 2px 2px 2px black;
-    box-shadow: 2px 2px 10px black;
-    width: fit-content;
+.legenda-marca span {
+    width: 3.9vw;
+    height: 3.9vw;
+    background: url("../img/Simbolo.png") center / contain no-repeat;
 }
 
-body>*>corpo {
-    color: white;
-    text-align: center;
-    margin: auto;
-    font-size: 125%;
-    padding: 0 1rem;
+.legenda-faixa {
+    overflow: hidden;
+    background: var(--ipe-escuro);
+    border-radius: 0 var(--raio) var(--raio) 0;
 }
 
-body>*>rodape {
-    background-color: rgba(0, 0, 0, 0.8);
-    padding: 1rem;
-    margin: 1rem;
-    border-radius: 2rem;
-    text-align: center;
-    font-size: 100%;
-    text-shadow: 2px 2px 2px black;
-    box-shadow: 2px 2px 10px black;
+.legenda-conteudo {
+    box-sizing: border-box;
+    width: max-content;
+    padding: .75vw 1.6vw .85vw 1.2vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: .2vw;
+    opacity: 0;
 }
 
-body>*>rodape:empty {
-    display: none;
+.legenda-rotulo {
+    font-size: .8vw;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ipe-rotulo);
+    white-space: nowrap;
 }
 
-body>passagem>rodape {
-    text-align: left;
+.legenda-texto {
+    font-size: 1.95vw;
+    line-height: 1.3;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
-/* Separador entre linhas unidas em pares */
-body>*>rodape .sep-par {
-    opacity: 0.45;
-    font-weight: normal;
-    padding: 0 0.15em;
+/* Largura definida em LegendaAnimada.js, conforme o espaço que sobra (uma ou duas colunas). */
+.legenda-texto.quebra {
+    white-space: normal;
 }
 
-homens {
-    float: left !important;
-    width: 50% !important;
+.legenda-titulo {
+    font-size: 2.3vw;
+    font-weight: 800;
+    line-height: 1.15;
 }
 
-mulheres {
-    float: right !important;
-    width: 50% !important;
+/* Versículo: bloco mais estreito, texto quebrando (proposta 6). */
+.legenda-versiculo {
+    white-space: normal;
+    width: 54vw;
+    font-size: 1.75vw;
+}
+
+.legenda-vozes {
+    display: grid;
+    grid-template-columns: auto auto;
+    column-gap: 1.6vw;
+}
+
+/* Coluna da direita: fio branco à esquerda, contínuo de cima a baixo. */
+.legenda-dir {
+    border-left: .08vw solid rgba(255, 255, 255, .45);
+    padding-left: 1.6vw;
+}
+
+.legenda-vozes > .legenda-rotulo {
+    padding-bottom: .2vw;
+}
+
+.legenda-sep {
+    opacity: .45;
+    font-weight: 400;
 }

@@ -11,21 +11,17 @@
         <title>Legendas</title>
         <link rel="stylesheet" href="css/Legendas.css?v=<%= new Date().getTime() %>">
         <script src="js/Base.js?v=<%= new Date().getTime() %>"></script>
+        <script src="js/LegendaAnimada.js?v=<%= new Date().getTime() %>"></script>
         <script src="js/LegendasAoVivo.js?v=<%= new Date().getTime() %>"></script>
         <!-- ---------------------------------------------------------------------------------- -->
 </head>
 
-<body onload="$(`body>*`).fadeOut(); inicio();">
-    <passagem>
-        <titulo></titulo>
-        <corpo></corpo>
-        <rodape></rodape>
-    </passagem>
-    <louvor>
-        <titulo></titulo>
-        <corpo></corpo>
-        <rodape></rodape>
-    </louvor>
+<body onload="inicio();">
+    <!-- Legenda animada (LegendaAnimada.js): símbolo da igreja + faixa azul-petróleo. -->
+    <div class="legenda-ipe" aria-live="polite">
+        <div class="legenda-marca"><span></span></div>
+        <div class="legenda-faixa"><div class="legenda-conteudo"></div></div>
+    </div>
 
 </body>
 
