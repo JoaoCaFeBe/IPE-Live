@@ -5,6 +5,8 @@
  * Entrada: o quadrado do símbolo aparece com zoom, o verde cresce a partir dele (largura e altura)
  * e o texto surge. Troca: o texto sai, o verde vai do tamanho antigo para o novo, o texto entra.
  * Saída: o texto some, o verde recolhe para dentro do símbolo e o símbolo sai com zoom.
+ * Bloco parado (sugestão da Renata, 19/10/2026): na estrofe de louvor, o bloco fica do tamanho da
+ * maior estrofe da música, o nome fica fixo no topo e só a letra troca, centralizada.
  * Todo texto entra por textContent ou pelo sanitizador do Base.js.
  */
 const LegendaAnimada = (() => {
@@ -16,6 +18,7 @@ const LegendaAnimada = (() => {
 
     let raiz, marca, faixa, conteudo;
     let noAr = false, ocupado = false, proximo = null, ultimo = null;
+    let medidaMusica = null;        // { chave, width, height } da maior estrofe da música no ar
 
     const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
     const reduzir = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -80,7 +83,7 @@ const LegendaAnimada = (() => {
     }
 
     // Monta o conteúdo novo no lugar do antigo e devolve o tamanho natural dele.
-    function montar(dados) {
+    function montarConteudo(dados) {
         const { tipo, conteudo: c, corpo, referencia, vozes } = dados;
         const { rotulo, nomes } = rotuloENomes(c);
         const partes = [];
@@ -134,6 +137,34 @@ const LegendaAnimada = (() => {
         return { width, height };
     }
 
+    // Estrofe de louvor (não Título, não duas vozes) de música com mais de uma estrofe: bloco parado.
+    const estrofesParadas = ({ tipo, corpo, vozes, estrofes }) =>
+        tipo === 'louvor' && !vozes && String(corpo || '').trim() && Array.isArray(estrofes) && estrofes.length > 1 ? estrofes : null;
+    const chaveParada = dados => {
+        const estrofes = estrofesParadas(dados);
+        return estrofes && JSON.stringify([textoPuro(dados.conteudo.titulo), estrofes, window.innerWidth, window.innerHeight]);
+    };
+
+    function montar(dados) {
+        const estrofes = estrofesParadas(dados);
+        conteudo.classList.toggle('legenda-parada', Boolean(estrofes));
+        if (!estrofes) return montarConteudo(dados);
+        const chave = chaveParada(dados);
+        if (medidaMusica?.chave !== chave) {
+            let width = 0, height = 0;
+            estrofes.forEach(corpo => {
+                const m = montarConteudo({ ...dados, corpo });
+                width = Math.max(width, m.width); height = Math.max(height, m.height);
+            });
+            medidaMusica = { chave, width, height };
+        }
+        montarConteudo(dados);
+        const { width, height } = medidaMusica;
+        conteudo.style.width = `${width}px`;
+        conteudo.style.height = `${height}px`;
+        return { width, height };
+    }
+
     // offsetWidth é a largura de layout: não muda com o zoom (scale) da animação anterior.
     const encolhido = () => ({ width: 0, height: marca.offsetWidth });
 
@@ -151,6 +182,13 @@ const LegendaAnimada = (() => {
     }
 
     async function trocar(dados) {
+        // Mesma música com o bloco parado: o nome fica, só a letra sai e entra.
+        if (conteudo.classList.contains('legenda-parada') && chaveParada(dados) === medidaMusica?.chave) {
+            await anima(conteudo.querySelector(':scope > .legenda-texto'), [{ opacity: 1 }, { opacity: 0 }], DURACAO.trocaSai);
+            montar(dados);
+            await anima(conteudo.querySelector(':scope > .legenda-texto'), [{ opacity: 0, transform: 'translateY(.3em)' }, { opacity: 1, transform: 'none' }], DURACAO.trocaEntra);
+            return;
+        }
         const antes = faixa.getBoundingClientRect();
         await anima(conteudo, [{ opacity: 1 }, { opacity: 0 }], DURACAO.trocaSai);
         fixa(conteudo, { opacity: '0' });

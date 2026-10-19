@@ -94,6 +94,18 @@ body {
     text-wrap: balance;
 }
 
+/* Bloco parado (sugestão da Renata, 19/10/2026): o bloco tem o tamanho da maior estrofe da música;
+   o nome fica no topo, à esquerda, com um afastamento leve, e a letra fica centralizada no resto. */
+.legenda-conteudo.legenda-parada {
+    justify-content: flex-start;
+    gap: .6vw;
+}
+
+.legenda-parada > .legenda-texto {
+    margin-block: auto;
+    text-align: center;
+}
+
 .legenda-titulo {
     font-size: 2.3vw;
     font-weight: 800;

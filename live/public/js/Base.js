@@ -12,7 +12,7 @@
  *   callbackFadeIn   : function | null       — callback após fadeIn de conteúdo
  *   aoIniciar        : function | null       — código extra executado em inicio()
  *   aoRenderizar     : function | null       — (tipo, conteudo, elementoAlvo) depois de montar o conteúdo, antes de aparecer
- *   renderizar       : function | null       — ({tipo, conteudo, corpo, referencia, vozes}) a tela desenha tudo sozinha
+ *   renderizar       : function | null       — ({tipo, conteudo, corpo, referencia, vozes, estrofes}) a tela desenha tudo sozinha
  *   aoLimpar         : function | null       — saída da tela que desenha sozinha (Limpar / fechar a Bíblia)
  *   fadeEntrada      : ms | undefined        — fade ao sair da tela parada (padrão: TRANSICAO)
  *   fadeSaida        : ms | undefined        — fade ao limpar a tela (padrão: 200)
@@ -364,13 +364,16 @@ function processarConteudo(conteudo) {
 
     if ((tipo === 'louvor') || (tipo === 'passagem')) {
         const geracao = geracaoExibicao;
-        conteudo.corpo = decodeURI(conteudo.corpo).replace(/\{st\}([^}]*)\{\/st\}/g, '<span style="color: #ffc107 !important; font-weight: bold;">$1</span>').replace(/\{it\}|\{\/it\}/g, '').trim();
+        const prepararCorpo = corpo => decodeURI(corpo).replace(/\{st\}([^}]*)\{\/st\}/g, '<span style="color: #ffc107 !important; font-weight: bold;">$1</span>').replace(/\{it\}|\{\/it\}/g, '').trim();
+        conteudo.corpo = prepararCorpo(conteudo.corpo);
         if (tipo === 'passagem') conteudo.corpo = conteudo.corpo.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, '$1.$2. ');
         let referencia = null;
         if (tipo === 'passagem' && telaCfg.referenciaExata) ({ referencia, corpo: conteudo.corpo } = referenciaExata(conteudo.titulo, conteudo.corpo));
         if (typeof telaCfg.renderizar === 'function') {
             geracaoExibicao++;
-            return telaCfg.renderizar({ tipo, conteudo, corpo: conteudo.corpo, referencia, vozes: dueto ? vozes : null });
+            // estrofes: todas as estrofes da música (o Painel manda junto), para a legenda fixar o bloco na maior.
+            const estrofes = tipo === 'louvor' && Array.isArray(conteudo.estrofes) ? conteudo.estrofes.map(prepararCorpo) : null;
+            return telaCfg.renderizar({ tipo, conteudo, corpo: conteudo.corpo, referencia, vozes: dueto ? vozes : null, estrofes });
         }
 
         const alvoAtual = document.querySelector(`body>${tipo}>${elem}`);

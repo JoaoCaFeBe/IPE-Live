@@ -159,6 +159,10 @@ const htmlSlideVozes = vozes => {
 const vozesDaSelecao = (button, atributo = 'data-vozes') => {
   try { const vozes = JSON.parse(button.getAttribute(atributo)); return Trechos.ehPar(vozes) ? vozes : undefined; } catch { return undefined; }
 };
+// Todas as estrofes da música (sem as de duas vozes): a legenda fixa o bloco no tamanho da maior.
+const estrofesDaMusica = (button) =>
+  Array.from(button.closest(".btn-group-vertical").querySelectorAll("input.btn-check[corpo]:not([data-vozes])"))
+    .map((input) => encodeURI(decodeURIComponent(input.getAttribute("corpo"))));
 
 const formatarVersiculoParaExibicao = (texto) => {
   return texto.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, "$1.$2. ");
@@ -524,6 +528,7 @@ const inicio = () => {
                   corpo: encodeURI(corpoCompleto),
                   vozes: vozesDaSelecao(this),
                   vozesProjetor: vozesDaSelecao(this, "data-vozes-projetor"),
+                  estrofes: estrofesDaMusica(this),
                 },
               );
             }
@@ -554,6 +559,7 @@ const inicio = () => {
                   corpo: encodeURI(corpoCompleto),
                   vozes: vozesDaSelecao(this),
                   vozesProjetor: vozesDaSelecao(this, "data-vozes-projetor"),
+                  estrofes: estrofesDaMusica(this),
                 },
               );
             }
