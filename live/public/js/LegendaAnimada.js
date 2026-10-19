@@ -1,22 +1,23 @@
 /**
- * LegendaAnimada.js — legenda do OBS no azul-petróleo da igreja, com o símbolo à esquerda.
+ * LegendaAnimada.js — legenda do OBS no azul-petróleo da igreja.
  * Aprovada pelo João em 19/10/2026 (pranchas 3 e 4; prévia https://claude.ai/artifact/FzfzRBVrEErW9KDbwsiwku).
+ * Sem a logomarca desde 19/10/2026 (enquete do grupo, unânime): a faixa tirava a atenção da letra.
  *
- * Entrada: o quadrado do símbolo aparece com zoom, o verde cresce a partir dele (largura e altura)
- * e o texto surge. Troca: o texto sai, o verde vai do tamanho antigo para o novo, o texto entra.
- * Saída: o texto some, o verde recolhe para dentro do símbolo e o símbolo sai com zoom.
+ * Entrada: o verde abre do centro para os lados, já na altura do conteúdo, e o texto surge.
+ * Troca: o texto sai, o verde vai do tamanho antigo para o novo, o texto entra.
+ * Saída: o texto some e o verde fecha para o centro.
  * Bloco parado (sugestão da Renata, 19/10/2026): na estrofe de louvor, o bloco fica do tamanho da
  * maior estrofe da música, o nome fica fixo no topo e só a letra troca, centralizada.
  * Todo texto entra por textContent ou pelo sanitizador do Base.js.
  */
 const LegendaAnimada = (() => {
-    const DURACAO = { simbolo: 260, cresce: 340, texto: 200, textoSai: 140, recolhe: 300, simboloSai: 220, trocaSai: 110, troca: 250, trocaEntra: 160 };
+    const DURACAO = { cresce: 340, texto: 200, textoSai: 140, recolhe: 300, trocaSai: 110, troca: 250, trocaEntra: 160 };
     const SUAVE = 'cubic-bezier(.2,.7,.2,1)';
     const TAMANHO = 'cubic-bezier(.45,0,.25,1)';   // largura e altura: acelera e desacelera, sem salto no começo
     const LARGURA_MAX = 0.84;       // fração da tela que o bloco pode ocupar
     const ALTURA_VERSICULO = 0.2;   // versículo: no máximo um quinto da altura (proposta 6)
 
-    let raiz, marca, faixa, conteudo;
+    let raiz, faixa, conteudo;
     let noAr = false, ocupado = false, proximo = null, ultimo = null;
     let medidaMusica = null;        // { chave, width, height } da maior estrofe da música no ar
 
@@ -35,7 +36,6 @@ const LegendaAnimada = (() => {
 
     function iniciar() {
         raiz = document.querySelector('.legenda-ipe');
-        marca = raiz.querySelector('.legenda-marca');
         faixa = raiz.querySelector('.legenda-faixa');
         conteudo = raiz.querySelector('.legenda-conteudo');
     }
@@ -100,15 +100,15 @@ const LegendaAnimada = (() => {
         }
         conteudo.replaceChildren(...partes);
         if (partes.linhas) {
-            // Largura útil do texto: o limite da tela menos o quadrado do símbolo e o padding.
+            // Largura útil do texto: o limite da tela menos o padding.
             const estilo = getComputedStyle(conteudo);
-            const util = window.innerWidth * LARGURA_MAX - marca.offsetWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
+            const util = window.innerWidth * LARGURA_MAX - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
             conteudo.append(blocoLinhas(juntarEmPares(partes.linhas, util)));
         }
         conteudo.style.width = conteudo.style.height = '';
         conteudo.querySelectorAll('.legenda-texto').forEach(t => { t.style.fontSize = ''; });
 
-        const limite = window.innerWidth * LARGURA_MAX - marca.offsetWidth;
+        const limite = window.innerWidth * LARGURA_MAX;
         const texto = conteudo.querySelector('.legenda-texto');
         // Linha comprida demais quebra dentro do limite em vez de sair da tela; em duas vozes,
         // as duas colunas dividem a largura que sobra.
@@ -165,17 +165,13 @@ const LegendaAnimada = (() => {
         return { width, height };
     }
 
-    // offsetWidth é a largura de layout: não muda com o zoom (scale) da animação anterior.
-    const encolhido = () => ({ width: 0, height: marca.offsetWidth });
-
     async function entrar(dados) {
         raiz.classList.add('visivel');
         fixa(conteudo, { opacity: '0' });
         const alvo = montar(dados);
-        const ini = encolhido();
-        fixa(faixa, { width: `${ini.width}px`, height: `${ini.height}px` });
-        await anima(marca, [{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(1.1)', opacity: 1, offset: .75 }, { transform: 'scale(1)', opacity: 1 }], DURACAO.simbolo);
-        await anima(faixa, [{ width: `${ini.width}px`, height: `${ini.height}px` }, { width: `${alvo.width}px`, height: `${alvo.height}px` }], DURACAO.cresce, TAMANHO);
+        // O bloco é centralizado na tela: crescer a largura a partir de zero abre do centro para os lados.
+        fixa(faixa, { width: '0px', height: `${alvo.height}px` });
+        await anima(faixa, [{ width: '0px', height: `${alvo.height}px` }, { width: `${alvo.width}px`, height: `${alvo.height}px` }], DURACAO.cresce, TAMANHO);
         fixa(faixa, { width: `${alvo.width}px`, height: `${alvo.height}px` });
         await anima(conteudo, [{ opacity: 0, transform: 'translateY(.3em)' }, { opacity: 1, transform: 'none' }], DURACAO.texto);
         fixa(conteudo, { opacity: '1' });
@@ -201,12 +197,10 @@ const LegendaAnimada = (() => {
 
     async function sair() {
         const antes = faixa.getBoundingClientRect();
-        const fim = encolhido();
         await anima(conteudo, [{ opacity: 1 }, { opacity: 0 }], DURACAO.textoSai);
         fixa(conteudo, { opacity: '0' });
-        await anima(faixa, [{ width: `${antes.width}px`, height: `${antes.height}px` }, { width: `${fim.width}px`, height: `${fim.height}px` }], DURACAO.recolhe, 'cubic-bezier(.5,0,.75,0)');
-        fixa(faixa, { width: `${fim.width}px`, height: `${fim.height}px` });
-        await anima(marca, [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.1)', opacity: 1, offset: .25 }, { transform: 'scale(0)', opacity: 0 }], DURACAO.simboloSai, 'ease-in');
+        await anima(faixa, [{ width: `${antes.width}px`, height: `${antes.height}px` }, { width: '0px', height: `${antes.height}px` }], DURACAO.recolhe, 'cubic-bezier(.5,0,.75,0)');
+        fixa(faixa, { width: '0px', height: `${antes.height}px` });
         raiz.classList.remove('visivel');
         conteudo.replaceChildren();
     }

@@ -13,10 +13,11 @@ body {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
-/* Legenda do OBS (aprovada em 19/10/2026): um bloco só, centralizado embaixo, com o símbolo da
-   igreja nas cores originais num quadrado branco e o texto na faixa azul-petróleo escura. O azul-petróleo
-   não é preto, então o filtro do OBS que tira o preto não o apaga. A animação está em
-   js/LegendaAnimada.js; os tamanhos usam vw porque o OBS abre a página em 1920×1080. */
+/* Legenda do OBS (aprovada em 19/10/2026): um bloco só, centralizado embaixo, com o texto na faixa
+   azul-petróleo escura. A logomarca saiu em 19/10/2026 por votação unânime do grupo (a faixa fica mais
+   leve e não puxa a atenção da letra). O azul-petróleo não é preto, então o filtro do OBS que tira o
+   preto não o apaga. A animação está em js/LegendaAnimada.js; os tamanhos usam vw porque o OBS abre a
+   página em 1920×1080. */
 .legenda-ipe {
     --ipe-claro: #0dabaa;
     --ipe-escuro: rgba(0, 110, 118, .94);
@@ -38,33 +39,16 @@ body {
     visibility: visible;
 }
 
-.legenda-marca {
-    flex: 0 0 auto;
-    width: 5.4vw;
-    display: grid;
-    place-items: center;
-    background: #fff;
-    border-radius: var(--raio) 0 0 var(--raio);
-    position: relative;
-    z-index: 1;
-}
-
-.legenda-marca span {
-    width: 3.9vw;
-    height: 3.9vw;
-    background: url("../img/Simbolo.png") center / contain no-repeat;
-}
-
 .legenda-faixa {
     overflow: hidden;
     background: var(--ipe-escuro);
-    border-radius: 0 var(--raio) var(--raio) 0;
+    border-radius: var(--raio);
 }
 
 .legenda-conteudo {
     box-sizing: border-box;
     width: max-content;
-    padding: .75vw 1.6vw .85vw 1.2vw;
+    padding: .75vw 1.6vw .85vw;
     display: flex;
     flex-direction: column;
     justify-content: center;
