@@ -83,27 +83,17 @@ const EditorTrechos = (() => {
             });
         }
         function linhasLegenda(linhas) {
-            // Mesma regra da legenda animada do Live (LegendaAnimada.js, 19/10/2026): até 3 versos
-            // empilhados; com 4 ou mais, juntam-se em pares "verso · verso" quando o par cabe.
-            // Referência Full HD: texto a 1,95vw (37px, peso 600) e 1455px úteis
-            // (84vw menos o quadrado do símbolo e o padding). Mede texto simples, sem executar HTML.
-            if (linhas.length < 4) return linhas.map(Trechos.plano);
+            // Mesma regra da legenda do Live (Trechos.parearVersos). Referência Full HD: texto a
+            // 1,95vw (37px, peso 600) e 1455px úteis (84vw menos o quadrado do símbolo e o padding).
+            // Mede texto simples, sem executar HTML recebido da letra.
             const medidor = document.createElement('span');
             Object.assign(medidor.style, { position: 'absolute', left: '-99999px', visibility: 'hidden', whiteSpace: 'nowrap', fontFamily: getComputedStyle($root[0]).fontFamily, fontSize: '37px', fontWeight: '600' });
             // O modal ainda pode estar oculto na primeira prévia; medir no body visível.
             document.body.append(medidor);
-            const resultado = [];
             try {
-                for (let i = 0; i < linhas.length; i++) {
-                    const atual = Trechos.plano(linhas[i]);
-                    if (i + 1 < linhas.length) {
-                        medidor.textContent = atual + ' · ' + Trechos.plano(linhas[i + 1]);
-                        if (medidor.getBoundingClientRect().width <= 1455) { resultado.push(medidor.textContent); i++; continue; }
-                    }
-                    resultado.push(atual);
-                }
+                const cabe = (a, b) => { medidor.textContent = Trechos.plano(a) + ' · ' + Trechos.plano(b); return medidor.getBoundingClientRect().width <= 1455; };
+                return Trechos.parearVersos(linhas, cabe).map(g => g.map(Trechos.plano).join(' · '));
             } finally { medidor.remove(); }
-            return resultado;
         }
         function carregar() {
             const b = atual(); $root.find('.et-trecho').text(`Trecho ${indice + 1}`); $root.find('[name=etModo]').each(function () { this.checked = this.value === b.modo; });

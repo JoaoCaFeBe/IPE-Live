@@ -15,7 +15,7 @@ const LegendaAnimada = (() => {
     const ALTURA_VERSICULO = 0.2;   // versículo: no máximo um quinto da altura (proposta 6)
 
     let raiz, marca, faixa, conteudo;
-    let noAr = false, ocupado = false, proximo = null;
+    let noAr = false, ocupado = false, proximo = null, ultimo = null;
 
     const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
     const reduzir = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -64,13 +64,19 @@ const LegendaAnimada = (() => {
         return grade;
     }
 
-    // Até 3 linhas empilhadas, como se canta; com 4 ou mais, os versos se juntam em pares
-    // ("verso · verso"), desde que o par caiba (proposta 5, aprovada na prancha 3).
-    function juntarEmPares(linhas) {
-        if (linhas.length < 4) return linhas;
-        const pares = [];
-        for (let i = 0; i < linhas.length; i += 2) pares.push(linhas[i + 1] ? `${linhas[i]}<span class="legenda-sep"> · </span>${linhas[i + 1]}` : linhas[i]);
-        return pares;
+    // Até 3 linhas empilhadas; com 4 ou mais, cada verso se junta ao seguinte quando o par cabe
+    // (Trechos.parearVersos, a mesma regra da prévia do editor da Liturgia).
+    function juntarEmPares(linhas, larguraUtil) {
+        const medidor = el('div', 'legenda-texto');
+        Object.assign(medidor.style, { position: 'absolute', visibility: 'hidden', left: '-99999px' });
+        conteudo.append(medidor);
+        try {
+            const cabe = (a, b) => {
+                definirHtmlSeguro(medidor, `${a}<span class="legenda-sep"> · </span>${b}`);
+                return medidor.getBoundingClientRect().width <= larguraUtil;
+            };
+            return Trechos.parearVersos(linhas, cabe).map(g => g.join('<span class="legenda-sep"> · </span>'));
+        } finally { medidor.remove(); }
     }
 
     // Monta o conteúdo novo no lugar do antigo e devolve o tamanho natural dele.
@@ -86,11 +92,16 @@ const LegendaAnimada = (() => {
         } else if (tipo === 'passagem') {
             partes.push(el('div', 'legenda-rotulo', referencia || textoPuro(c.titulo)), blocoLinhas([corpo], 'legenda-texto legenda-versiculo'));
         } else {
-            const linhas = linhasDoCorpo(corpo);
-            partes.push(el('div', 'legenda-rotulo', nomes.join(' / ')), blocoLinhas(juntarEmPares(linhas)));
-            partes.linhas = linhas;
+            partes.push(el('div', 'legenda-rotulo', nomes.join(' / ')));
+            partes.linhas = linhasDoCorpo(corpo);
         }
         conteudo.replaceChildren(...partes);
+        if (partes.linhas) {
+            // Largura útil do texto: o limite da tela menos o quadrado do símbolo e o padding.
+            const estilo = getComputedStyle(conteudo);
+            const util = window.innerWidth * LARGURA_MAX - marca.getBoundingClientRect().width - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
+            conteudo.append(blocoLinhas(juntarEmPares(partes.linhas, util)));
+        }
         conteudo.style.width = conteudo.style.height = '';
         conteudo.querySelectorAll('.legenda-texto').forEach(t => { t.style.fontSize = ''; });
 
@@ -98,11 +109,6 @@ const LegendaAnimada = (() => {
         const texto = conteudo.querySelector('.legenda-texto');
         // Linha comprida demais quebra dentro do limite em vez de sair da tela; em duas vozes,
         // as duas colunas dividem a largura que sobra.
-        // Pares que não cabem voltam a ser uma linha por verso.
-        if (partes.linhas && partes.linhas.length >= 4 && conteudo.getBoundingClientRect().width > limite) {
-            const empilhado = blocoLinhas(partes.linhas);
-            texto.replaceWith(empilhado);
-        }
         const textoAtual = conteudo.querySelector('.legenda-texto');
         if (textoAtual && conteudo.getBoundingClientRect().width > limite) {
             const estilo = getComputedStyle(conteudo);
@@ -173,12 +179,26 @@ const LegendaAnimada = (() => {
         try {
             while (proximo) {
                 const pedido = proximo; proximo = null;
-                if (pedido.limpar) { if (noAr) { await sair(); noAr = false; } }
+                if (!pedido.limpar) ultimo = pedido;
+                if (pedido.limpar) { if (noAr) { await sair(); noAr = false; ultimo = null; } }
                 else if (!noAr) { await entrar(pedido); noAr = true; }
                 else await trocar(pedido);
             }
         } finally { ocupado = false; }
     }
+
+    // A fonte usa vw: se a janela (ou a fonte do OBS) mudar de tamanho com a legenda no ar,
+    // remonta o mesmo conteúdo e ajusta a faixa ao tamanho novo, sem animação.
+    let esperaResize = null;
+    window.addEventListener('resize', () => {
+        clearTimeout(esperaResize);
+        esperaResize = setTimeout(() => {
+            if (!noAr || !ultimo || ocupado) return;
+            const alvo = montar(ultimo);
+            fixa(faixa, { width: `${alvo.width}px`, height: `${alvo.height}px` });
+            fixa(conteudo, { opacity: '1' });
+        }, 150);
+    });
 
     return {
         renderizar(dados) { if (!raiz) iniciar(); proximo = dados; processar(); },

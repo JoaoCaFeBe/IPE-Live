@@ -166,6 +166,13 @@ const formatarVersiculoParaExibicao = (texto) => {
 // -----------------------------------------------------------------------------------------
 const inicio = () => {
   queryId("dataCulto").value = arquivo;
+  // Abrir um louvor, hino, coral ou leitura já seleciona o Título dele (pedido do João, 19/10/2026).
+  // Se o Título já estiver marcado, não reenvia.
+  $(document).on("shown.bs.collapse", ".accordion-collapse", function (e) {
+    if (e.target !== this) return;
+    const titulo = Array.from(this.querySelectorAll(".btn-group-vertical > input")).find((input) => input.nextElementSibling?.textContent.trim() === "Título");
+    if (titulo && !titulo.checked) titulo.click();
+  });
   mensagem.addEventListener("keyup", function (e) {
     if (e.key === "Enter" || e.keyCode === 13) {
       socket.emit(empresa, "Alerta", mensagem.value);

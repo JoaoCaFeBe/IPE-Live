@@ -102,3 +102,13 @@ test('pausas atravessam o limite de quatro posições sem adiantar o quadro segu
     assert.equal(partes[2].legenda.esquerda.texto, '5');
     assert.equal(partes[2].projetor.direita.texto, 'E');
 });
+
+test('parearVersos: até 3 versos empilhados; com 4 ou mais, cada par só se junta se couber', () => {
+    const cabeSempre = () => true;
+    assert.deepEqual(T.parearVersos(['a', 'b', 'c'], cabeSempre), [['a'], ['b'], ['c']]);
+    assert.deepEqual(T.parearVersos(['a', 'b', 'c', 'd'], cabeSempre), [['a', 'b'], ['c', 'd']]);
+    // Só o primeiro par não cabe: ele fica separado e os demais continuam se juntando.
+    const cabe = (x) => x !== 'longo';
+    assert.deepEqual(T.parearVersos(['longo', 'b', 'c', 'd'], cabe), [['longo'], ['b', 'c'], ['d']]);
+    assert.deepEqual(T.parearVersos(['a', 'b', 'c', 'd', 'e'], cabeSempre), [['a', 'b'], ['c', 'd'], ['e']]);
+});
