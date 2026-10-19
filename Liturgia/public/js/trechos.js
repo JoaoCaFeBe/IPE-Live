@@ -72,5 +72,17 @@
             container.append(p);
         });
     }
-    return { legado, ehDueto, ehPar, letraValida, linhas, linhasVoz, texto, plano, paraEditor, doEditor, pares, divisoes, renderizarDueto, renderizar };
+    // Legenda do OBS: até 3 versos ficam empilhados; com 4 ou mais, cada verso se junta ao seguinte
+    // quando o par cabe (cabe(a, b) mede na tela de quem chama). Devolve grupos de 1 ou 2 versos.
+    // Usada pela legenda (LegendaAnimada.js) e pela prévia do editor da Liturgia.
+    function parearVersos(linhas, cabe) {
+        if (linhas.length < 4) return linhas.map(l => [l]);
+        const grupos = [];
+        for (let i = 0; i < linhas.length; i++) {
+            if (i + 1 < linhas.length && cabe(linhas[i], linhas[i + 1])) { grupos.push([linhas[i], linhas[i + 1]]); i++; }
+            else grupos.push([linhas[i]]);
+        }
+        return grupos;
+    }
+    return { legado, ehDueto, ehPar, letraValida, linhas, linhasVoz, texto, plano, paraEditor, doEditor, pares, divisoes, renderizarDueto, renderizar, parearVersos };
 });
