@@ -8,12 +8,6 @@ body {
     color: white;
 }
 
-/* Fora do OBS (navegador comum), a cruz de fundo ajuda a ver a legenda; no OBS o fundo
-   continua transparente, sobre a câmera. A classe vem de Legendas.js. */
-body.fora-do-obs {
-    background: url("../img/Background.jpg") center / cover no-repeat, #222;
-}
-
 body {
     background: transparent;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
