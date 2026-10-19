@@ -435,9 +435,17 @@ const inicio = () => {
       });
     })
     .always(() => {
+      // Abrir um item fecha o anterior na mesma hora (acordeão e outros grupos). Esse fechamento
+      // não pode limpar a tela: o item novo acabou de mandar o Título dele. Só fechar um item
+      // sem abrir outro limpa a tela.
+      let abrindoOutroItem = false;
+      document.addEventListener("show.bs.collapse", () => {
+        abrindoOutroItem = true;
+        setTimeout(() => { abrindoOutroItem = false; }, 0);
+      }, true);
       queryAll(".accordion-item").forEach((item) => {
         item.addEventListener("hide.bs.collapse", function () {
-          enviar("fecharJanela");
+          if (!abrindoOutroItem) enviar("fecharJanela");
           // Limpa seleção e cor amarela dos itens do accordion que fechou
           this.querySelectorAll(
             'input[type="radio"], input[type="checkbox"]',
