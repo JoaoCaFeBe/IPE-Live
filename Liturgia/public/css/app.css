@@ -631,3 +631,9 @@ body.somente-consulta #bodyLiturgia li[data-tipo]::after { content: none; }
 .et-obs .et-linha { font-weight:600; }
 .et-linha { overflow-wrap:anywhere; }
 @media(max-width:767px) { .et-layout,.et-duas,.et-previas { grid-template-columns:minmax(0,1fr); } .et-lista { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.3rem; } }
+
+/* ── Aviso no canto (capa.js: mostrarToast) ───────────────────────────── */
+/* O aviso não captura clique: em telas de 1280px ele ficava por cima do Cancelar e do rodapé das
+   janelas (coral, hino, passagem) enquanto estava na tela (19/10/2026). Só o X dele segue clicável. */
+.avisos, .avisos .toast { pointer-events: none; }
+.avisos .btn-close { pointer-events: auto; }
