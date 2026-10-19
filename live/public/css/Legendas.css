@@ -97,6 +97,7 @@ body {
 /* Largura definida em LegendaAnimada.js, conforme o espaço que sobra (uma ou duas colunas). */
 .legenda-texto.quebra {
     white-space: normal;
+    text-wrap: balance;
 }
 
 .legenda-titulo {
@@ -105,9 +106,10 @@ body {
     line-height: 1.15;
 }
 
-/* Versículo: bloco mais estreito, texto quebrando (proposta 6). */
+/* Versículo: bloco mais estreito, texto quebrando (proposta 6), sem palavra sozinha no fim. */
 .legenda-versiculo {
     white-space: normal;
+    text-wrap: pretty;
     width: 54vw;
     font-size: 1.75vw;
 }

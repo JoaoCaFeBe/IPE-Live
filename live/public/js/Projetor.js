@@ -6,6 +6,27 @@
  * vem sem faixa de título, e o nome do louvor aparece sozinho no botão Título (abertura).
  */
 
+// Cada verso vira um bloco próprio, para quebrar em linhas equilibradas (text-wrap: balance) em vez
+// de deixar uma palavra sozinha embaixo. As duas últimas palavras ficam presas por espaço rígido,
+// o que já evita a palavra sozinha em navegador que não conhece o balance. Só move nós já
+// sanitizados; não cria HTML.
+function versosEmBlocos(elemento) {
+    if (!elemento || elemento.querySelector('.conteudo-vozes, .verso')) return;
+    const versos = [[]];
+    Array.from(elemento.childNodes).forEach(no => {
+        if (no.nodeName === 'BR') versos.push([]);
+        else versos[versos.length - 1].push(no);
+    });
+    elemento.replaceChildren(...versos.filter(v => v.some(n => n.textContent.trim())).map(nos => {
+        const verso = document.createElement('span');
+        verso.className = 'verso';
+        verso.append(...nos);
+        const ultimo = [...verso.childNodes].reverse().find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+        if (ultimo) ultimo.textContent = ultimo.textContent.replace(/\s+(\S+)\s*$/, '\u00a0$1');
+        return verso;
+    }));
+}
+
 function montarAbertura(tipo, conteudo, elementoAlvo) {
     if (tipo !== 'louvor' && tipo !== 'passagem') return;
     const bloco = elementoAlvo.parentElement;
@@ -14,6 +35,7 @@ function montarAbertura(tipo, conteudo, elementoAlvo) {
     bloco.classList.toggle('abertura', ehAbertura);
     abertura.replaceChildren();
     if (!ehAbertura) {
+        versosEmBlocos(elementoAlvo);
         // Louvor e versículo cabem na tela; o versículo curto cresce e o longo diminui (proposta 4).
         ajustarAltura(elementoAlvo, tipo === 'louvor' ? 0.92 : 0.86, tipo === 'louvor' ? 0.5 : 0.35);
         return;

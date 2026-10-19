@@ -215,3 +215,14 @@ body.projetor .abertura-separador {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+/* Verso que não cabe numa linha quebra em linhas equilibradas, sem deixar uma palavra sozinha
+   embaixo (João, 19/10/2026). Projetor.js põe cada verso num .verso. */
+body.projetor .verso {
+    display: block;
+    text-wrap: balance;
+}
+
+body.projetor>passagem>corpo {
+    text-wrap: pretty;
+}
