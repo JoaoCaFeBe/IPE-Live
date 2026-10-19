@@ -99,13 +99,13 @@ const LegendaAnimada = (() => {
         if (partes.linhas) {
             // Largura útil do texto: o limite da tela menos o quadrado do símbolo e o padding.
             const estilo = getComputedStyle(conteudo);
-            const util = window.innerWidth * LARGURA_MAX - marca.getBoundingClientRect().width - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
+            const util = window.innerWidth * LARGURA_MAX - marca.offsetWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
             conteudo.append(blocoLinhas(juntarEmPares(partes.linhas, util)));
         }
         conteudo.style.width = conteudo.style.height = '';
         conteudo.querySelectorAll('.legenda-texto').forEach(t => { t.style.fontSize = ''; });
 
-        const limite = window.innerWidth * LARGURA_MAX - marca.getBoundingClientRect().width;
+        const limite = window.innerWidth * LARGURA_MAX - marca.offsetWidth;
         const texto = conteudo.querySelector('.legenda-texto');
         // Linha comprida demais quebra dentro do limite em vez de sair da tela; em duas vozes,
         // as duas colunas dividem a largura que sobra.
@@ -134,7 +134,8 @@ const LegendaAnimada = (() => {
         return { width, height };
     }
 
-    const encolhido = () => ({ width: 0, height: marca.getBoundingClientRect().width });
+    // offsetWidth é a largura de layout: não muda com o zoom (scale) da animação anterior.
+    const encolhido = () => ({ width: 0, height: marca.offsetWidth });
 
     async function entrar(dados) {
         raiz.classList.add('visivel');

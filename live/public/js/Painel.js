@@ -167,11 +167,14 @@ const formatarVersiculoParaExibicao = (texto) => {
 const inicio = () => {
   queryId("dataCulto").value = arquivo;
   // Abrir um louvor, hino, coral ou leitura já seleciona o Título dele (pedido do João, 19/10/2026).
-  // Se o Título já estiver marcado, não reenvia.
-  $(document).on("shown.bs.collapse", ".accordion-collapse", function (e) {
+  // Acontece no começo da abertura, e só se nada do item estiver marcado: um clique do operador
+  // (ou o Título já no ar) nunca é substituído.
+  $(document).on("show.bs.collapse", ".accordion-collapse", function (e) {
     if (e.target !== this) return;
-    const titulo = Array.from(this.querySelectorAll(".btn-group-vertical > input")).find((input) => input.nextElementSibling?.textContent.trim() === "Título");
-    if (titulo && !titulo.checked) titulo.click();
+    const opcoes = Array.from(this.querySelectorAll(".btn-group-vertical > input"));
+    if (opcoes.some((input) => input.checked)) return;
+    const titulo = opcoes.find((input) => input.nextElementSibling?.textContent.trim() === "Título");
+    if (titulo) titulo.click();
   });
   mensagem.addEventListener("keyup", function (e) {
     if (e.key === "Enter" || e.keyCode === 13) {

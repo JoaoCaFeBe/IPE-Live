@@ -41,6 +41,21 @@ function montarAbertura(tipo, conteudo, elementoAlvo) {
     ajustarAltura(abertura, 0.85, 0.4);
 }
 
+// Letra ajustada em px (ajustarAltura) não acompanha a janela: ao redimensionar, reajusta o
+// conteúdo que está no ar, para não ficar pequeno demais nem cortar.
+let esperaResize = null;
+window.addEventListener('resize', () => {
+    clearTimeout(esperaResize);
+    esperaResize = setTimeout(() => {
+        ['louvor', 'passagem'].forEach(tipo => {
+            const bloco = document.querySelector(`body>${tipo}`);
+            if (!bloco || getComputedStyle(bloco).display === 'none') return;
+            if (bloco.classList.contains('abertura')) ajustarAltura(bloco.querySelector('abertura'), 0.85, 0.4);
+            else ajustarAltura(bloco.querySelector('corpo'), tipo === 'louvor' ? 0.92 : 0.86, tipo === 'louvor' ? 0.5 : 0.35);
+        });
+    }, 150);
+});
+
 inicializarTela({
     elementoConteudo: 'corpo',
     temAlerta: false,
