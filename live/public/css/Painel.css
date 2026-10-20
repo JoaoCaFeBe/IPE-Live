@@ -194,6 +194,12 @@ input::-webkit-inner-spin-button {
 
 /* Janela da Bíblia: versículo pedido pelo seletor (?ir=), ainda não projetado */
 label.proximo { outline: 3px dashed #ffc107; outline-offset: -3px; }
+/* Painel: Título do item recém-aberto, pronto e ainda fora da tela (o botão já é amarelo). */
+.btn-group-vertical > label.btn-warning.proximo { outline: 2px dashed #000; outline-offset: -5px; }
+.btn-group-vertical > label.btn-warning.proximo::after {
+  content: "Clique para mostrar"; position: absolute; right: .75rem; top: 50%; transform: translateY(-50%);
+  font-size: .75rem; font-weight: 600; opacity: .7;
+}
 
 /* Um botão seleciona o par inteiro; cada coluna mantém seus versos legíveis. */
 .btn-group-vertical > label.painel-dueto { padding-top:2rem !important; padding-right:.75rem !important; }

@@ -170,15 +170,19 @@ const formatarVersiculoParaExibicao = (texto) => {
 // -----------------------------------------------------------------------------------------
 const inicio = () => {
   queryId("dataCulto").value = arquivo;
-  // Abrir um louvor, hino, coral ou leitura já seleciona o Título dele (pedido do João, 19/10/2026).
-  // Acontece no começo da abertura, e só se nada do item estiver marcado: um clique do operador
-  // (ou o Título já no ar) nunca é substituído.
+  // Abrir um louvor, hino, coral ou leitura deixa o Título dele pronto, sem projetar: abrir só para
+  // ver a letra não pode mostrar nada na tela (Victor Hugo, 19/10/2026). O clique no Título projeta.
   $(document).on("show.bs.collapse", ".accordion-collapse", function (e) {
     if (e.target !== this) return;
     const opcoes = Array.from(this.querySelectorAll(".btn-group-vertical > input"));
     if (opcoes.some((input) => input.checked)) return;
     const titulo = opcoes.find((input) => input.nextElementSibling?.textContent.trim() === "Título");
-    if (titulo) titulo.click();
+    if (!titulo) return;
+    titulo.nextElementSibling.classList.add("proximo");
+    opcoes.forEach((input) => input.addEventListener("change", () => titulo.nextElementSibling.classList.remove("proximo"), { once: true }));
+  });
+  $(document).on("hide.bs.collapse", ".accordion-collapse", function (e) {
+    if (e.target === this) this.querySelectorAll("label.proximo").forEach((label) => label.classList.remove("proximo"));
   });
   mensagem.addEventListener("keyup", function (e) {
     if (e.key === "Enter" || e.keyCode === 13) {
@@ -440,8 +444,8 @@ const inicio = () => {
     })
     .always(() => {
       // Abrir um item fecha o anterior na mesma hora (acordeão e outros grupos). Esse fechamento
-      // não pode limpar a tela: o item novo acabou de mandar o Título dele. Só fechar um item
-      // sem abrir outro limpa a tela.
+      // não mexe na tela: o item pode ter sido aberto só para ver a letra. Só fechar, sem abrir
+      // outro, o item que está na tela limpa a tela; fechar um item só consultado não limpa.
       let abrindoOutroItem = false;
       document.addEventListener("show.bs.collapse", () => {
         abrindoOutroItem = true;
@@ -449,7 +453,8 @@ const inicio = () => {
       }, true);
       queryAll(".accordion-item").forEach((item) => {
         item.addEventListener("hide.bs.collapse", function () {
-          if (!abrindoOutroItem) enviar("fecharJanela");
+          const temNaTela = Boolean(this.querySelector(".btn-group-vertical > input:checked"));
+          if (!abrindoOutroItem && temNaTela) enviar("fecharJanela");
           // Limpa seleção e cor amarela dos itens do accordion que fechou
           this.querySelectorAll(
             'input[type="radio"], input[type="checkbox"]',
