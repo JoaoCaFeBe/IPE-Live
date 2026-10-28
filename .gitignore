@@ -45,3 +45,5 @@ favicon.ico
 /.codex
 /.agents
 /.claude
+/acesso.json
+/.acesso-migracao-*/
