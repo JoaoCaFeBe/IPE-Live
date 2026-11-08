@@ -9,7 +9,7 @@
     "package:windows": "node scripts/gerar-pacote-windows.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.2",
+    "better-sqlite3": "^12.11.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "ejs": "^3.1.10",
