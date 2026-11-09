@@ -1,1 +1,1 @@
-/Users/joaocfb/Desenvolvimento/IA.Global/shared/projects/IPE.Live/governanca/AGENTS.md
+/Users/joaocfb/IA.Global/shared/projects/IPE.Live/governanca/AGENTS.md
