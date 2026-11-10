@@ -1,1 +1,0 @@
-/Users/joaocfb/IA.Global/shared/projects/IPE.Live/governanca/CLAUDE.md
