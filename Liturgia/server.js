@@ -621,7 +621,14 @@ app.get("/Cultos/:arquivo", (req, res) => {
 function hojeNaIgreja() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Recife" }).format(new Date());
 }
-const ehPassada = (dataCulto) => String(dataCulto) < hojeNaIgreja();
+/* ── Eventos (retiro, conferência…) — decisão do João, 21/11/2026 ─────────
+ * A chave de uma liturgia é a data ("AAAA-MM-DD": o culto da igreja, sempre o padrão)
+ * ou a data com o evento ("AAAA-MM-DD@retiro-de-casais"). Evento tem liturgia e
+ * projeção próprias: o Live abre com ?evento=slug e usa um canal separado. */
+const RE_CHAVE = /^\d{4}-\d{2}-\d{2}(?:@[a-z0-9]+(?:-[a-z0-9]+)*)?$/;
+const chaveValida = (chave) => String(chave).length <= 60 && RE_CHAVE.test(String(chave));
+const dataDaChave = (chave) => String(chave).slice(0, 10);
+const ehPassada = (dataCulto) => dataDaChave(dataCulto) < hojeNaIgreja();
 const MSG_SO_CONSULTA = "Liturgia de dia passado é só para consulta. Use Duplicar para levá-la a outra data.";
 
 app.get("/dados/hoje", (_req, res) => res.json({ hoje: hojeNaIgreja() }));
@@ -634,6 +641,7 @@ app.post("/dados/nova-liturgia", (req, res) => {
   if (!arquivo) return res.status(400).send("Arquivo inválido");
 
   const dataCulto = arquivo.replace(".json", "");
+  if (!chaveValida(dataCulto)) return res.status(400).json({ error: "Data ou evento inválido." });
   if (ehPassada(dataCulto)) return res.status(403).json({ error: "Não é possível criar liturgia em dia passado." });
   try {
     const db = new Database(CULTOS_DB_PATH);
@@ -736,8 +744,7 @@ app.post("/dados/salvar-liturgia", (req, res) => {
 app.post("/dados/duplicar-liturgia", (req, res) => {
   const origem = String(req.body.origem || "").replace(".json", "");
   const destino = String(req.body.destino || "").replace(".json", "");
-  const valida = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
-  if (!valida(origem) || !valida(destino)) return res.status(400).json({ error: "Datas inválidas" });
+  if (!chaveValida(origem) || !chaveValida(destino)) return res.status(400).json({ error: "Datas inválidas" });
   if (origem === destino) return res.status(400).json({ error: "Escolha uma data diferente da original." });
   if (ehPassada(destino)) return res.status(403).json({ error: "O destino precisa ser hoje ou uma data futura." });
   try {
@@ -783,7 +790,7 @@ app.post("/dados/renomear-liturgia", (req, res) => {
   const novo = path
     .basename((req.body.novo || "").replace(/^cultos\//, ""))
     .replace(".json", "");
-  if (!antigo || !novo)
+  if (!chaveValida(antigo) || !chaveValida(novo))
     return res.status(400).json({ error: "Dados inválidos" });
   if (ehPassada(antigo)) return res.status(403).json({ error: MSG_SO_CONSULTA });
   if (ehPassada(novo)) return res.status(403).json({ error: "Não é possível mover a liturgia para um dia passado." });

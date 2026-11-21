@@ -41,14 +41,10 @@ function inicio() {
             const $ul = $('#listaLiturgias');
             $ul.empty();
             arquivos.forEach(value => {
-                // value = "2026-01-04.json"
-                const dataStr = value.replace('.json', ''); // "2026-01-04"
-                const data = new Date(dataStr + 'T00:00:00.000').toLocaleDateString('pt-BR');
+                // value = "2026-01-04.json" (culto da igreja) ou "2026-01-04@retiro.json" (evento)
                 $ul.append(
                     `<li arquivo="${value}"
-              onclick="marcaLI(this); abreLiturgia('${value}');">
-            <i class='fas fa-folder'></i>&nbsp;${data}
-          </li>`
+              onclick="marcaLI(this); abreLiturgia('${value}');">${rotuloLiturgia(value)}</li>`
                 );
             });
         })
@@ -83,13 +79,60 @@ function baixarInstaladorLive() {
 
 const dataBR = d => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
 
+/* ── EVENTOS ────────────────────────────────────────────────────────────────
+ * Evento (retiro, conferência…) tem liturgia e projeção separadas do culto da igreja,
+ * que continua o padrão. A chave é a data com o evento: "2026-11-22@retiro-de-casais".
+ * No Live, o Painel e as telas do evento abrem com ?evento=retiro-de-casais. */
+const RE_ARQUIVO = /^\d{4}-\d{2}-\d{2}(?:@[a-z0-9]+(?:-[a-z0-9]+)*)?\.json$/;
+const chaveDoArquivo = arquivo => String(arquivo).replace('.json', '');
+const eventoDoArquivo = arquivo => chaveDoArquivo(arquivo).split('@')[1] || '';
+/** "Retiro de Casais" → "retiro-de-casais" (sem acento, só letras, números e hífen) */
+const slugEvento = nome => String(nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
+const nomeEvento = slug => slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)).replace(/-/g, ' ') : '';
+const arquivoDe = (data, evento) => `${data}${evento ? '@' + evento : ''}.json`;
+/** Rótulo da lista: data e, se for evento, o selo com o nome dele (o slug só tem [a-z0-9-]) */
+const rotuloLiturgia = arquivo => {
+    const evento = eventoDoArquivo(arquivo);
+    return `<i class='fas fa-folder'></i>&nbsp;${dataBR(dataDoArquivo(arquivo))}` +
+        (evento ? ` <span class="selo-evento" title="Evento: liturgia e projeção separadas do culto da igreja">${nomeEvento(evento)}</span>` : '');
+};
+
+/** Pede data e evento (opcional) num só diálogo; cb({ data, evento }) com o evento já em slug */
+function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
+    const min = HOJE || hojeLocal();
+    const $form = $(`<form class="form-data-evento" autocomplete="off">
+        ${mensagem ? `<p class="mb-3">${mensagem}</p>` : ''}
+        <label class="form-label" for="campoData">Data</label>
+        <input type="date" class="form-control" id="campoData" name="data" required min="${min}" value="${data || min}">
+        <label class="form-label mt-3" for="campoEvento">Evento <span class="text-muted small">(opcional)</span></label>
+        <input type="text" class="form-control" id="campoEvento" name="evento" maxlength="40"
+            placeholder="Em branco = culto da igreja" value="${nomeEvento(evento)}">
+        <div class="form-text">Retiro, conferência… O evento tem liturgia e projeção separadas do culto.</div>
+    </form>`);
+    const confirmar = () => {
+        const d = $form.find('[name=data]').val();
+        if (!d || d < min) { $form.find('[name=data]')[0].reportValidity(); return false; }
+        cb({ data: d, evento: slugEvento($form.find('[name=evento]').val()) });
+    };
+    const dialogo = bootbox.dialog({
+        title: titulo,
+        message: $form,
+        centerVertical: true,
+        buttons: {
+            cancel: { label: 'Cancelar', className: 'btn-secondary' },
+            ok: { label: 'OK', className: 'btn-primary', callback: confirmar },
+        },
+    });
+    $form.on('submit', e => { e.preventDefault(); if (confirmar() !== false) dialogo.modal('hide'); });
+}
+
 /** Item da lista de liturgias, na posição da data (lista é da mais nova para a mais antiga) */
 function garantirNaLista(arquivo) {
     const $ul = $('#listaLiturgias');
     let $li = $ul.find(`li[arquivo="${arquivo}"]`);
     if ($li.length) return $li;
-    $li = $(`<li arquivo="${arquivo}" onclick="marcaLI(this); abreLiturgia('${arquivo}');">
-            <i class='fas fa-folder'></i>&nbsp;${dataBR(dataDoArquivo(arquivo))}</li>`);
+    $li = $(`<li arquivo="${arquivo}" onclick="marcaLI(this); abreLiturgia('${arquivo}');">${rotuloLiturgia(arquivo)}</li>`);
     const depois = $ul.find('li').filter(function () { return $(this).attr('arquivo') < arquivo; }).first();
     if (depois.length) $li.insertBefore(depois); else $ul.append($li);
     return $li;
@@ -97,57 +140,35 @@ function garantirNaLista(arquivo) {
 
 function duplicarLiturgia() {
     if (!documento) return;
-    const origem = dataDoArquivo(documento);
-    bootbox.prompt({
-        title: `Duplicar a liturgia de ${dataBR(origem)} para:`,
-        inputType: 'date',
-        value: HOJE || hojeLocal(),
-        min: HOJE || hojeLocal(),
-        centerVertical: true,
-        message: 'Se a data já tiver liturgia, os itens são acrescentados — o que já estiver lá não é repetido.',
-        callback: destino => {
-            if (!destino) return;
-            $.post('/dados/duplicar-liturgia', { origem, destino })
-                .done(r => {
-                    const partes = [`${r.acrescentados} ${r.acrescentados === 1 ? 'item copiado' : 'itens copiados'}`];
-                    if (r.repetidos) partes.push(`${r.repetidos} já ${r.repetidos === 1 ? 'estava' : 'estavam'} lá`);
-                    mostrarToast(`<i class="fas fa-copy"></i>&nbsp;${dataBR(destino)}: ${partes.join(', ')}`, 'success');
-                    garantirNaLista(r.arquivo).trigger('click')[0]?.scrollIntoView({ block: 'nearest' });
-                })
-                .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao duplicar a liturgia.'));
-        }
+    const origem = chaveDoArquivo(documento);
+    const eventoOrigem = eventoDoArquivo(documento);
+    pedirDataEvento({
+        titulo: `Duplicar a liturgia de ${dataBR(dataDoArquivo(documento))}${eventoOrigem ? ` (${nomeEvento(eventoOrigem)})` : ''} para:`,
+        evento: eventoOrigem,
+        mensagem: 'Se a data já tiver liturgia, os itens são acrescentados — o que já estiver lá não é repetido.',
+    }, ({ data, evento }) => {
+        const destino = chaveDoArquivo(arquivoDe(data, evento));
+        $.post('/dados/duplicar-liturgia', { origem, destino })
+            .done(r => {
+                const partes = [`${r.acrescentados} ${r.acrescentados === 1 ? 'item copiado' : 'itens copiados'}`];
+                if (r.repetidos) partes.push(`${r.repetidos} já ${r.repetidos === 1 ? 'estava' : 'estavam'} lá`);
+                mostrarToast(`<i class="fas fa-copy"></i>&nbsp;${dataBR(data)}${evento ? ` (${nomeEvento(evento)})` : ''}: ${partes.join(', ')}`, 'success');
+                garantirNaLista(r.arquivo).trigger('click')[0]?.scrollIntoView({ block: 'nearest' });
+            })
+            .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao duplicar a liturgia.'));
     });
 }
 
 /* ── NOVA LITURGIA ──────────────────────────────────────────────────────── */
 
 function novaLiturgia() {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = ('0' + (today.getMonth() + 1)).slice(-2);
-    const dd = ('0' + today.getDate()).slice(-2);
-
-    bootbox.prompt({
-        title: 'Selecione a data',
-        inputType: 'date',
-        min: HOJE || hojeLocal(),
-        value: `${yyyy}-${mm}-${dd}`,
-        callback: result => {
-            if (!result) return;
-            const arquivo = result + '.json'; // "2026-03-01.json"
-            $.post('/dados/nova-liturgia', { arquivo })
-                .done(() => {
-                    const data = new Date(result + 'T00:00:00.000').toLocaleDateString('pt-BR');
-                    $('#listaLiturgias').prepend(
-                        `<li arquivo="${arquivo}"
-                onclick="marcaLI(this); abreLiturgia('${arquivo}');">
-              <i class='fas fa-folder'></i>&nbsp;${data}
-            </li>`
-                    );
-                    $('#listaLiturgias>li:first').click();
-                })
-                .fail(() => bootbox.alert('Erro ao criar a liturgia. Tente novamente.'));
-        }
+    pedirDataEvento({ titulo: 'Nova liturgia' }, ({ data, evento }) => {
+        const arquivo = arquivoDe(data, evento); // "2026-03-01.json" ou "2026-03-01@retiro.json"
+        $.post('/dados/nova-liturgia', { arquivo })
+            .done(() => {
+                garantirNaLista(arquivo).trigger('click')[0]?.scrollIntoView({ block: 'nearest' });
+            })
+            .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao criar a liturgia. Tente novamente.'));
     });
 }
 
@@ -168,7 +189,8 @@ function renomearLiturgia(el) {
         mostrarToast('<i class="fas fa-lock"></i>&nbsp;Dia passado: só consulta. Use Duplicar.', 'secondary');
         return;
     }
-    const dataAtual = arquivoAtual.replace('.json', '');
+    const dataAtual = dataDoArquivo(arquivoAtual);
+    const evento = eventoDoArquivo(arquivoAtual); // trocar a data mantém o evento
     bootbox.prompt({
         title: 'Alterar data da liturgia',
         inputType: 'date',
@@ -177,13 +199,12 @@ function renomearLiturgia(el) {
         centerVertical: true,
         callback: result => {
             if (!result || result === dataAtual) return;
-            const arquivoNovo = result + '.json';
+            const arquivoNovo = arquivoDe(result, evento);
             $.post('/dados/renomear-liturgia', { antigo: arquivoAtual, novo: arquivoNovo })
                 .done(() => {
-                    const data = new Date(result + 'T00:00:00.000').toLocaleDateString('pt-BR');
                     $(el).attr('arquivo', arquivoNovo)
                         .attr('onclick', `marcaLI(this); abreLiturgia('${arquivoNovo}');`)
-                        .html(`<i class='fas fa-folder'></i>&nbsp;${data}`);
+                        .html(rotuloLiturgia(arquivoNovo));
                     if (documento === arquivoAtual) documento = arquivoNovo;
                     mostrarToast('<i class="fas fa-calendar-check"></i>&nbsp;Data alterada!', 'info');
                 })
@@ -207,7 +228,8 @@ function hojeLocal() {
     return new Date(Date.now() - tz).toISOString().split('T')[0];
 }
 
-const dataDoArquivo = arquivo => String(arquivo).replace('.json', '');
+/** "2026-11-22@retiro.json" → "2026-11-22" */
+const dataDoArquivo = arquivo => String(arquivo).replace('.json', '').slice(0, 10);
 const ehDiaPassado = arquivo => dataDoArquivo(arquivo) < (HOJE || hojeLocal());
 
 // Passado o dia, a liturgia não se edita: some o incluir, o arrastar e os botões

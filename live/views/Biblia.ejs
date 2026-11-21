@@ -113,6 +113,7 @@
             const versao = document.body.dataset.biblia;
             let url = `Biblia?nomeLivro=${encodeURIComponent(nomeLvr)}&livro=${livro_id}&capitulo=${cap}&biblia=${versao}`;
             if (sel) url += `&sel=${sel}`;
+            if (EVENTO) url += `&evento=${EVENTO}`; // continua no canal do evento
             window.location.href = url;
         };
     </script>

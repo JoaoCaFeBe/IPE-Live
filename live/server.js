@@ -70,6 +70,22 @@ app.use(
 );
 
 // ==========================================
+// EVENTOS (decisão do João, 21/11/2026)
+// ==========================================
+// Retiro, conferência… com liturgia e projeção próprias, ao mesmo tempo que o culto.
+// Painel e telas do evento abrem com `?evento=retiro-de-casais`: a liturgia vem de
+// "AAAA-MM-DD@retiro-de-casais" e o Socket usa o canal "<SOCKET_NAMESPACE>@retiro-de-casais",
+// então um Painel não mexe nas telas do outro. Sem `?evento`, tudo como sempre: o culto da igreja.
+const RE_EVENTO = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const eventoDaQuery = (q) => (typeof q === "string" && q.length <= 40 && RE_EVENTO.test(q) ? q : "");
+app.use((req, res, next) => {
+  const evento = eventoDaQuery(req.query.evento);
+  res.locals.EVENTO = evento;
+  res.locals.SOCKET_CANAL = evento ? `${app.locals.SOCKET_NAMESPACE}@${evento}` : app.locals.SOCKET_NAMESPACE;
+  next();
+});
+
+// ==========================================
 // FUNÇÕES HELPERS DO ANTIGO `dados.php`
 // ==========================================
 const getBibliaDb = (req) => {
@@ -115,7 +131,8 @@ app.get("/api/cultos/:arquivo", (req, res) => {
 app.get("/api/cultos", async (_req, res) => {
   const cultosDir = process.env.CULTOS_DIR;
   const fallbackUrl = process.env.CULTOS_URL || "/Liturgia/cultos";
-  const ehCulto = (f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(String(f));
+  // Culto da igreja ("AAAA-MM-DD.json") e de evento ("AAAA-MM-DD@slug.json"); o Painel filtra o seu.
+  const ehCulto = (f) => /^\d{4}-\d{2}-\d{2}(?:@[a-z0-9]+(?:-[a-z0-9]+)*)?\.json$/.test(String(f));
   const locais = cultosDir && fs.existsSync(cultosDir) ? fs.readdirSync(cultosDir).filter(ehCulto) : [];
   if (!locais.length) return res.redirect(fallbackUrl);
   // Mesma fonte da leitura de cada culto: o local primeiro, e a Liturgia remota para o resto.

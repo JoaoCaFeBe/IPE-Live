@@ -24,8 +24,11 @@
 
     <script>
         // Variáveis exportadas pelo motor Padrão em app.locals
+        // `empresa` é o canal do Socket: "IPE.Transmissão" no culto da igreja e
+        // "IPE.Transmissão@<evento>" quando a página abre com ?evento=<evento> (server.js).
         var servidor = "<%- SOCKET_SERVER %>",
-            empresa  = "<%- SOCKET_NAMESPACE %>",
+            empresa  = "<%- SOCKET_CANAL %>",
+            EVENTO   = "<%- EVENTO %>",
             cultosUrl= "<%- CULTOS_URL %>";
 
         // Token Socket.IO (SEC-001). Em ambientes sem .env configurado, fica string vazia

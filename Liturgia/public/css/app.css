@@ -151,6 +151,22 @@ td>i::after {
     white-space: nowrap !important;
 }
 
+/* Selo do evento na lista de datas (retiro, conferência…): liturgia e projeção separadas do
+   culto da igreja. Magenta, fora das cores de tipo de item e do amarelo "na tela". */
+.selo-evento {
+    display: block;
+    margin: .1rem auto 0;
+    padding: 0 .4rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: .75em;
+    font-weight: 600;
+    border-radius: .25rem;
+    background-color: #9d1d6b;
+    color: #fff;
+}
+
 .ulMenu>li:hover:not(.bg-warning) {
     backdrop-filter: brightness(1.3);
     text-shadow: 0 0 1px black;

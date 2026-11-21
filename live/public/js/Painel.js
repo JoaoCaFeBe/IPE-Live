@@ -37,7 +37,11 @@ var query = document.querySelector.bind(document),
   dataEscolhida = new URLSearchParams(location.search).get("data"),
   arquivo = /^\d{4}-\d{2}-\d{2}$/.test(dataEscolhida || "")
     ? dataEscolhida
-    : new Date(Date.now() - tzoffset).toISOString().split("T")[0];
+    : new Date(Date.now() - tzoffset).toISOString().split("T")[0],
+  // Evento (?evento=slug, validado no servidor em EVENTO): liturgia "AAAA-MM-DD@slug" e canal próprio.
+  // Sem evento, a liturgia é a da data: o culto da igreja.
+  chaveLiturgia = (data) => (EVENTO ? `${data}@${EVENTO}` : data),
+  nomeDoEvento = EVENTO ? (EVENTO.charAt(0).toUpperCase() + EVENTO.slice(1)).replace(/-/g, " ") : "";
 
 const trocarData = (data) => {
   const params = new URLSearchParams(location.search);
@@ -190,7 +194,19 @@ const inicio = () => {
     }
   });
 
-  $.getJSON(`${cultosUrl}/${arquivo}.json?vozes=1`)
+  if (EVENTO) {
+    // Faixa fixa: quem opera precisa saber que este Painel só mexe nas telas do evento.
+    document.title = `Painel — ${nomeDoEvento}`;
+    const faixa = document.createElement("div");
+    faixa.className = "faixa-evento";
+    faixa.setAttribute("role", "status");
+    faixa.innerHTML = `<i class="fa-solid fa-people-roof" aria-hidden="true"></i> <span></span>`;
+    faixa.querySelector("span").textContent = `Evento: ${nomeDoEvento} — telas separadas do culto da igreja`;
+    faixa.title = `Projetor e TV deste evento abrem com ?evento=${EVENTO} no endereço`;
+    document.querySelector(".sticky-top").prepend(faixa);
+  }
+
+  $.getJSON(`${cultosUrl}/${encodeURIComponent(chaveLiturgia(arquivo))}.json?vozes=1`)
     .done((definicoes) => {
       let hino = 0,
         louvor = 0,
@@ -423,7 +439,7 @@ const inicio = () => {
         .format(new Date(`${arquivo}T12:00:00Z`)).replace("-feira", "");
       const $vazio = $(`<div class="estado-vazio" role="status">
                 <i class="fa-regular fa-calendar fa-2x estado-icone" aria-hidden="true"></i>
-                <div class="estado-titulo">Não há liturgia para ${diaSemana}, ${dataBR(arquivo)}</div>
+                <div class="estado-titulo">Não há liturgia ${EVENTO ? `do evento ${escAttr(nomeDoEvento)} ` : ""}para ${diaSemana}, ${dataBR(arquivo)}</div>
                 <div class="estado-texto estado-proximo d-none"></div>
                 <button type="button" class="btn btn-light estado-acao d-none"></button>
                 <div class="estado-texto estado-dica">Ou escolha outra data no campo acima.</div>
@@ -432,7 +448,10 @@ const inicio = () => {
       $.getJSON(cultosUrl).done((lista) => {
         const proximo = (Array.isArray(lista) ? lista : [])
           .map((f) => String(f).replace(".json", ""))
-          .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d > arquivo)
+          // Só liturgias do mesmo contexto: o culto da igreja não oferece evento, e vice-versa
+          .filter((k) => /^\d{4}-\d{2}-\d{2}(@|$)/.test(k) && k === chaveLiturgia(k.slice(0, 10)))
+          .map((k) => k.slice(0, 10))
+          .filter((d) => d > arquivo)
           .sort()[0];
         if (!proximo) return;
         const diaProximo = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: "UTC" })
@@ -579,6 +598,7 @@ const inicio = () => {
 const urlBiblia = (livro_id, capitulo, versao, nomeLivro, ir) => {
   const q = new URLSearchParams({ nomeLivro, livro: livro_id, capitulo, biblia: versao });
   if (ir) q.set("ir", ir);
+  if (EVENTO) q.set("evento", EVENTO); // a janela da Bíblia projeta no canal do evento
   return `Biblia?${q}`;
 };
 
