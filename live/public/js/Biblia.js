@@ -16,27 +16,6 @@ socket.onAny((aplicativo, eventName, args) => {
         || (args && typeof args === 'object' && 'corpo' in args);
     if (mudaATela) queryAll('input[type="radio"]:checked').forEach((input) => { input.checked = false; });
 });
-// Leitura recente do canal (evento ou culto), lida pelo seletor do Painel (mesma origem).
-// Só registra o que foi projetado por esta janela; falha de armazenamento nunca atrapalha a projeção.
-const registrarRecente = (radio) => {
-    try {
-        const d = document.body.dataset;
-        const ver = parseInt((radio.nextElementSibling.textContent || '').trim());
-        if (!ver) return;
-        const canal = new URLSearchParams(window.location.search).get('evento') || 'culto';
-        const chave = 'bibliaSeletor.recentes.' + canal;
-        const agora = new Date();
-        const hora = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
-        const data = new Date(agora.getTime() - agora.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-        const item = { livro: parseInt(d.livro), nome: d.nomeLivro, cap: parseInt(d.capitulo), ver, versao: d.biblia, hora, data };
-        let lista = [];
-        try { lista = JSON.parse(localStorage.getItem(chave) || '[]'); } catch (_) { lista = []; }
-        if (!Array.isArray(lista)) lista = [];
-        lista = [item, ...lista.filter(r => !(r.livro === item.livro && r.cap === item.cap && r.ver === item.ver && r.versao === item.versao))].slice(0, 10);
-        localStorage.setItem(chave, JSON.stringify(lista));
-    } catch (_) { /* sem armazenamento: segue sem registrar */ }
-};
-
 const inicio = () => {
     const botoes = queryAll('input[type="radio"]');
     botoes.forEach((button) => {
@@ -45,7 +24,6 @@ const inicio = () => {
             pendentes.push(`passagem|${JSON.stringify(payload)}`);
             if (pendentes.length > 50) pendentes.shift();
             socket.emit(empresa, 'passagem', payload);
-            registrarRecente(this);
         });
     });
 

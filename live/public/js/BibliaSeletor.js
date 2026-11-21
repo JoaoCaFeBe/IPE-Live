@@ -51,12 +51,24 @@ function bsLimparVersoesAntigas() {
         Object.keys(localStorage).forEach(k => {
             const m = k.match(/^bibliaSeletor\.versao\.(\d{4}-\d{2}-\d{2})@/);
             if (m && m[1] < hoje && m[1] !== bsData()) localStorage.removeItem(k);
+            if (/^bibliaSeletor\.recentes\./.test(k)) localStorage.removeItem(k); // formato antigo (por versículo)
         });
     } catch (_) { /* sem armazenamento: nada a limpar */ }
 }
 
+/** Marca o capítulo aberto (o que se abriu, não cada versículo); o que já está marcado não se repete. Máx. 10 */
+function bsMarcar(livro, capitulo, versao) {
+    try {
+        const lista = bsRecentes();
+        if (lista.some(r => r.livro === livro.id && r.cap === capitulo)) return;
+        const agora = new Date();
+        const hora = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+        bsLembrar('marcadores.' + bsCanal(), JSON.stringify([{ livro: livro.id, nome: livro.name, cap: capitulo, versao, hora, data: bsHoje() }, ...lista].slice(0, 10)));
+    } catch (_) { /* sem armazenamento: abre sem marcar */ }
+}
+
 function bsRecentes() {
-    try { const l = JSON.parse(bsLembrar('recentes.' + bsCanal()) || '[]'); return Array.isArray(l) ? l : []; }
+    try { const l = JSON.parse(bsLembrar('marcadores.' + bsCanal()) || '[]'); return Array.isArray(l) ? l : []; }
     catch (_) { return []; }
 }
 
@@ -115,14 +127,15 @@ function bsQuando(r) {
 
 function bsDesenharRecentes() {
     const lista = bsRecentes().slice(0, 10);
-    $('#bsRecentes').toggle(lista.length > 0);
+    // O botão fica sempre ao lado da versão; sem leituras, o menu explica onde elas aparecem
     $('#bsRecentesQtd').text(lista.length);
     $('#bsRecentesBtn').attr('aria-label', `Leituras recentes: ${lista.length}`);
     $('#bsRecentesLista').empty().append($('<div class="bs-rotulo">').text('Leituras recentes'),
+        lista.length ? null : $('<div class="bs-recentes-vazio">').text('Nenhum capítulo marcado ainda. Os capítulos abertos aparecem aqui.'),
         lista.map((r, i) => $('<button type="button" class="bs-recente" role="menuitem">')
-        .attr({ 'data-i': i, 'aria-label': `${r.nome} ${r.cap}:${r.ver}, ${bsSigla(r.versao)}, ${bsQuando(r)}` })
+        .attr({ 'data-i': i, 'aria-label': `${r.nome} ${r.cap}, ${bsSigla(r.versao)}, ${bsQuando(r)}` })
         .append($('<i class="fa-solid fa-bookmark" aria-hidden="true"></i>'),
-            $('<span class="ref">').text(`${r.nome} ${r.cap}:${r.ver}`),
+            $('<span class="ref">').text(`${r.nome} ${r.cap}`),
             $('<span class="meta">').text(`${bsSigla(r.versao)} · ${bsQuando(r)}`))));
 }
 
@@ -149,7 +162,7 @@ function bsAbrir(livro, capitulo, versiculo = null) {
     const versao = $('#bsVersao').val() || window.BIBLIA.versaoAtual;
     bsLembrar('livro', livro.id);
     bsLembrar('cap.' + livro.id, capitulo);
-    $('#bibliaAtual').text(`${livro.name} ${capitulo}${versiculo ? ':' + versiculo : ''} · ${bsSigla(versao)}`);
+    bsMarcar(livro, capitulo, versao);
     bootbox.hideAll();
     listaVersiculos(livro.id, capitulo, versao, livro.name, versiculo);
 }
@@ -180,7 +193,7 @@ function abrirSeletorBiblico() {
   <div class="bs-topo">
     <div class="bs-versao-linha">
       <select id="bsVersao" class="form-select" aria-label="Versão da Bíblia" title="Versão da Bíblia"></select>
-      <div class="bs-marcadores" id="bsRecentes" style="display:none">
+      <div class="bs-marcadores" id="bsRecentes">
         <button type="button" class="btn bs-marcadores-btn" id="bsRecentesBtn" aria-haspopup="true" aria-expanded="false"
           title="Leituras recentes (as 10 últimas)"><i class="fa-solid fa-bookmark" aria-hidden="true"></i><span class="qtd" id="bsRecentesQtd"></span></button>
         <div class="bs-marcadores-menu" id="bsRecentesLista" role="menu" aria-label="Leituras recentes"></div>
@@ -243,8 +256,7 @@ function abrirSeletorBiblico() {
             const r = bsRecentes()[Number(this.dataset.i)];
             if (!r) return;
             bootbox.hideAll();
-            $('#bibliaAtual').text(`${r.nome} ${r.cap}:${r.ver} · ${bsSigla(r.versao)}`);
-            listaVersiculos(r.livro, r.cap, r.versao, r.nome, r.ver);
+            listaVersiculos(r.livro, r.cap, r.versao, r.nome);
         });
         $('#bsVoltar').on('click', () => bsPasso(1));
         $('#bsCapitulos').on('click', '.bs-cap', function () {

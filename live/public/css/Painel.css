@@ -130,8 +130,6 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .btn-limpar { flex: 0 0 6.5rem; }
 .btn-barra2 { min-height: 48px; }
 .btn-barra2 > span { display: flex; flex-direction: column; min-width: 0; }
-#bibliaAtual { display: block; font-size: .8rem; font-weight: 600; color: #ced4da; }
-#bibliaAtual:empty { display: none; }
 .btn-barra[aria-pressed="true"] { border-color: #f8f9fa; background: #495057; }
 
 @media (min-width: 768px) {
@@ -270,3 +268,4 @@ label.proximo { outline: 3px dashed #ffc107; outline-offset: -3px; }
 /* Celular: a lista de livros rola dentro da tela cheia (a cadeia flex precisa chegar até .bs-passo) */
 .bs-modal .bootbox-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .bs { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.bs-recentes-vazio { padding: .25rem .25rem .5rem; color: #adb5bd; font-size: .9rem; }
