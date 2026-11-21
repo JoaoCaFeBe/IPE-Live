@@ -343,13 +343,14 @@ function mostrarLinksEvento() {
     const slug = eventoDoArquivo(documento);
     if (!slug) return;
     const base = LIVE_URL || 'https://live.ipe.desklaser.cloud';
+    // O Painel escolhe o evento no seletor ao lado da data (pedido do João, 21/11/2026):
+    // aqui ficam só as telas, que precisam abrir já no canal do evento
     const telas = [
-        ['Painel', 'fa-sliders', `${base}/Painel?evento=${slug}`],
         ['Projetor', 'fa-display', `${base}/Projetor?evento=${slug}`],
         ['TV', 'fa-tv', `${base}/Televisao?evento=${slug}`],
     ];
     const $corpo = $(`<div class="links-evento">
-        <p class="mb-3">Mande estes links a quem vai apresentar. Cada tela só mostra o que o Painel do evento projetar; o culto congregacional não é afetado.</p>
+        <p class="mb-3">Links das telas do evento. No Painel, escolha o evento no botão ao lado da data. Cada tela só mostra o que o Painel do evento projetar; o culto congregacional não é afetado.</p>
         ${telas.map(([nome, icone, url]) => `
         <label class="form-label mb-1"><i class="fas ${icone}"></i>&nbsp;${nome}</label>
         <div class="input-group mb-3">
