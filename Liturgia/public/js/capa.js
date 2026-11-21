@@ -36,7 +36,8 @@ function inicio() {
     // Duplo clique na lista de liturgias para renomear
     $('#listaLiturgias').on('dblclick', 'li', function () { renomearLiturgia(this); });
 
-    $.getJSON('/Cultos')
+    // Nomes dos eventos antes da lista, para o selo já sair com o nome digitado
+    carregarEventos().always(() => $.getJSON('/Cultos')
         .done(arquivos => {
             const $ul = $('#listaLiturgias');
             $ul.empty();
@@ -52,7 +53,7 @@ function inicio() {
         })
         .fail(() => {
             $('#listaLiturgias').html('<li class="text-danger p-2"><i class="fas fa-exclamation-triangle"></i>&nbsp;Erro ao carregar liturgias.</li>');
-        });
+        }));
 }
 
 /* ── BAIXAR ─────────────────────────────────────────────────────────────── */
@@ -91,16 +92,24 @@ const eventoDoArquivo = arquivo => chaveDoArquivo(arquivo).split('@')[1] || '';
 /** "Retiro de Casais" → "retiro-de-casais" (sem acento, só letras, números e hífen) */
 const slugEvento = nome => String(nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
-const nomeEvento = slug => slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)).replace(/-/g, ' ') : '';
+/** Nomes dos eventos como foram digitados ({ slug: "ECC 2027" }) e o endereço do Live (GET /eventos) */
+let NOMES_EVENTOS = {}, LIVE_URL = '';
+const carregarEventos = () => $.getJSON('/eventos').done(r => {
+    NOMES_EVENTOS = r.nomes || {};
+    LIVE_URL = r.liveUrl || '';
+});
+const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/** Nome do evento como foi digitado; sem registro, o slug legível ("ecc-2027" → "Ecc 2027"). Texto puro. */
+const nomeEvento = slug => !slug ? '' : NOMES_EVENTOS[slug] || (slug.charAt(0).toUpperCase() + slug.slice(1)).replace(/-/g, ' ');
 const arquivoDe = (data, evento) => `${data}${evento ? '@' + evento : ''}.json`;
-/** Rótulo da lista: data e, se for evento, o selo com o nome dele (o slug só tem [a-z0-9-]) */
+/** Rótulo da lista: data e, se for evento, o selo com o nome dele */
 const rotuloLiturgia = arquivo => {
     const evento = eventoDoArquivo(arquivo);
     return `<i class='fas fa-folder'></i>&nbsp;${dataBR(dataDoArquivo(arquivo))}` +
-        (evento ? ` <span class="selo-evento" title="Evento: liturgia e projeção separadas do culto da igreja">${nomeEvento(evento)}</span>` : '');
+        (evento ? ` <span class="selo-evento" title="Evento: liturgia e projeção separadas do culto da igreja">${escHtml(nomeEvento(evento))}</span>` : '');
 };
 
-/** Pede data e evento (opcional) num só diálogo; cb({ data, evento }) com o evento já em slug */
+/** Pede data e evento (opcional) num só diálogo; cb({ data, evento, nome }): evento em slug, nome como digitado */
 function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
     const min = HOJE || hojeLocal();
     const $form = $(`<form class="form-data-evento" autocomplete="off">
@@ -108,14 +117,25 @@ function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
         <label class="form-label" for="campoData">Data</label>
         <input type="date" class="form-control" id="campoData" name="data" required min="${min}" value="${data || min}">
         <label class="form-label mt-3" for="campoEvento">Evento <span class="text-muted small">(opcional)</span></label>
-        <input type="text" class="form-control" id="campoEvento" name="evento" maxlength="40"
-            placeholder="Em branco = culto da igreja" value="${nomeEvento(evento)}">
+        <input type="text" class="form-control" id="campoEvento" name="evento" maxlength="60"
+            placeholder="Em branco = culto da igreja" value="${escHtml(nomeEvento(evento))}">
         <div class="form-text">Retiro, conferência… O evento tem liturgia e projeção separadas do culto.</div>
+        <div class="form-text slug-evento d-none">No link do Live: <code></code></div>
     </form>`);
+    // Mostra, enquanto digita, como o evento vai aparecer no link (?evento=…)
+    const mostrarSlug = () => {
+        const slug = slugEvento($form.find('[name=evento]').val());
+        $form.find('.slug-evento').toggleClass('d-none', !slug).find('code').text(`?evento=${slug}`);
+    };
+    $form.on('input', '[name=evento]', mostrarSlug);
+    mostrarSlug();
     const confirmar = () => {
         const d = $form.find('[name=data]').val();
         if (!d || d < min) { $form.find('[name=data]')[0].reportValidity(); return false; }
-        cb({ data: d, evento: slugEvento($form.find('[name=evento]').val()) });
+        const nome = $form.find('[name=evento]').val().replace(/\s+/g, ' ').trim();
+        const slug = slugEvento(nome);
+        if (slug) NOMES_EVENTOS[slug] = nome;
+        cb({ data: d, evento: slug, nome: slug ? nome : '' });
     };
     const dialogo = bootbox.dialog({
         title: titulo,
@@ -145,16 +165,16 @@ function duplicarLiturgia() {
     const origem = chaveDoArquivo(documento);
     const eventoOrigem = eventoDoArquivo(documento);
     pedirDataEvento({
-        titulo: `Duplicar a liturgia de ${dataBR(dataDoArquivo(documento))}${eventoOrigem ? ` (${nomeEvento(eventoOrigem)})` : ''} para:`,
+        titulo: `Duplicar a liturgia de ${dataBR(dataDoArquivo(documento))}${eventoOrigem ? ` (${escHtml(nomeEvento(eventoOrigem))})` : ''} para:`,
         evento: eventoOrigem,
         mensagem: 'Se a data já tiver liturgia, os itens são acrescentados — o que já estiver lá não é repetido.',
-    }, ({ data, evento }) => {
+    }, ({ data, evento, nome }) => {
         const destino = chaveDoArquivo(arquivoDe(data, evento));
-        $.post('/dados/duplicar-liturgia', { origem, destino })
+        $.post('/dados/duplicar-liturgia', { origem, destino, nomeEvento: nome })
             .done(r => {
                 const partes = [`${r.acrescentados} ${r.acrescentados === 1 ? 'item copiado' : 'itens copiados'}`];
                 if (r.repetidos) partes.push(`${r.repetidos} já ${r.repetidos === 1 ? 'estava' : 'estavam'} lá`);
-                mostrarToast(`<i class="fas fa-copy"></i>&nbsp;${dataBR(data)}${evento ? ` (${nomeEvento(evento)})` : ''}: ${partes.join(', ')}`, 'success');
+                mostrarToast(`<i class="fas fa-copy"></i>&nbsp;${dataBR(data)}${evento ? ` (${escHtml(nomeEvento(evento))})` : ''}: ${partes.join(', ')}`, 'success');
                 garantirNaLista(r.arquivo).trigger('click')[0]?.scrollIntoView({ block: 'nearest' });
             })
             .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao duplicar a liturgia.'));
@@ -164,13 +184,52 @@ function duplicarLiturgia() {
 /* ── NOVA LITURGIA ──────────────────────────────────────────────────────── */
 
 function novaLiturgia() {
-    pedirDataEvento({ titulo: 'Nova liturgia' }, ({ data, evento }) => {
+    pedirDataEvento({ titulo: 'Nova liturgia' }, ({ data, evento, nome }) => {
         const arquivo = arquivoDe(data, evento); // "2026-03-01.json" ou "2026-03-01@retiro.json"
-        $.post('/dados/nova-liturgia', { arquivo })
+        $.post('/dados/nova-liturgia', { arquivo, nomeEvento: nome })
             .done(() => {
                 garantirNaLista(arquivo).trigger('click')[0]?.scrollIntoView({ block: 'nearest' });
             })
             .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao criar a liturgia. Tente novamente.'));
+    });
+}
+
+/* ── LINKS DO EVENTO ────────────────────────────────────────────────────── */
+
+/** Links do Live para quem vai apresentar o evento aberto, com botão de copiar */
+function mostrarLinksEvento() {
+    const slug = eventoDoArquivo(documento);
+    if (!slug) return;
+    const base = LIVE_URL || 'https://live.ipe.desklaser.cloud';
+    const telas = [
+        ['Painel', 'fa-sliders', `${base}/Painel?evento=${slug}`],
+        ['Projetor', 'fa-display', `${base}/Projetor?evento=${slug}`],
+        ['TV', 'fa-tv', `${base}/Televisao?evento=${slug}`],
+    ];
+    const $corpo = $(`<div class="links-evento">
+        <p class="mb-3">Mande estes links a quem vai apresentar. Cada tela só mostra o que o Painel do evento projetar; o culto da igreja não é afetado.</p>
+        ${telas.map(([nome, icone, url]) => `
+        <label class="form-label mb-1"><i class="fas ${icone}"></i>&nbsp;${nome}</label>
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" readonly value="${escHtml(url)}">
+            <button type="button" class="btn btn-outline-primary copiar" title="Copiar o link"><i class="fas fa-copy"></i>&nbsp;Copiar</button>
+        </div>`).join('')}
+        <div class="form-text">Evento no link: <code>?evento=${slug}</code></div>
+    </div>`);
+    $corpo.on('click', '.copiar', function () {
+        const campo = $(this).siblings('input')[0];
+        const pronto = () => mostrarToast('<i class="fas fa-check"></i>&nbsp;Link copiado', 'success');
+        if (navigator.clipboard) navigator.clipboard.writeText(campo.value).then(pronto, () => { campo.select(); document.execCommand('copy'); pronto(); });
+        else { campo.select(); document.execCommand('copy'); pronto(); }
+    });
+    bootbox.dialog({
+        title: `Links do evento — ${escHtml(nomeEvento(slug))}`,
+        message: $corpo,
+        centerVertical: true,
+        size: 'large',
+        onEscape: true,
+        backdrop: true,
+        buttons: { ok: { label: 'Fechar', className: 'btn-secondary' } },
     });
 }
 
@@ -250,6 +309,8 @@ function abreLiturgia(arquivo) {
 
     // Exibe o botão de download na navbar
     document.getElementById('itemBaixar').classList.remove('d-none');
+    // Liturgia de evento: botão com os links do Painel, Projetor e TV do evento
+    $('#btnLinksEvento').toggleClass('d-none', !eventoDoArquivo(arquivo));
 
     $.getJSON('/Cultos/' + arquivo + '?vozes=1&t=' + formatDate())
         .done(retorno => {

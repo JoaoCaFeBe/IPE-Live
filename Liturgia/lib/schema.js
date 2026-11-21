@@ -80,6 +80,12 @@ function garantirSchema(db) {
     coral_id INTEGER NOT NULL,
     PRIMARY KEY (cantata_id, ordem)
   )`);
+  // Eventos (retiro, conferência…): o nome como foi digitado ("ECC 2027"); o slug ("ecc-2027")
+  // é o que vai na chave da liturgia ("AAAA-MM-DD@ecc-2027") e no link do Live (?evento=).
+  db.exec(`CREATE TABLE IF NOT EXISTS eventos (
+    slug TEXT PRIMARY KEY,
+    nome TEXT NOT NULL
+  )`);
   // Marcas de operações que rodam uma vez só (ex.: cantatas iniciais já semeadas)
   db.exec(`CREATE TABLE IF NOT EXISTS config (
     chave TEXT PRIMARY KEY,

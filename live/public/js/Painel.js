@@ -204,6 +204,14 @@ const inicio = () => {
     faixa.querySelector("span").textContent = `Evento: ${nomeDoEvento} — telas separadas do culto da igreja`;
     faixa.title = `Projetor e TV deste evento abrem com ?evento=${EVENTO} no endereço`;
     document.querySelector(".sticky-top").prepend(faixa);
+    // Nome como foi digitado na Liturgia ("ECC 2027"); sem resposta, fica o slug legível
+    $.getJSON("/api/eventos").done((r) => {
+      const nome = r && r.nomes && r.nomes[EVENTO];
+      if (!nome) return;
+      nomeDoEvento = nome;
+      document.title = `Painel — ${nome}`;
+      faixa.querySelector("span").textContent = `Evento: ${nome} — telas separadas do culto da igreja`;
+    });
   }
 
   $.getJSON(`${cultosUrl}/${encodeURIComponent(chaveLiturgia(arquivo))}.json?vozes=1`)

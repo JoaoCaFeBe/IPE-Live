@@ -631,6 +631,29 @@ const dataDaChave = (chave) => String(chave).slice(0, 10);
 const ehPassada = (dataCulto) => dataDaChave(dataCulto) < hojeNaIgreja();
 const MSG_SO_CONSULTA = "Liturgia de dia passado é só para consulta. Use Duplicar para levá-la a outra data.";
 
+/** Grava o nome do evento como foi digitado ("ECC 2027"), se a chave for de evento e vier nome */
+function gravarNomeEvento(db, chave, nome) {
+  const slug = String(chave).split("@")[1];
+  const limpo = String(nome || "").replace(/\s+/g, " ").trim().slice(0, 60);
+  if (!slug || !limpo) return;
+  db.prepare("INSERT OR REPLACE INTO eventos (slug, nome) VALUES (?, ?)").run(slug, limpo);
+}
+
+// Endereço do Live que a Liturgia mostra nos links do evento (Painel, Projetor, TV)
+const LIVE_URL = (process.env.LIVE_URL || "https://live.ipe.desklaser.cloud").replace(/\/+$/, "");
+
+/** Nomes dos eventos ({ slug: nome }) e o endereço do Live: GET /eventos */
+app.get("/eventos", (_req, res) => {
+  try {
+    const db = new Database(CULTOS_DB_PATH, { readonly: true });
+    const nomes = Object.fromEntries(db.prepare("SELECT slug, nome FROM eventos").all().map((r) => [r.slug, r.nome]));
+    db.close();
+    res.json({ liveUrl: LIVE_URL, nomes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/dados/hoje", (_req, res) => res.json({ hoje: hojeNaIgreja() }));
 
 /** Cria novo arquivo de liturgia vazio no banco */
@@ -648,6 +671,7 @@ app.post("/dados/nova-liturgia", (req, res) => {
     db.prepare(
       "INSERT OR IGNORE INTO cultos (data_culto, itens) VALUES (?, '[]')",
     ).run(dataCulto);
+    gravarNomeEvento(db, dataCulto, req.body.nomeEvento);
     db.close();
     res.json({ ok: true, arquivo });
   } catch (e) {
@@ -776,6 +800,7 @@ app.post("/dados/duplicar-liturgia", (req, res) => {
     }
     db.prepare("INSERT OR REPLACE INTO cultos (data_culto, itens) VALUES (?, ?)")
       .run(destino, JSON.stringify(destinoItens.concat(acrescentados)));
+    gravarNomeEvento(db, destino, req.body.nomeEvento);
     db.close();
     res.json({ ok: true, arquivo: destino + ".json", acrescentados: acrescentados.length, repetidos, criada: !row });
   } catch (e) {

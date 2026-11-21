@@ -148,6 +148,15 @@ app.get("/api/cultos", async (_req, res) => {
   res.json([...new Set([...locais, ...remotos])].sort().reverse());
 });
 
+// Nomes dos eventos como foram digitados na Liturgia ({ nomes: { slug: "ECC 2027" } }), para a
+// faixa do Painel. Vem do GET /eventos da mesma Liturgia de CULTOS_URL; sem ela, lista vazia
+// e o Painel mostra o slug legível.
+app.get("/api/eventos", (_req, res) => {
+  const fallbackUrl = process.env.CULTOS_URL || "";
+  if (!/^https?:\/\/.+\/Cultos\/?$/i.test(fallbackUrl)) return res.json({ nomes: {} });
+  res.redirect(fallbackUrl.replace(/\/Cultos\/?$/i, "/eventos"));
+});
+
 app.get("/", (req, res) => res.redirect("/Painel"));
 
 // 1. Painel Administrativo de Controle O.B.S./Tela
