@@ -369,8 +369,7 @@ const passoEstrofe = (delta) => {
   const entradas = entradasDoAberto();
   const alvo = entradas[entradas.findIndex((x) => x.checked) + delta];
   if (!alvo) return;
-  alvo.click();
-  alvo.nextElementSibling.scrollIntoView({ block: "nearest" });
+  alvo.click(); // o change rola até ela
 };
 
 // -----------------------------------------------------------------------------------------
@@ -557,6 +556,9 @@ const inicio = () => {
             // Já projetada: marca até fechar o item (o amarelo fica só para o que está na tela)
             this.nextElementSibling.classList.add("ja-projetada");
             atualizarBarra();
+            // A seleção fica sempre visível, venha de toque, letra, setas do teclado ou Anterior/Próxima
+            // (o input é fixo e invisível, então o foco nele não rola a lista sozinho)
+            this.nextElementSibling.scrollIntoView({ block: "nearest" });
             if (this.nextElementSibling.innerHTML === "Título") {
               projetar(
                 $(this).parents(".accordion-item").attr("tipo"),
