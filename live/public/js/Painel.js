@@ -60,8 +60,10 @@ const montarSeletorEvento = () => {
     if (EVENTO) {
       nomeDoEvento = nomeDe(EVENTO, nomes);
       document.title = `Painel — ${nomeDoEvento}`;
-      $(".faixa-evento span").text(`Evento: ${nomeDoEvento} — telas separadas do culto congregacional`);
     }
+    $("#descricaoCulto").attr("title", EVENTO
+      ? `Evento: telas separadas do culto congregacional (Projetor e TV com ?evento=${EVENTO})`
+      : "Culto congregacional");
   };
   descrever({});
   $.when(
@@ -263,17 +265,8 @@ const inicio = () => {
     }
   });
 
-  if (EVENTO) {
-    // Faixa fixa: quem opera precisa saber que este Painel só mexe nas telas do evento.
-    document.title = `Painel — ${nomeDoEvento}`;
-    const faixa = document.createElement("div");
-    faixa.className = "faixa-evento";
-    faixa.setAttribute("role", "status");
-    faixa.innerHTML = `<i class="fa-solid fa-people-roof" aria-hidden="true"></i> <span></span>`;
-    faixa.querySelector("span").textContent = `Evento: ${nomeDoEvento} — telas separadas do culto congregacional`;
-    faixa.title = `Projetor e TV deste evento abrem com ?evento=${EVENTO} no endereço`;
-    document.querySelector(".sticky-top").prepend(faixa);
-  }
+  // O que este Painel controla aparece na descrição ao lado da data (magenta no evento);
+  // a faixa do topo saiu a pedido do João (21/11/2026)
   montarSeletorEvento();
 
   $.getJSON(`${cultosUrl}/${encodeURIComponent(chaveLiturgia(arquivo))}.json?vozes=1`)

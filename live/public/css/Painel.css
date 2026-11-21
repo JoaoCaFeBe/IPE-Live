@@ -243,8 +243,6 @@ label.proximo { outline: 3px dashed #ffc107; outline-offset: -3px; }
 
 /* Faixa do evento (Painel aberto com ?evento=…): este Painel só mexe nas telas do evento.
    Magenta, a mesma cor do selo de evento na Liturgia; fora do amarelo "na tela". */
-.faixa-evento { display:flex; align-items:center; gap:.5rem; margin-bottom:.25rem; padding:.375rem .75rem; border-radius:.375rem; background:#9d1d6b; color:#fff; font-weight:600; font-size:.875rem; }
-.faixa-evento span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* Seletor do culto/evento ao lado da data (mesmo desenho do seletor da Liturgia) e a descrição
    do que este Painel apresenta: "Culto congregacional" ou o nome do evento */
