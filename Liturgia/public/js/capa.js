@@ -41,7 +41,9 @@ function inicio() {
             const $ul = $('#listaLiturgias');
             $ul.empty();
             arquivos.forEach(value => {
-                // value = "2026-01-04.json" (culto da igreja) ou "2026-01-04@retiro.json" (evento)
+                // value = "2026-01-04.json" (culto da igreja) ou "2026-01-04@retiro.json" (evento);
+                // chave fora do formato não entra no HTML da lista
+                if (!RE_ARQUIVO.test(value)) return;
                 $ul.append(
                     `<li arquivo="${value}"
               onclick="marcaLI(this); abreLiturgia('${value}');">${rotuloLiturgia(value)}</li>`

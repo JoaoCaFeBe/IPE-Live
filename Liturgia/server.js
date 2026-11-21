@@ -665,6 +665,7 @@ app.post("/dados/salvar-liturgia", (req, res) => {
     return res.status(400).json({ error: "Dados inválidos" });
 
   const dataCulto = arquivo.replace(".json", "");
+  if (!chaveValida(dataCulto)) return res.status(400).json({ error: "Data ou evento inválido." });
   if (ehPassada(dataCulto)) return res.status(403).json({ error: MSG_SO_CONSULTA });
   try {
     let itens = JSON.parse(dados);
