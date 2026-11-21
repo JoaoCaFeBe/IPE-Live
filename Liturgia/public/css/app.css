@@ -188,6 +188,23 @@ td>i::after {
     color: #fff;
 }
 
+/* Lista alinhada à esquerda (ícones de pasta na mesma coluna); o seletor encosta à direita
+   e o selo do evento ocupa a linha de baixo */
+.linha-data {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.linha-data .dropdown {
+    margin-left: auto;
+}
+
+.linha-data .selo-evento {
+    flex-basis: 100%;
+    text-align: center;
+}
+
 .linha-data .dropdown-menu {
     text-align: left;
     font-size: .9rem;
