@@ -33,27 +33,91 @@ function inicio() {
     // Data de hoje no fuso da igreja: dia passado abre só para consulta
     $.getJSON('/dados/hoje').done(r => { HOJE = r.hoje; });
 
-    // Duplo clique na lista de liturgias para renomear
-    $('#listaLiturgias').on('dblclick', 'li', function () { renomearLiturgia(this); });
+    // Uma linha por data. Clique na data: o culto da igreja. Seletor ao lado: os eventos da data.
+    // Duplo clique renomeia (troca a data) da liturgia aberta na linha.
+    $('#listaLiturgias')
+        .on('click', 'li[data-data]', function (e) {
+            if ($(e.target).closest('.seletor-evento, .dropdown-menu').length) return;
+            const culto = arquivoDe($(this).attr('data-data'), '');
+            if ($(this).attr('data-culto') === '1') return abrirNaLista(culto);
+            // Data sem culto da igreja: um evento só abre direto; mais de um, a lista para escolher
+            // (no próximo ciclo, senão o próprio clique fecha o menu ao chegar no documento)
+            const $opcoes = $(this).find('.dropdown-menu [data-arquivo]');
+            if ($opcoes.length === 1) return abrirNaLista($opcoes.attr('data-arquivo'));
+            const seletor = $(this).find('.seletor-evento')[0];
+            setTimeout(() => bootstrap.Dropdown.getOrCreateInstance(seletor).show(), 0);
+        })
+        .on('click', '.dropdown-menu [data-arquivo]', function (e) {
+            e.preventDefault();
+            abrirNaLista($(this).attr('data-arquivo'));
+        })
+        .on('dblclick', 'li[data-data]', function (e) {
+            if ($(e.target).closest('.seletor-evento, .dropdown-menu').length) return;
+            if ($(this).attr('arquivo')) renomearLiturgia(this);
+        });
 
     // Nomes dos eventos antes da lista, para o selo já sair com o nome digitado
-    carregarEventos().always(() => $.getJSON('/Cultos')
+    carregarEventos().always(() => recarregarLista());
+}
+
+/* ── LISTA DE LITURGIAS: UMA LINHA POR DATA ─────────────────────────────────
+ * Pedido do João (21/11/2026): com vários eventos, datas repetidas dificultam a leitura.
+ * Cada data é uma linha; o clique nela abre o culto da igreja (o padrão). Se a data tem
+ * eventos, o seletor magenta ao lado (com a quantidade) lista o culto e os eventos dela.
+ * A linha guarda em `arquivo` a liturgia aberta nela, e o selo embaixo mostra o evento. */
+
+/** Busca /Cultos e monta a lista; `abrir` (opcional) já abre aquela liturgia */
+function recarregarLista(abrir) {
+    return $.getJSON('/Cultos')
         .done(arquivos => {
-            const $ul = $('#listaLiturgias');
-            $ul.empty();
-            arquivos.forEach(value => {
-                // value = "2026-01-04.json" (culto da igreja) ou "2026-01-04@retiro.json" (evento);
-                // chave fora do formato não entra no HTML da lista
-                if (!RE_ARQUIVO.test(value)) return;
-                $ul.append(
-                    `<li arquivo="${value}"
-              onclick="marcaLI(this); abreLiturgia('${value}');">${rotuloLiturgia(value)}</li>`
-                );
+            const porData = new Map();
+            arquivos.filter(a => RE_ARQUIVO.test(a)).forEach(a => {
+                const data = dataDoArquivo(a);
+                if (!porData.has(data)) porData.set(data, { culto: false, eventos: [] });
+                const g = porData.get(data), ev = eventoDoArquivo(a);
+                if (ev) g.eventos.push(ev); else g.culto = true;
             });
+            const $ul = $('#listaLiturgias').empty();
+            [...porData.keys()].sort().reverse().forEach(data => $ul.append(linhaDaData(data, porData.get(data))));
+            if (abrir) abrirNaLista(abrir);
         })
         .fail(() => {
             $('#listaLiturgias').html('<li class="text-danger p-2"><i class="fas fa-exclamation-triangle"></i>&nbsp;Erro ao carregar liturgias.</li>');
-        }));
+        });
+}
+
+/** Linha de uma data: a data e, se houver evento, o seletor com o culto e os eventos dela */
+function linhaDaData(data, { culto, eventos }) {
+    const $li = $(`<li data-data="${data}" data-culto="${culto ? 1 : 0}" class="linha-data">
+        <span class="rotulo-data"><i class='fas fa-folder'></i>&nbsp;${dataBR(data)}</span></li>`);
+    if (!eventos.length) return $li;
+    eventos.sort((a, b) => nomeEvento(a).localeCompare(nomeEvento(b), 'pt-BR'));
+    const opcoes = (culto ? [['', 'Culto da igreja', 'fa-church']] : [])
+        .concat(eventos.map(ev => [ev, nomeEvento(ev), 'fa-people-roof']));
+    $li.append(`<span class="dropdown d-inline-block">
+        <button type="button" class="seletor-evento" data-bs-toggle="dropdown" aria-expanded="false"
+            data-bs-popper-config='{"strategy":"fixed"}'
+            title="${eventos.length === 1 ? '1 evento' : eventos.length + ' eventos'} nesta data — escolher qual abrir"
+            aria-label="Eventos de ${dataBR(data)}"><i class="fas fa-people-roof"></i>&nbsp;${eventos.length}</button>
+        <ul class="dropdown-menu">
+            ${opcoes.map(([ev, nome, icone]) => `<li><a class="dropdown-item" href="#" data-arquivo="${arquivoDe(data, ev)}">
+                <i class="fas ${icone}"></i>&nbsp;${escHtml(nome)}</a></li>`).join('')}
+        </ul></span>`);
+    return $li;
+}
+
+/** Marca a linha da data, mostra o selo do evento (se for evento) e abre a liturgia */
+function abrirNaLista(arquivo) {
+    const $li = $(`#listaLiturgias li[data-data="${dataDoArquivo(arquivo)}"]`);
+    if (!$li.length) return;
+    const evento = eventoDoArquivo(arquivo);
+    $('#listaLiturgias .selo-evento').remove();
+    $('#listaLiturgias li[data-data]').removeAttr('arquivo');
+    $li.attr('arquivo', arquivo);
+    if (evento) $li.append(`<span class="selo-evento" title="Evento aberto: liturgia e projeção separadas do culto da igreja">${escHtml(nomeEvento(evento))}</span>`);
+    marcaLI($li[0]);
+    $li[0].scrollIntoView({ block: 'nearest' });
+    abreLiturgia(arquivo);
 }
 
 /* ── BAIXAR ─────────────────────────────────────────────────────────────── */
@@ -102,12 +166,6 @@ const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').repl
 /** Nome do evento como foi digitado; sem registro, o slug legível ("ecc-2027" → "Ecc 2027"). Texto puro. */
 const nomeEvento = slug => !slug ? '' : NOMES_EVENTOS[slug] || (slug.charAt(0).toUpperCase() + slug.slice(1)).replace(/-/g, ' ');
 const arquivoDe = (data, evento) => `${data}${evento ? '@' + evento : ''}.json`;
-/** Rótulo da lista: data e, se for evento, o selo com o nome dele */
-const rotuloLiturgia = arquivo => {
-    const evento = eventoDoArquivo(arquivo);
-    return `<i class='fas fa-folder'></i>&nbsp;${dataBR(dataDoArquivo(arquivo))}` +
-        (evento ? ` <span class="selo-evento" title="Evento: liturgia e projeção separadas do culto da igreja">${escHtml(nomeEvento(evento))}</span>` : '');
-};
 
 /** Pede data e evento (opcional) num só diálogo; cb({ data, evento, nome }): evento em slug, nome como digitado */
 function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
@@ -149,17 +207,6 @@ function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
     $form.on('submit', e => { e.preventDefault(); if (confirmar() !== false) dialogo.modal('hide'); });
 }
 
-/** Item da lista de liturgias, na posição da data (lista é da mais nova para a mais antiga) */
-function garantirNaLista(arquivo) {
-    const $ul = $('#listaLiturgias');
-    let $li = $ul.find(`li[arquivo="${arquivo}"]`);
-    if ($li.length) return $li;
-    $li = $(`<li arquivo="${arquivo}" onclick="marcaLI(this); abreLiturgia('${arquivo}');">${rotuloLiturgia(arquivo)}</li>`);
-    const depois = $ul.find('li').filter(function () { return $(this).attr('arquivo') < arquivo; }).first();
-    if (depois.length) $li.insertBefore(depois); else $ul.append($li);
-    return $li;
-}
-
 function duplicarLiturgia() {
     if (!documento) return;
     const origem = chaveDoArquivo(documento);
@@ -175,7 +222,7 @@ function duplicarLiturgia() {
                 const partes = [`${r.acrescentados} ${r.acrescentados === 1 ? 'item copiado' : 'itens copiados'}`];
                 if (r.repetidos) partes.push(`${r.repetidos} já ${r.repetidos === 1 ? 'estava' : 'estavam'} lá`);
                 mostrarToast(`<i class="fas fa-copy"></i>&nbsp;${dataBR(data)}${evento ? ` (${escHtml(nomeEvento(evento))})` : ''}: ${partes.join(', ')}`, 'success');
-                garantirNaLista(r.arquivo).trigger('click')[0]?.scrollIntoView({ block: 'nearest' });
+                recarregarLista(r.arquivo); // a linha da data já abre na liturgia copiada
             })
             .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao duplicar a liturgia.'));
     });
@@ -187,9 +234,7 @@ function novaLiturgia() {
     pedirDataEvento({ titulo: 'Nova liturgia' }, ({ data, evento, nome }) => {
         const arquivo = arquivoDe(data, evento); // "2026-03-01.json" ou "2026-03-01@retiro.json"
         $.post('/dados/nova-liturgia', { arquivo, nomeEvento: nome })
-            .done(() => {
-                garantirNaLista(arquivo).trigger('click')[0]?.scrollIntoView({ block: 'nearest' });
-            })
+            .done(() => recarregarLista(arquivo)) // abre já no evento (ou culto) criado
             .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao criar a liturgia. Tente novamente.'));
     });
 }
@@ -263,10 +308,8 @@ function renomearLiturgia(el) {
             const arquivoNovo = arquivoDe(result, evento);
             $.post('/dados/renomear-liturgia', { antigo: arquivoAtual, novo: arquivoNovo })
                 .done(() => {
-                    $(el).attr('arquivo', arquivoNovo)
-                        .attr('onclick', `marcaLI(this); abreLiturgia('${arquivoNovo}');`)
-                        .html(rotuloLiturgia(arquivoNovo));
-                    if (documento === arquivoAtual) documento = arquivoNovo;
+                    // A liturgia muda de linha (outra data): a lista se refaz e abre nela
+                    recarregarLista(arquivoNovo);
                     mostrarToast('<i class="fas fa-calendar-check"></i>&nbsp;Data alterada!', 'info');
                 })
                 .fail(xhr => {
