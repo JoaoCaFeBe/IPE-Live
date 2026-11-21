@@ -133,10 +133,10 @@ function abrirNaLista(arquivo) {
     const $li = $(`#listaLiturgias li[data-data="${dataDoArquivo(arquivo)}"]`);
     if (!$li.length) return;
     const evento = eventoDoArquivo(arquivo);
-    $('#listaLiturgias .selo-evento').remove();
     $('#listaLiturgias li[data-data]').removeAttr('arquivo');
     $li.attr('arquivo', arquivo);
-    if (evento) $li.append(`<span class="selo-evento" title="Evento aberto: liturgia e projeção separadas do culto da igreja">${escHtml(nomeEvento(evento))}</span>`);
+    // O evento aberto aparece no título, ao lado de "IPE-Liturgia" (pedido do João, 21/11/2026)
+    $('#seloEventoTitulo').text(evento ? nomeEvento(evento) : '').toggleClass('d-none', !evento);
     marcaLI($li[0]);
     $li[0].scrollIntoView({ block: 'nearest' });
     abreLiturgia(arquivo);
