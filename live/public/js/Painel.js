@@ -359,10 +359,10 @@ const atualizarBarra = () => {
   }
   const entradas = entradasDoAberto();
   const i = entradas.findIndex((x) => x.checked);
-  // Anterior | Próxima só aparecem quando há para onde ir (mesma regra de quando ficavam ativos)
+  // Anterior | Próxima aparecem juntos quando ao menos um está ativo; o outro fica desabilitado
   const temAnterior = i > 0, temProxima = entradas.length > 0 && i < entradas.length - 1;
-  $("#btnAnterior").prop("disabled", !temAnterior).toggleClass("d-none", !temAnterior);
-  $("#btnProxima").prop("disabled", !temProxima).toggleClass("d-none", !temProxima);
+  $("#btnAnterior").prop("disabled", !temAnterior);
+  $("#btnProxima").prop("disabled", !temProxima);
   $("#barraPassos").toggleClass("d-none", !(temAnterior || temProxima));
 };
 const passoEstrofe = (delta) => {
