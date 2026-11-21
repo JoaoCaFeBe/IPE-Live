@@ -86,6 +86,10 @@ function garantirSchema(db) {
     slug TEXT PRIMARY KEY,
     nome TEXT NOT NULL
   )`);
+  // Período do evento (botão "Criar evento"): datas "AAAA-MM-DD"; nulo nos criados antes dele
+  const colunasEventos = db.prepare("PRAGMA table_info(eventos)").all().map((c) => c.name);
+  if (!colunasEventos.includes("inicio")) db.exec("ALTER TABLE eventos ADD COLUMN inicio TEXT");
+  if (!colunasEventos.includes("fim")) db.exec("ALTER TABLE eventos ADD COLUMN fim TEXT");
   // Marcas de operações que rodam uma vez só (ex.: cantatas iniciais já semeadas)
   db.exec(`CREATE TABLE IF NOT EXISTS config (
     chave TEXT PRIMARY KEY,

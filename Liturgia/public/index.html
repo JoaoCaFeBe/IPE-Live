@@ -28,6 +28,11 @@
             <titulo>IPE-Liturgia</titulo>
         </a>
         <ul id="Menu" class="nav navbar-text">
+            <li class="nav-item" id="itemCriarEvento">
+                <a class="nav-link" onclick="criarEvento()" title="Retiro, conferência… com liturgia e projeção separadas do culto">
+                    <i class="fa-solid fa-people-roof"></i>&nbsp;Criar evento
+                </a>
+            </li>
             <li class="nav-item d-none" id="itemBaixar">
                 <a class="nav-link" onclick="baixarArquivo()">
                     <i class="fa-solid fa-download"></i>&nbsp;Baixar liturgia
@@ -37,7 +42,7 @@
     </nav>
 
     <!-- ── ÁREA DE TRABALHO ───────────────────────────────────────────────── -->
-    <div class="janela" style="grid-template-columns:150px auto 1fr;gap:.25rem;">
+    <div class="janela" style="grid-template-columns:168px auto 1fr;gap:.25rem;">
 
         <!-- Lista de cultos -->
         <div class="card" id="cardLiturgias" style="z-index:3;">

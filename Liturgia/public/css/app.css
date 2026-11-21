@@ -191,18 +191,37 @@ td>i::after {
 /* Lista alinhada à esquerda (ícones de pasta na mesma coluna); o seletor encosta à direita
    e o selo do evento ocupa a linha de baixo */
 .linha-data {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
+    column-gap: .15rem;
+}
+
+/* backdrop-filter no hover faria a linha virar referência do menu (position: fixed) e o
+   jogaria para baixo; nas datas o realce é um fundo claro */
+.ulMenu>li.linha-data:hover:not(.bg-warning) {
+    backdrop-filter: none;
+    background-color: rgba(0, 0, 0, .06);
+}
+
+.linha-data .rotulo-data {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .linha-data .dropdown {
-    margin-left: auto;
+    grid-column: 2;
+    grid-row: 1;
 }
 
 .linha-data .selo-evento {
-    flex-basis: 100%;
+    grid-column: 1 / -1;
     text-align: center;
+}
+
+.linha-data .seletor-evento {
+    margin-left: 0;
 }
 
 .linha-data .dropdown-menu {

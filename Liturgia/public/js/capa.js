@@ -11,6 +11,8 @@
 
 window.onload = inicio;
 var Liturgia = [], documento;
+// Mouse (passa por cima) × toque: o seletor de eventos abre no hover só com mouse
+const COM_HOVER = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 /* ── INICIALIZAÇÃO ──────────────────────────────────────────────────────── */
 
@@ -46,6 +48,26 @@ function inicio() {
             if ($opcoes.length === 1) return abrirNaLista($opcoes.attr('data-arquivo'));
             const seletor = $(this).find('.seletor-evento')[0];
             setTimeout(() => bootstrap.Dropdown.getOrCreateInstance(seletor).show(), 0);
+        })
+        .on('click', '.seletor-evento', function (e) {
+            // Com mouse o menu já abriu ao passar por cima: o clique só garante aberto (sem fechar).
+            // No toque segue o comportamento normal do Bootstrap (abre e fecha no clique).
+            if (!COM_HOVER) return;
+            e.stopPropagation();
+            bootstrap.Dropdown.getOrCreateInstance(this).show();
+        })
+        .on('mouseenter', '.linha-data .dropdown', function () {
+            if (!COM_HOVER) return;
+            clearTimeout(this._fechar);
+            $('#listaLiturgias .seletor-evento.show').not($(this).find('.seletor-evento'))
+                .each((_, b) => bootstrap.Dropdown.getOrCreateInstance(b).hide());
+            bootstrap.Dropdown.getOrCreateInstance($(this).find('.seletor-evento')[0]).show();
+        })
+        .on('mouseleave', '.linha-data .dropdown', function () {
+            if (!COM_HOVER) return;
+            // Folga para o mouse atravessar o espaço entre o botão e o menu
+            const botao = $(this).find('.seletor-evento')[0];
+            this._fechar = setTimeout(() => bootstrap.Dropdown.getOrCreateInstance(botao).hide(), 250);
         })
         .on('click', '.dropdown-menu [data-arquivo]', function (e) {
             e.preventDefault();
@@ -157,43 +179,58 @@ const eventoDoArquivo = arquivo => chaveDoArquivo(arquivo).split('@')[1] || '';
 const slugEvento = nome => String(nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
 /** Nomes dos eventos como foram digitados ({ slug: "ECC 2027" }) e o endereço do Live (GET /eventos) */
-let NOMES_EVENTOS = {}, LIVE_URL = '';
+let NOMES_EVENTOS = {}, LIVE_URL = '', EVENTOS = [];
 const carregarEventos = () => $.getJSON('/eventos').done(r => {
     NOMES_EVENTOS = r.nomes || {};
     LIVE_URL = r.liveUrl || '';
+    EVENTOS = r.eventos || []; // [{ slug, nome, inicio, fim }]
 });
+/** Eventos cujo período inclui a data ("AAAA-MM-DD") */
+const eventosNaData = data => EVENTOS.filter(ev => ev.inicio <= data && data <= ev.fim);
 const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 /** Nome do evento como foi digitado; sem registro, o slug legível ("ecc-2027" → "Ecc 2027"). Texto puro. */
 const nomeEvento = slug => !slug ? '' : NOMES_EVENTOS[slug] || (slug.charAt(0).toUpperCase() + slug.slice(1)).replace(/-/g, ' ');
 const arquivoDe = (data, evento) => `${data}${evento ? '@' + evento : ''}.json`;
 
-/** Pede data e evento (opcional) num só diálogo; cb({ data, evento, nome }): evento em slug, nome como digitado */
+/**
+ * Pede a data e, se houver evento cadastrado naquela data, para qual liturgia: o culto da igreja
+ * ou o evento. Eventos se criam no botão "Criar evento" da barra de cima; aqui só se escolhe.
+ * cb({ data, evento, nome }): evento em slug ('' = culto da igreja).
+ */
 function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
     const min = HOJE || hojeLocal();
     const $form = $(`<form class="form-data-evento" autocomplete="off">
         ${mensagem ? `<p class="mb-3">${mensagem}</p>` : ''}
         <label class="form-label" for="campoData">Data</label>
         <input type="date" class="form-control" id="campoData" name="data" required min="${min}" value="${data || min}">
-        <label class="form-label mt-3" for="campoEvento">Evento <span class="text-muted small">(opcional)</span></label>
-        <input type="text" class="form-control" id="campoEvento" name="evento" maxlength="60"
-            placeholder="Em branco = culto da igreja" value="${escHtml(nomeEvento(evento))}">
-        <div class="form-text">Retiro, conferência… O evento tem liturgia e projeção separadas do culto.</div>
-        <div class="form-text slug-evento d-none">No link do Live: <code></code></div>
+        <div class="grupo-evento d-none">
+            <label class="form-label mt-3" for="campoEvento">Para</label>
+            <select class="form-select" id="campoEvento" name="evento"></select>
+            <div class="form-text">O evento tem liturgia e projeção separadas do culto.</div>
+        </div>
+        <div class="form-text sem-evento mt-2"><i class="fas fa-church"></i>&nbsp;Liturgia do culto da igreja.
+            Para um retiro ou conferência, use <b>Criar evento</b> na barra de cima.</div>
     </form>`);
-    // Mostra, enquanto digita, como o evento vai aparecer no link (?evento=…)
-    const mostrarSlug = () => {
-        const slug = slugEvento($form.find('[name=evento]').val());
-        $form.find('.slug-evento').toggleClass('d-none', !slug).find('code').text(`?evento=${slug}`);
+    // A lista acompanha a data: só os eventos cujo período inclui o dia escolhido
+    const montarEventos = () => {
+        const d = $form.find('[name=data]').val();
+        const $sel = $form.find('[name=evento]');
+        const atual = $sel.val() ?? evento;
+        const lista = d ? eventosNaData(d) : [];
+        $sel.html(`<option value="">Culto da igreja</option>` +
+            lista.map(ev => `<option value="${ev.slug}">${escHtml(nomeEvento(ev.slug))}</option>`).join(''));
+        $sel.val(lista.some(ev => ev.slug === atual) ? atual : '');
+        $form.find('.grupo-evento').toggleClass('d-none', !lista.length);
+        $form.find('.sem-evento').toggleClass('d-none', !!lista.length);
     };
-    $form.on('input', '[name=evento]', mostrarSlug);
-    mostrarSlug();
+    $form.on('input change', '[name=data]', montarEventos);
+    montarEventos();
     const confirmar = () => {
         const d = $form.find('[name=data]').val();
         if (!d || d < min) { $form.find('[name=data]')[0].reportValidity(); return false; }
-        const nome = $form.find('[name=evento]').val().replace(/\s+/g, ' ').trim();
-        const slug = slugEvento(nome);
-        if (slug) NOMES_EVENTOS[slug] = nome;
-        cb({ data: d, evento: slug, nome: slug ? nome : '' });
+        const slug = eventosNaData(d).some(ev => ev.slug === $form.find('[name=evento]').val())
+            ? $form.find('[name=evento]').val() : '';
+        cb({ data: d, evento: slug, nome: '' }); // o evento já está cadastrado: nada a gravar de nome
     };
     const dialogo = bootbox.dialog({
         title: titulo,
@@ -237,6 +274,66 @@ function novaLiturgia() {
             .done(() => recarregarLista(arquivo)) // abre já no evento (ou culto) criado
             .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao criar a liturgia. Tente novamente.'));
     });
+}
+
+/* ── CRIAR EVENTO ───────────────────────────────────────────────────────── */
+
+/**
+ * Botão "Criar evento" (barra de cima): nome e período. O servidor grava o evento e cria a
+ * liturgia vazia de cada dia; a lista abre no primeiro dia. Mesmo nome de novo amplia o período.
+ */
+function criarEvento() {
+    const min = HOJE || hojeLocal();
+    const $form = $(`<form class="form-criar-evento" autocomplete="off">
+        <label class="form-label" for="campoNomeEvento">Nome do evento</label>
+        <input type="text" class="form-control" id="campoNomeEvento" name="nome" maxlength="60" required
+            placeholder="Ex.: Retiro de Casais 2027">
+        <div class="form-text slug-evento d-none">No link do Live: <code></code></div>
+        <div class="row g-2 mt-2">
+            <div class="col"><label class="form-label" for="campoInicio">Início</label>
+                <input type="date" class="form-control" id="campoInicio" name="inicio" required min="${min}" value="${min}"></div>
+            <div class="col"><label class="form-label" for="campoFim">Fim</label>
+                <input type="date" class="form-control" id="campoFim" name="fim" required min="${min}" value="${min}"></div>
+        </div>
+        <div class="form-text dias-evento"></div>
+    </form>`);
+    const $ini = $form.find('[name=inicio]'), $fim = $form.find('[name=fim]');
+    const dias = () => Math.round((Date.parse($fim.val()) - Date.parse($ini.val())) / 864e5) + 1;
+    const atualizar = () => {
+        const slug = slugEvento($form.find('[name=nome]').val());
+        $form.find('.slug-evento').toggleClass('d-none', !slug).find('code').text(`?evento=${slug}`);
+        $fim.attr('min', $ini.val() || min);
+        if ($ini.val() && $fim.val() < $ini.val()) $fim.val($ini.val());
+        const n = dias();
+        $form.find('.dias-evento').text(n > 0 ? `${n} ${n === 1 ? 'dia' : 'dias'}: uma liturgia do evento em cada dia.` : '');
+    };
+    $form.on('input change', 'input', atualizar);
+    atualizar();
+    const confirmar = () => {
+        const nome = $form.find('[name=nome]').val().replace(/\s+/g, ' ').trim();
+        if (!slugEvento(nome)) { $form.find('[name=nome]').val('')[0].reportValidity(); return false; }
+        if (!$ini.val() || $ini.val() < min) { $ini[0].reportValidity(); return false; }
+        if (!$fim.val() || $fim.val() < $ini.val()) { $fim[0].reportValidity(); return false; }
+        $.post('/eventos', { nome, inicio: $ini.val(), fim: $fim.val() })
+            .done(r => {
+                const quantas = r.criadas === r.dias ? `${r.dias} ${r.dias === 1 ? 'data criada' : 'datas criadas'}`
+                    : `${r.criadas} de ${r.dias} datas criadas (as outras já existiam)`;
+                mostrarToast(`<i class="fas fa-people-roof"></i>&nbsp;${escHtml(r.nome)}: ${quantas}`, 'success');
+                carregarEventos().always(() => recarregarLista(r.arquivo));
+            })
+            .fail(xhr => bootbox.alert(xhr.responseJSON?.error || 'Erro ao criar o evento.'));
+    };
+    const dialogo = bootbox.dialog({
+        title: '<i class="fas fa-people-roof"></i>&nbsp;Criar evento',
+        message: $form,
+        centerVertical: true,
+        buttons: {
+            cancel: { label: 'Cancelar', className: 'btn-secondary' },
+            ok: { label: 'Criar', className: 'btn-primary', callback: confirmar },
+        },
+    });
+    dialogo.on('shown.bs.modal', () => $form.find('[name=nome]').trigger('focus'));
+    $form.on('submit', e => { e.preventDefault(); if (confirmar() !== false) dialogo.modal('hide'); });
 }
 
 /* ── LINKS DO EVENTO ────────────────────────────────────────────────────── */

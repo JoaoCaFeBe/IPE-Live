@@ -636,19 +636,85 @@ function gravarNomeEvento(db, chave, nome) {
   const slug = String(chave).split("@")[1];
   const limpo = String(nome || "").replace(/\s+/g, " ").trim().slice(0, 60);
   if (!slug || !limpo) return;
-  db.prepare("INSERT OR REPLACE INTO eventos (slug, nome) VALUES (?, ?)").run(slug, limpo);
+  // Upsert: não apaga o período gravado pelo "Criar evento"
+  db.prepare("INSERT INTO eventos (slug, nome) VALUES (?, ?) ON CONFLICT(slug) DO UPDATE SET nome = excluded.nome").run(slug, limpo);
 }
 
 // Endereço do Live que a Liturgia mostra nos links do evento (Painel, Projetor, TV)
 const LIVE_URL = (process.env.LIVE_URL || "https://live.ipe.desklaser.cloud").replace(/\/+$/, "");
 
-/** Nomes dos eventos ({ slug: nome }) e o endereço do Live: GET /eventos */
+/** "Retiro de Casais" → "retiro-de-casais" (mesma regra do slugEvento do capa.js) */
+const slugEvento = (nome) => String(nome || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
+const RE_DATA = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_DIAS_EVENTO = 31;
+
+/**
+ * Eventos com nome e período: GET /eventos → { liveUrl, nomes: { slug: nome }, eventos: [{ slug, nome, inicio, fim }] }.
+ * Sem período gravado (criados antes do botão "Criar evento"), vale o das liturgias que o evento já tem.
+ * `nomes` continua para o Painel do Live (/api/eventos).
+ */
 app.get("/eventos", (_req, res) => {
   try {
     const db = new Database(CULTOS_DB_PATH, { readonly: true });
-    const nomes = Object.fromEntries(db.prepare("SELECT slug, nome FROM eventos").all().map((r) => [r.slug, r.nome]));
+    const porSlug = new Map();
+    for (const r of db.prepare("SELECT data_culto FROM cultos WHERE data_culto LIKE '%@%'").all()) {
+      const [data, slug] = r.data_culto.split("@");
+      const ev = porSlug.get(slug) || { slug, nome: null, inicio: data, fim: data };
+      if (data < ev.inicio) ev.inicio = data;
+      if (data > ev.fim) ev.fim = data;
+      porSlug.set(slug, ev);
+    }
+    for (const r of db.prepare("SELECT slug, nome, inicio, fim FROM eventos").all()) {
+      const ev = porSlug.get(r.slug) || { slug: r.slug, inicio: r.inicio, fim: r.fim };
+      ev.nome = r.nome;
+      if (r.inicio) ev.inicio = r.inicio;
+      if (r.fim) ev.fim = r.fim;
+      porSlug.set(r.slug, ev);
+    }
     db.close();
-    res.json({ liveUrl: LIVE_URL, nomes });
+    const eventos = [...porSlug.values()].filter((e) => e.inicio && e.fim)
+      .sort((a, b) => a.inicio.localeCompare(b.inicio) || a.slug.localeCompare(b.slug));
+    const nomes = Object.fromEntries(eventos.filter((e) => e.nome).map((e) => [e.slug, e.nome]));
+    res.json({ liveUrl: LIVE_URL, nomes, eventos });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
+ * Cria (ou amplia) um evento: POST /eventos { nome, inicio, fim }. Grava nome e período e cria a
+ * liturgia vazia de cada dia ("AAAA-MM-DD@slug"); a que já existe fica como está.
+ */
+app.post("/eventos", (req, res) => {
+  const nome = String(req.body.nome || "").replace(/\s+/g, " ").trim().slice(0, 60);
+  const slug = slugEvento(nome);
+  const inicio = String(req.body.inicio || "");
+  const fim = String(req.body.fim || inicio);
+  if (!slug) return res.status(400).json({ error: "Informe o nome do evento." });
+  if (!RE_DATA.test(inicio) || !RE_DATA.test(fim) || isNaN(Date.parse(inicio)) || isNaN(Date.parse(fim))) {
+    return res.status(400).json({ error: "Datas inválidas." });
+  }
+  if (fim < inicio) return res.status(400).json({ error: "O fim do evento não pode ser antes do início." });
+  if (inicio < hojeNaIgreja()) return res.status(403).json({ error: "O evento precisa começar hoje ou numa data futura." });
+  const datas = [];
+  for (let d = new Date(inicio + "T12:00:00Z"); d.toISOString().slice(0, 10) <= fim; d.setUTCDate(d.getUTCDate() + 1)) {
+    datas.push(d.toISOString().slice(0, 10));
+    if (datas.length > MAX_DIAS_EVENTO) return res.status(400).json({ error: `O evento pode ter no máximo ${MAX_DIAS_EVENTO} dias.` });
+  }
+  try {
+    const db = new Database(CULTOS_DB_PATH);
+    let criadas = 0;
+    db.transaction(() => {
+      const antes = db.prepare("SELECT inicio, fim FROM eventos WHERE slug = ?").get(slug);
+      const ini = antes?.inicio && antes.inicio < inicio ? antes.inicio : inicio;
+      const fin = antes?.fim && antes.fim > fim ? antes.fim : fim;
+      db.prepare("INSERT OR REPLACE INTO eventos (slug, nome, inicio, fim) VALUES (?, ?, ?, ?)").run(slug, nome, ini, fin);
+      const inserir = db.prepare("INSERT OR IGNORE INTO cultos (data_culto, itens) VALUES (?, '[]')");
+      for (const d of datas) criadas += inserir.run(`${d}@${slug}`).changes;
+    })();
+    db.close();
+    res.json({ ok: true, slug, nome, criadas, dias: datas.length, arquivo: `${datas[0]}@${slug}.json` });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
