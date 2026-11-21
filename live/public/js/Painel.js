@@ -68,7 +68,7 @@ const montarSeletorEvento = () => {
   descrever({});
   $.when(
     $.getJSON("/api/eventos").then((r) => r, () => $.Deferred().resolve({})),
-    $.getJSON("/api/cultos").then((r) => r, () => $.Deferred().resolve([])),
+    $.getJSON("/api/cultos").then((r) => r, () => $.Deferred().resolve(null)),
   ).done((ev, lista) => {
     const nomes = (ev && ev.nomes) || {};
     descrever(nomes);
@@ -80,12 +80,30 @@ const montarSeletorEvento = () => {
     });
     ((ev && ev.eventos) || []).forEach((e) => { if (e.inicio <= arquivo && arquivo <= e.fim) slugs.add(e.slug); });
     if (EVENTO) slugs.add(EVENTO); // o evento aberto aparece sempre, para voltar a ele
-    if (!slugs.size) return;
-    const opcoes = [["", "Culto congregacional", "fa-church"]]
-      .concat([...slugs].sort((a, b) => nomeDe(a, nomes).localeCompare(nomeDe(b, nomes), "pt-BR"))
-        .map((s) => [s, nomeDe(s, nomes), "fa-people-roof"]));
-    const $sel = $("#seletorEventoPainel").removeClass("d-none");
-    $sel.find(".qtd").text(slugs.size);
+    // O culto congregacional existe no dia quando há a liturgia "AAAA-MM-DD.json". Se a lista de cultos
+    // não veio, não se decide pela falta dela: o culto continua como opção e nada abre sozinho.
+    const listaOk = Array.isArray(lista);
+    const temCulto = !listaOk || lista.some((f) => String(f) === `${arquivo}.json`);
+    const eventosDoDia = [...slugs].sort((a, b) => nomeDe(a, nomes).localeCompare(nomeDe(b, nomes), "pt-BR"));
+    const irPara = (slug) => {
+      const params = new URLSearchParams(location.search);
+      if (slug) params.set("evento", slug); else params.delete("evento");
+      params.set("data", arquivo);
+      location.replace(`${location.pathname}?${params}`);
+    };
+    // Sem culto congregacional no dia e um só evento: abre direto nele (com culto, o culto é o padrão)
+    if (listaOk && !EVENTO && !temCulto && eventosDoDia.length === 1) return irPara(eventosDoDia[0]);
+    const opcoes = (temCulto || !EVENTO && !eventosDoDia.length ? [["", "Culto congregacional", "fa-church"]] : [])
+      .concat(eventosDoDia.map((s) => [s, nomeDe(s, nomes), "fa-people-roof"]));
+    // Sem culto e com vários eventos, nada está escolhido ainda: o nome vira "Escolha o evento"
+    if (!EVENTO && !temCulto && eventosDoDia.length > 1) {
+      $("#descricaoCulto").addClass("evento").find(".txt").text("Escolha o evento");
+      $("#descricaoCulto .ico").html('<i class="fa-solid fa-people-roof"></i>');
+    }
+    if (opcoes.length < 2 && !(!EVENTO && !temCulto && eventosDoDia.length)) return;
+    const $sel = $("#seletorEventoPainel");
+    $("#descricaoCulto").prop("disabled", false).attr("title", "Trocar entre o culto e os eventos desta data");
+    $sel.find(".seta").removeClass("d-none");
     $sel.find(".dropdown-menu").html(opcoes.map(([slug, nome, icone]) =>
       `<li><a class="dropdown-item${slug === EVENTO ? " active" : ""}" href="#" data-evento="${slug}">
         <i class="fa-solid ${icone}"></i>&nbsp;${escAttr(nome)}</a></li>`).join(""));
@@ -98,19 +116,12 @@ const montarSeletorEvento = () => {
       params.set("data", arquivo);
       location.search = params.toString();
     });
-    // Menu próprio: o Live carrega o Bootstrap sem o Popper, que o dropdown dele exige.
-    // Com mouse abre ao passar por cima (como na Liturgia); no toque, o clique abre e fecha.
-    const $botao = $sel.find(".seletor-evento"), $menu = $sel.find(".dropdown-menu");
+    // Menu próprio (o Live carrega o Bootstrap sem o Popper): clicar ou tocar no nome abre e fecha.
+    const $botao = $("#descricaoCulto"), $menu = $sel.find(".dropdown-menu");
     const abrir = (sim) => { $menu.toggleClass("show", sim); $botao.attr("aria-expanded", sim ? "true" : "false"); };
-    const comMouse = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-    $botao.on("click", (e) => { e.stopPropagation(); abrir(comMouse ? true : !$menu.hasClass("show")); });
+    $botao.on("click", (e) => { e.stopPropagation(); abrir(!$menu.hasClass("show")); $botao.blur(); });
     $(document).on("click", (e) => { if (!$sel[0].contains(e.target)) abrir(false); });
     $(document).on("keydown", (e) => { if (e.key === "Escape") abrir(false); });
-    if (comMouse) {
-      let fechar;
-      $sel.on("mouseenter", () => { clearTimeout(fechar); abrir(true); })
-        .on("mouseleave", () => { fechar = setTimeout(() => abrir(false), 250); });
-    }
   });
 };
 
@@ -138,6 +149,7 @@ const tirarDoAr = () => {
   queryAll(".btn-group-vertical > .btn-check:checked").forEach((input) => {
     input.checked = false;
   });
+  if (typeof atualizarBarra === "function") atualizarBarra();
 };
 // true quando o evento recebido é eco de um envio nosso (e o tira da fila).
 const ehEcoProprio = (evento, args) => {
@@ -159,23 +171,24 @@ socket.onAny((aplicativo, eventName, args) => {
   if (aplicativo === empresa) {
     if (!ehEcoProprio(eventName, args) && mudaATela(eventName, args)) tirarDoAr();
     if (painelOBS && eventName === "obsSceneChanged") {
-      $("body>div:not(.form-check):not(.biblia)").hide();
+      $("body>div:not(.form-check):not(.biblia):not(#itens)").hide();
+      $("#itens>div").hide();
       $(".accordion-button:not(.collapsed)").addClass("collapsed");
       $(".accordion-collapse.show").removeClass("show");
       if (args.toUpperCase().includes("HINO")) {
-        $("body>#hinos").show();
+        $("#itens>#hinos").show();
       } else if (args.toUpperCase().includes("LOUVOR")) {
-        $("body>#louvores").show();
+        $("#itens>#louvores").show();
       } else if (args.toUpperCase().includes("PASSAGEM")) {
-        $("body>#passagens").show();
+        $("#itens>#passagens").show();
       }
     }
   }
 });
 
-// Selos à direita da estrofe: "Na tela" (só aparece com a estrofe no ar, pelo CSS) e a letra.
-const selosEstrofe = (letraHtml = "") =>
-  `<span class="selos-estrofe position-absolute top-50 end-0 translate-middle-y me-2"><span class="badge selo-no-ar"><i class="fa-solid fa-tower-broadcast"></i> Na tela</span>${letraHtml}</span>`;
+// Faixa de rótulos do cartão: "Refrão" (contorno na cor do tipo) à esquerda e "Na tela" à direita.
+const selosEstrofe = (refrao = false) =>
+  `<span class="estrofe-tags">${refrao ? `<span class="tag-refrao">Refrão</span>` : ""}<span class="selo-no-ar"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i> Na tela</span></span>`;
 
 // Balanceia as linhas de letra em slides de no máximo `max` linhas cada,
 // distribuindo as linhas excedentes nos primeiros slides.
@@ -228,7 +241,6 @@ const agruparEmSlides = (letra, max = 4) => {
 const htmlSlideVozes = vozes => {
   const bloco = document.createElement('div');
   Trechos.renderizarDueto(bloco, vozes);
-  bloco.querySelectorAll('.voz-linha').forEach(linha => linha.classList.add('linha-truncate'));
   return bloco.innerHTML;
 };
 const vozesDaSelecao = (button, atributo = 'data-vozes') => {
@@ -242,9 +254,143 @@ const estrofesDaMusica = (button) =>
 const formatarVersiculoParaExibicao = (texto) => {
   return texto.replace(/^[^.]+\.(\d+)\.(\d+)\.\s*/, "$1.$2. ");
 };
+// Itens da liturgia: um acordeão por tipo (hinos, louvores, corais, passagens), um cartão por estrofe.
+const ITENS = {
+  hino: { nome: "Hino", rotulo: "Hino", icone: "fa-music", grupo: "hinos", tipoAttr: "hino", plural: "Hinos" },
+  coral: { nome: "Coral", rotulo: "Coral", icone: "fa-users", grupo: "corais", tipoAttr: "louvor", categoria: "coral", plural: "Corais" },
+  louvor: { nome: "Louvor", rotulo: "Louvor", icone: "fa-guitar", grupo: "louvores", tipoAttr: "louvor", plural: "Louvores" },
+  passagem: { nome: "Passagem", rotulo: "Passagem", icone: "fa-book-bible", grupo: "passagens", tipoAttr: "passagem", plural: "Passagens" },
+};
+
+// Rótulo visível de cada slide: 1, 2, 4A, 4B… (refrão = R); a tecla A–Z continua a da estrofe (data-letra).
+const rotulosDeSlides = (slides) => {
+  const posicoes = new Map();
+  slides.forEach((s, i) => { if (!posicoes.has(s.idTag)) posicoes.set(s.idTag, []); posicoes.get(s.idTag).push(i); });
+  const numeros = new Map();
+  let proximo = 0;
+  return slides.map((s, i) => {
+    let base = "R";
+    if (!s.refrao) {
+      if (!numeros.has(s.idTag)) numeros.set(s.idTag, ++proximo);
+      base = String(numeros.get(s.idTag));
+    }
+    const lista = posicoes.get(s.idTag);
+    return lista.length > 1 ? base + String.fromCharCode(65 + lista.indexOf(i)) : base;
+  });
+};
+
+const adicionarItem = (definicao, chave, n) => {
+  const cfg = ITENS[chave];
+  const alvo = `colapse${cfg.nome}${n}`;
+  const base = `btn${cfg.nome}${n}`;
+  if (!$(`#${cfg.grupo}`).length) $("#itens").append(`<div id="${cfg.grupo}" class="accordion accordion-flush"></div>`);
+  $(`#${cfg.grupo}`).append(`<div class="accordion-item" tipo="${cfg.tipoAttr}"${cfg.categoria ? ` categoria="${cfg.categoria}"` : ""}>
+      <h2 class="accordion-header" id="${chave}${n}">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${alvo}" aria-expanded="false" aria-controls="${alvo}">
+          <i class="fa-solid ${cfg.icone}" aria-hidden="true"></i><span class="item-nome">${sanitizarTitulo(definicao.titulo)}</span>
+        </button>
+        <button class="item-fechar" type="button" data-bs-toggle="collapse" data-bs-target="#${alvo}" aria-controls="${alvo}" aria-label="Fechar ${cfg.rotulo.toLowerCase()} e tirar da tela"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </h2>
+      <div id="${alvo}" class="accordion-collapse collapse" aria-labelledby="${chave}${n}" data-bs-parent="#${cfg.grupo}">
+        <div class="detalhe-cab">
+          <i class="fa-solid ${cfg.icone}" aria-hidden="true"></i><span class="item-nome">${sanitizarTitulo(definicao.titulo)}</span>
+          <button class="detalhe-fechar" type="button" data-bs-toggle="collapse" data-bs-target="#${alvo}" aria-controls="${alvo}" aria-label="Fechar ${cfg.rotulo.toLowerCase()} e tirar da tela"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </div>
+        <div class="accordion-body">
+          <div class="btn-group-vertical w-100" role="group" aria-label="Estrofes"></div>
+        </div>
+      </div>
+    </div>`);
+  const $grupo = $(`#${alvo} .accordion-body .btn-group-vertical`);
+  const tituloId = chave === "passagem" ? `${base}Titulo` : base;
+  const tituloAttr = escAttr(definicao.titulo);
+  // Botão Título: abre o item no Projetor/Legenda sem letra (neutro; amarelo só quando está no ar)
+  $grupo.append(`<input type="radio" class="btn-check" name="${base}" id="${tituloId}" titulo="${tituloAttr}" data-rotulo-estado="título" autocomplete="off"><label class="btn titulo-btn" for="${tituloId}">Título</label>`);
+
+  if (chave === "passagem") {
+    definicao.texto.forEach((valor, indice) => {
+      const versiculoExibicao = formatarVersiculoParaExibicao(valor);
+      const ref = /^(\d+\.\d+)\./.exec(versiculoExibicao);
+      $grupo.append(`<input type="radio" class="btn-check" name="${base}" id="${base}${indice}" titulo="${tituloAttr}" data-rotulo-estado="versículo ${ref ? ref[1] : indice + 1}" autocomplete="off"><label class="btn estrofe estrofe-verso" for="${base}${indice}">${versiculoExibicao}</label>`);
+    });
+    return;
+  }
+
+  const slides = agruparEmSlides(definicao.letra);
+  const rotulos = rotulosDeSlides(slides);
+  slides.forEach((slide, idx) => {
+    const letraTag = slide.idTag ? String.fromCharCode(64 + slide.idTag) : "";
+    const rotulo = rotulos[idx];
+    const estado = slide.refrao ? `refrão${rotulo.length > 1 ? " " + rotulo.slice(1) : ""}` : `estrofe ${rotulo}`;
+    const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
+      .map((l) => `<span class="linha">${sanitizarTexto(l)}</span>`)
+      .join("");
+    const textoCorpo = slide.linhas.join("<br>");
+    const id = `${base}_${idx}`;
+    const dica = letraTag ? ` title="Estrofe ${rotulo}, tecla ${letraTag}"` : "";
+    $grupo.append(
+      `<input type="radio" class="btn-check" name="${base}" id="${id}" titulo="${tituloAttr}" corpo="${encodeURIComponent(textoCorpo)}" ${slide.vozes ? `data-vozes="${escAttr(JSON.stringify(slide.vozes))}" data-vozes-projetor="${escAttr(JSON.stringify(slide.vozesProjetor))}"` : ""} autocomplete="off" data-letra="${letraTag}" data-rotulo-estado="${escAttr(estado)}"><label class="btn estrofe${slide.refrao ? " refrao" : ""}${slide.vozes ? " painel-dueto" : ""}" for="${id}"${dica}><span class="selo-num">${rotulo}</span><span class="estrofe-corpo">${selosEstrofe(slide.refrao)}<span class="estrofe-texto">${textoLimpo}</span></span></label>`,
+    );
+  });
+};
+
+const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const dataLegivel = (iso) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return `${DIAS[d.getUTCDay()]}, ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+};
+
+// Barra de operação: o que está na tela e Anterior/Próxima do item aberto.
+const itemAberto = () => document.querySelector(".accordion-collapse.show");
+const entradasDoAberto = () => {
+  const aberto = itemAberto();
+  return aberto ? Array.from(aberto.querySelectorAll(".btn-group-vertical > input")) : [];
+};
+const atualizarBarra = () => {
+  const marcado = document.querySelector(".btn-group-vertical > input:checked");
+  const $estado = $("#estadoTela");
+  if (marcado) {
+    const item = marcado.closest(".accordion-item");
+    const cfg = ITENS[item.getAttribute("categoria") === "coral" ? "coral" : item.getAttribute("tipo")];
+    $estado.removeClass("nada").find(".estado-txt")
+      .text(`Na tela: ${cfg ? cfg.rotulo : ""} · ${marcado.getAttribute("titulo")} · ${marcado.getAttribute("data-rotulo-estado") || ""}`);
+  } else {
+    $estado.addClass("nada").find(".estado-txt").text("Nada na tela");
+  }
+  const entradas = entradasDoAberto();
+  const i = entradas.findIndex((x) => x.checked);
+  // Anterior | Próxima só aparecem quando há para onde ir (mesma regra de quando ficavam ativos)
+  const temAnterior = i > 0, temProxima = entradas.length > 0 && i < entradas.length - 1;
+  $("#btnAnterior").prop("disabled", !temAnterior).toggleClass("d-none", !temAnterior);
+  $("#btnProxima").prop("disabled", !temProxima).toggleClass("d-none", !temProxima);
+  $("#barraPassos").toggleClass("d-none", !(temAnterior || temProxima));
+};
+const passoEstrofe = (delta) => {
+  const entradas = entradasDoAberto();
+  const alvo = entradas[entradas.findIndex((x) => x.checked) + delta];
+  if (!alvo) return;
+  alvo.click();
+  alvo.nextElementSibling.scrollIntoView({ block: "nearest" });
+};
+
 // -----------------------------------------------------------------------------------------
 const inicio = () => {
   queryId("dataCulto").value = arquivo;
+  $("#dataTxt").text(dataLegivel(arquivo));
+  // Tocar na data abre o seletor nativo (o input fica transparente sobre ela)
+  $("#dataCulto").on("click", function () { try { this.showPicker(); } catch (_) { /* o toque nativo cobre */ } });
+  // Alturas do topo e da barra viram variáveis CSS: cabeçalho do item e rolagem se ajustam a elas
+  const raiz = document.documentElement.style;
+  const medir = () => {
+    raiz.setProperty("--topo-h", `${$(".topo-painel").outerHeight() || 0}px`);
+    raiz.setProperty("--barra-h", `${$("#barraOperacao").outerHeight() || 0}px`);
+  };
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(medir);
+    ro.observe(document.querySelector(".topo-painel"));
+    ro.observe(queryId("barraOperacao"));
+  }
+  medir();
   // Abrir um louvor, hino, coral ou leitura deixa o Título dele pronto, sem projetar: abrir só para
   // ver a letra não pode mostrar nada na tela (Victor Hugo, 19/10/2026). O clique no Título projeta.
   $(document).on("show.bs.collapse", ".accordion-collapse", function (e) {
@@ -259,11 +405,30 @@ const inicio = () => {
   $(document).on("hide.bs.collapse", ".accordion-collapse", function (e) {
     if (e.target === this) this.querySelectorAll("label.proximo").forEach((label) => label.classList.remove("proximo"));
   });
+  $(document).on("shown.bs.collapse hidden.bs.collapse", ".accordion-collapse", atualizarBarra);
+
+  // Barra de operação. Depois do clique o foco sai do botão: as teclas A–Z seguem valendo.
+  $("#barraOperacao button").on("click", function () { this.blur(); });
+  $("#btnAnterior").on("click", () => passoEstrofe(-1));
+  $("#btnProxima").on("click", () => passoEstrofe(1));
+  const fecharMensagem = () => {
+    $("#painelMensagem").addClass("d-none");
+    $("#btnMensagem").attr("aria-pressed", "false");
+    mensagem.blur();
+  };
+  $("#btnMensagem").on("click", function () {
+    const abrir = $("#painelMensagem").hasClass("d-none");
+    $("#painelMensagem").toggleClass("d-none", !abrir);
+    $(this).attr("aria-pressed", abrir ? "true" : "false");
+    if (abrir) mensagem.focus();
+  });
   mensagem.addEventListener("keyup", function (e) {
     if (e.key === "Enter" || e.keyCode === 13) {
       socket.emit(empresa, "Alerta", mensagem.value);
+      fecharMensagem();
     }
   });
+  atualizarBarra();
 
   // O que este Painel controla aparece na descrição ao lado da data (magenta no evento);
   // a faixa do topo saiu a pedido do João (21/11/2026)
@@ -272,227 +437,29 @@ const inicio = () => {
   $.getJSON(`${cultosUrl}/${encodeURIComponent(chaveLiturgia(arquivo))}.json?vozes=1`)
     .done((definicoes) => {
       let hino = 0,
-        louvor = 0,
+        louvor = 0, // o coral conta junto com o louvor
         passagem = 0;
       definicoes.forEach((definicao) => {
         switch (definicao.tipo) {
-          case "hino":
-            hino++;
-            if (hino == 1)
-              $("body").append(
-                `<div id="hinos" class="accordion accordion-flush"></div>`,
-              );
-
-            $("#hinos").append(`<div class="accordion-item" tipo="hino">
-                                                        <h2 class="accordion-header" id="hino${hino}">
-                                                            <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseHino${hino}" aria-expanded="true" aria-controls="colapseHino${hino}">
-                                                                <i class="fa-solid fa-music"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
-                                                            </button>
-                                                        </h2>
-                                                        <div id="colapseHino${hino}" class="accordion-collapse collapse" aria-labelledby="${hino}" data-bs-parent="#hinos">
-                                                            <div class="accordion-body p-1">
-                                                                <div class="btn-group-vertical w-100" role="group" aria-label="Vertical Basic radio toggle button group">
-                                                                
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>`);
-
-            $(`#colapseHino${hino} .accordion-body .btn-group-vertical`)
-              .append(`
-                                        <input type="radio" class="btn-check" name="btnHino${hino}" id="btnHino${hino}" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
-                                        <label class="btn btn-warning text-truncate" for="btnHino${hino}">Título</label>
-                                    `);
-            agruparEmSlides(definicao.letra).forEach((slide, idx) => {
-              const cor = slide.refrao ? "btn-info" : "btn-secondary";
-              let tagHtml = selosEstrofe();
-              let letraTag = "";
-              if (slide.idTag) {
-                const corBadge = [
-                  "bg-danger",
-                  "bg-success",
-                  "bg-primary",
-                  "selo-roxo", // amarelo é só "na tela"
-                  "bg-dark",
-                  "bg-light text-dark",
-                ][(slide.idTag - 1) % 6];
-                letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = selosEstrofe(`<span class="badge ${corBadge}" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`);
-              }
-              const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
-                .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
-                .join("");
-              const textoCorpo = slide.linhas.join("<br>");
-              const texto = tagHtml + textoLimpo;
-              const id = `btnHino${hino}_${idx}`;
-              $(
-                `#colapseHino${hino} .accordion-body .btn-group-vertical`,
-              ).append(
-                `<input type="radio" class="btn-check" name="btnHino${hino}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" ${slide.vozes ? `data-vozes="${escAttr(JSON.stringify(slide.vozes))}" data-vozes-projetor="${escAttr(JSON.stringify(slide.vozesProjetor))}"` : ""} autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} ${slide.vozes ? "painel-dueto" : ""} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
-              );
-            });
-            break;
-          case "coral":
-            louvor++;
-            if (louvor == 1)
-              $("body").append(
-                `<div id="louvores" class="accordion accordion-flush"></div>`,
-              );
-            // Se a seção coral ainda não foi criada, cria-a separada
-            if (!$("#corais").length)
-              $("body").append(
-                `<div id="corais" class="accordion accordion-flush"></div>`,
-              );
-
-            $("#corais").append(`<div class="accordion-item" tipo="louvor" categoria="coral">
-                                                        <h2 class="accordion-header" id="coral${louvor}">
-                                                            <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseCoral${louvor}" aria-expanded="true" aria-controls="colapseCoral${louvor}">
-                                                                <i class="fa-solid fa-users"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
-                                                            </button>
-                                                        </h2>
-                                                        <div id="colapseCoral${louvor}" class="accordion-collapse collapse" aria-labelledby="coral${louvor}" data-bs-parent="#corais">
-                                                            <div class="accordion-body p-1">
-                                                                <div class="btn-group-vertical w-100" role="group">
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>`);
-
-            $(`#colapseCoral${louvor} .accordion-body .btn-group-vertical`)
-              .append(`
-                                        <input type="radio" class="btn-check" name="btnCoral${louvor}" id="btnCoral${louvor}" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
-                                        <label class="btn btn-warning text-truncate" for="btnCoral${louvor}">Título</label>
-                                    `);
-            agruparEmSlides(definicao.letra).forEach((slide, idx) => {
-              const cor = slide.refrao ? "btn-info" : "btn-secondary";
-              let tagHtml = selosEstrofe();
-              let letraTag = "";
-              if (slide.idTag) {
-                const corBadge = [
-                  "bg-danger",
-                  "bg-success",
-                  "bg-primary",
-                  "selo-roxo", // amarelo é só "na tela"
-                  "bg-dark",
-                  "bg-light text-dark",
-                ][(slide.idTag - 1) % 6];
-                letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = selosEstrofe(`<span class="badge ${corBadge}" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`);
-              }
-              const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
-                .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
-                .join("");
-              const textoCorpo = slide.linhas.join("<br>");
-              const texto = tagHtml + textoLimpo;
-              const id = `btnCoral${louvor}_${idx}`;
-              $(
-                `#colapseCoral${louvor} .accordion-body .btn-group-vertical`,
-              ).append(
-                `<input type="radio" class="btn-check" name="btnCoral${louvor}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" ${slide.vozes ? `data-vozes="${escAttr(JSON.stringify(slide.vozes))}" data-vozes-projetor="${escAttr(JSON.stringify(slide.vozesProjetor))}"` : ""} autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} ${slide.vozes ? "painel-dueto" : ""} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
-              );
-            });
-            break;
-          case "louvor":
-            louvor++;
-            if (louvor == 1)
-              $("body").append(
-                `<div id="louvores" class="accordion accordion-flush"></div>`,
-              );
-
-            $("#louvores").append(`<div class="accordion-item" tipo="louvor">
-                                                            <h2 class="accordion-header" id="louvor${louvor}">
-                                                                <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapseLouvor${louvor}" aria-expanded="true" aria-controls="colapseLouvor${louvor}">
-                                                                    <i class="fa-solid fa-guitar"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
-                                                                </button>
-                                                            </h2>
-                                                            <div id="colapseLouvor${louvor}" class="accordion-collapse collapse" aria-labelledby="${louvor}" data-bs-parent="#louvores">
-                                                                <div class="accordion-body p-1">
-                                                                    <div class="btn-group-vertical w-100" role="group" aria-label="Vertical button group">
-                                                                    
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>`);
-            $(`#colapseLouvor${louvor} .accordion-body .btn-group-vertical`)
-              .append(`
-                                        <input type="radio" class="btn-check" name="btnLouvor${louvor}" id="btnLouvor${louvor}" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
-                                        <label class="btn btn-warning text-truncate" for="btnLouvor${louvor}">Título</label>
-                                    `);
-            agruparEmSlides(definicao.letra).forEach((slide, idx) => {
-              const cor = slide.refrao ? "btn-info" : "btn-secondary";
-              let tagHtml = selosEstrofe();
-              let letraTag = "";
-              if (slide.idTag) {
-                const corBadge = [
-                  "bg-danger",
-                  "bg-success",
-                  "bg-primary",
-                  "selo-roxo", // amarelo é só "na tela"
-                  "bg-dark",
-                  "bg-light text-dark",
-                ][(slide.idTag - 1) % 6];
-                letraTag = String.fromCharCode(64 + slide.idTag);
-                tagHtml = selosEstrofe(`<span class="badge ${corBadge}" title="Estrofe ${letraTag}">${letraTag}${slide.total > 1 ? ` · ${slide.parte}/${slide.total}` : ""}</span>`);
-              }
-              const textoLimpo = slide.vozes ? htmlSlideVozes(slide.vozes) : slide.linhas
-                .map((l) => `<span class="linha-truncate">${sanitizarTexto(l)}</span>`)
-                .join("");
-              const textoCorpo = slide.linhas.join("<br>");
-              const texto = tagHtml + textoLimpo;
-              const id = `btnLouvor${louvor}_${idx}`;
-              $(
-                `#colapseLouvor${louvor} .accordion-body .btn-group-vertical`,
-              ).append(
-                `<input type="radio" class="btn-check" name="btnLouvor${louvor}" id="${id}" titulo="${escAttr(definicao.titulo)}" corpo="${encodeURIComponent(textoCorpo)}" ${slide.vozes ? `data-vozes="${escAttr(JSON.stringify(slide.vozes))}" data-vozes-projetor="${escAttr(JSON.stringify(slide.vozesProjetor))}"` : ""} autocomplete="off" data-letra="${letraTag}"><label class="btn ${cor} ${slide.vozes ? "painel-dueto" : ""} position-relative text-start" for="${id}" style="${slide.idTag ? "padding-right: 32px;" : ""}">${texto}</label>`,
-              );
-            });
-            break;
-          case "passagem":
-            passagem++;
-            if (passagem == 1)
-              $("body").append(
-                `<div id="passagens" class="accordion accordion-flush"></div>`,
-              );
-
-            $("#passagens").append(`<div class="accordion-item" tipo="passagem">
-                                                            <h2 class="accordion-header" id="passagem${passagem}">
-                                                                <button class="accordion-button collapsed p-2" type="button" data-bs-toggle="collapse" data-bs-target="#colapsePassagem${passagem}" aria-expanded="true" aria-controls="colapsePassagem${passagem}">
-                                                                    <i class="fa-solid fa-book-bible"></i>&nbsp;${sanitizarTitulo(definicao.titulo)}
-                                                                </button>
-                                                            </h2>
-                                                            <div id="colapsePassagem${passagem}" class="accordion-collapse collapse" aria-labelledby="${passagem}" data-bs-parent="#passagens">
-                                                                <div class="accordion-body p-1">
-                                                                    <div class="btn-group-vertical w-100" role="group" aria-label="Vertical button group">
-                                                                    
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>`);
-            // Botão Título: abre a leitura no Projetor e a tarja na Legenda, como no louvor.
-            $(`#colapsePassagem${passagem} .accordion-body .btn-group-vertical`).append(`
-                                        <input type="radio" class="btn-check" name="btnPassagem${passagem}" id="btnPassagem${passagem}Titulo" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
-                                        <label class="btn btn-warning text-truncate" for="btnPassagem${passagem}Titulo">Título</label>
-                                    `);
-            definicao.texto.forEach((valor, indice) => {
-              const versiculoExibicao = formatarVersiculoParaExibicao(valor);
-              $(
-                `#colapsePassagem${passagem} .accordion-body .btn-group-vertical`,
-              ).append(`
-                                        <input type="radio" class="btn-check" name="btnPassagem${passagem}" id="btnPassagem${passagem}${indice}" titulo="${escAttr(definicao.titulo)}" autocomplete="off">
-                                        <label class="btn btn-secondary text-truncate" for="btnPassagem${passagem}${indice}">${versiculoExibicao}</label>
-                                    `);
-            });
-            break;
+          case "hino": adicionarItem(definicao, "hino", ++hino); break;
+          case "coral": adicionarItem(definicao, "coral", ++louvor); break;
+          case "louvor": adicionarItem(definicao, "louvor", ++louvor); break;
+          case "passagem": adicionarItem(definicao, "passagem", ++passagem); break;
           default:
             console.log(`Codigo errado em ${definicao.tipo}`);
         }
+      });
+      // Rótulo de cada grupo ("Hinos · 3")
+      Object.values(ITENS).forEach((cfg) => {
+        const n = $(`#${cfg.grupo} > .accordion-item`).length;
+        if (n) $(`#${cfg.grupo}`).prepend(`<div class="grupo-rotulo">${cfg.plural} · ${n}</div>`);
       });
     })
     .fail((jqXHR) => {
       const dataBR = (d) => d.split("-").reverse().join("/");
       if (jqXHR.status !== 404) {
         // Falha de verdade (Liturgia fora do ar, rede): aí sim, vermelho.
-        $("body").append(`<div class="alert alert-danger m-3" role="alert">
+        $("#itens").append(`<div class="alert alert-danger m-3" role="alert">
                 <i class="fa-solid fa-triangle-exclamation"></i> Não consegui carregar a liturgia de ${dataBR(arquivo)}. Confira a conexão com a Liturgia e recarregue o Painel.
             </div>`);
         return;
@@ -507,7 +474,7 @@ const inicio = () => {
                 <button type="button" class="btn btn-light estado-acao d-none"></button>
                 <div class="estado-texto estado-dica">Ou escolha outra data no campo acima.</div>
             </div>`);
-      $("body").append($vazio);
+      $("#itens").append($vazio);
       $.getJSON(cultosUrl).done((lista) => {
         const proximo = (Array.isArray(lista) ? lista : [])
           .map((f) => String(f).replace(".json", ""))
@@ -537,15 +504,13 @@ const inicio = () => {
         item.addEventListener("hide.bs.collapse", function () {
           const temNaTela = Boolean(this.querySelector(".btn-group-vertical > input:checked"));
           if (!abrindoOutroItem && temNaTela) enviar("fecharJanela");
-          // Limpa seleção e cor amarela dos itens do accordion que fechou
+          // Limpa seleção e a marca de já projetada dos itens do accordion que fechou
           this.querySelectorAll(
             'input[type="radio"], input[type="checkbox"]',
           ).forEach((input) => {
             input.checked = false;
           });
-          this.querySelectorAll("label").forEach((label) => {
-            label.style.color = "";
-          });
+          this.querySelectorAll("label.ja-projetada").forEach((label) => label.classList.remove("ja-projetada"));
         });
       });
 
@@ -589,7 +554,9 @@ const inicio = () => {
       queryAll('.accordion .btn-group-vertical>input[type="radio"]').forEach(
         (button) => {
           button.addEventListener("change", function () {
-            this.nextElementSibling.style.color = "yellow";
+            // Já projetada: marca até fechar o item (o amarelo fica só para o que está na tela)
+            this.nextElementSibling.classList.add("ja-projetada");
+            atualizarBarra();
             if (this.nextElementSibling.innerHTML === "Título") {
               projetar(
                 $(this).parents(".accordion-item").attr("tipo"),

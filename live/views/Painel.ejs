@@ -22,48 +22,74 @@
         <!-- ---------------------------------------------------------------------------------- -->
 </head>
 
-<body class="px-1 bg-dark container-fluid scrollJC" onload="inicio();">
-    <div class="sticky-top bg-dark pt-1 pb-1" style="z-index: 1050; box-shadow: 0 4px 6px -6px #222;">
-        <div class="btn-group d-flex mb-1 biblia painel-projecao" role="group" aria-label="Controles de projeção">
-            <button type="button" class="btn btn-warning text-start d-flex align-items-center gap-2"
-                id="btnBiblia" onclick="abrirSeletorBiblico()" title="Escolher versão, livro e capítulo">
-                <i class="fa-solid fa-book-bible flex-shrink-0"></i>
-                <span id="bibliaAtual" class="flex-grow-1 text-truncate">Bíblia — escolher livro e capítulo</span>
-                <i class="fa-solid fa-chevron-down small flex-shrink-0"></i>
-            </button>
-            <button type="button" class="btn btn-secondary" id="btnLimparTexto" onclick="limparTexto()"
-                title="Limpar o texto das telas sem fechar as janelas bíblicas">
-                <i class="fa-solid fa-eraser" aria-hidden="true"></i> Limpar
-            </button>
-        </div>
-        <script>
-            // Livros (com nº de capítulos) e versões para o seletor bíblico (js/BibliaSeletor.js)
-            window.BIBLIA = <%- JSON.stringify({ livros, versoes: arquivos, versaoAtual: currentBiblia }).replace(/</g, '\\u003c') %>;
-        </script>
-        <!-- Data e o que este Painel apresenta: o culto congregacional ou o evento (seletor ao lado
-             da data quando o dia tem evento; trocar recarrega no canal do escolhido) -->
-        <div class="input-group input-group-sm linha-culto">
-            <span class="input-group-text" title="Data do culto"><i class="fa-solid fa-calendar-day"></i></span>
-            <input type="date" class="form-control" id="dataCulto" style="max-width: 16ch;"
-                onchange="trocarData(this.value)">
-            <div class="dropdown position-relative d-none" id="seletorEventoPainel">
-                <button type="button" class="btn seletor-evento h-100" aria-haspopup="true" aria-expanded="false"
-                    title="Escolher o que este Painel apresenta nesta data" aria-label="Culto ou evento desta data">
-                    <i class="fa-solid fa-people-roof"></i>&nbsp;<span class="qtd"></span>
+<body class="px-0 bg-dark container-fluid scrollJC" onload="inicio();">
+    <script>
+        // Livros (com nº de capítulos) e versões para o seletor bíblico (js/BibliaSeletor.js)
+        window.BIBLIA = <%- JSON.stringify({ livros, versoes: arquivos, versaoAtual: currentBiblia }).replace(/</g, '\\u003c') %>;
+    </script>
+
+    <!-- Topo: uma linha de 44 px. Data legível (tocar abre o seletor nativo) e, ao lado, o que este Painel
+         apresenta (culto congregacional ou evento); com mais de uma opção no dia, o nome abre a escolha. -->
+    <div class="topo-painel sticky-top">
+        <div class="topo-linha">
+            <label class="data-culto" title="Data do culto">
+                <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+                <span id="dataTxt"></span>
+                <i class="fa-solid fa-chevron-down small" aria-hidden="true"></i>
+                <input type="date" id="dataCulto" aria-label="Escolher a data do culto" onchange="trocarData(this.value)">
+            </label>
+            <!-- O que este Painel apresenta, na mesma linha da data. Com mais de uma opção no dia
+                 (culto e evento, ou dois eventos), tocar no nome abre a escolha. -->
+            <div class="dropdown position-relative seletor-culto" id="seletorEventoPainel">
+                <button type="button" class="descricao-culto" id="descricaoCulto" disabled
+                    aria-haspopup="true" aria-expanded="false" aria-label="Culto ou evento desta data">
+                    <span class="ico"><i class="fa-solid fa-church"></i></span><span class="txt">Culto congregacional</span>
+                    <span class="seta d-none" aria-hidden="true"><i class="fa-solid fa-chevron-down small"></i></span>
                 </button>
                 <ul class="dropdown-menu"></ul>
             </div>
-            <span class="input-group-text descricao-culto flex-grow-1" id="descricaoCulto">
-                <span class="ico"><i class="fa-solid fa-church"></i></span>&nbsp;<span class="txt">Culto congregacional</span>
-            </span>
         </div>
     </div>
 
-    <!-- Mensagem para o púlpito: rodapé fixo no fim da janela (pedido do João, 21/11/2026) -->
-    <div class="rodape-mensagem fixed-bottom bg-dark px-1 py-1">
-        <div class="input-group input-group-sm">
-            <span class="input-group-text" title="Mensagem para o púlpito (Enter envia)"><i class="fa-solid fa-comment-dots"></i></span>
-            <input type="text" class="form-control" id='mensagem' name='mensagem' placeholder="Mensagem para o púlpito (Enter envia)">
+    <!-- Lista de itens (em tela larga é a coluna da esquerda; o item aberto aparece na coluna da direita, só por CSS) -->
+    <div id="itens"></div>
+    <div id="detalheVazio" class="detalhe-vazio" role="status">
+        <i class="fa-regular fa-hand-pointer fa-2x" aria-hidden="true"></i>
+        <span>Escolha um item na lista</span>
+    </div>
+
+    <!-- Barra de operação fixa (polegar): estado; Anterior | Próxima só quando há para onde ir; Limpar, Bíblia e Mensagem -->
+    <div class="barra-operacao biblia" id="barraOperacao">
+        <div id="painelMensagem" class="painel-mensagem d-none">
+            <input type="text" class="form-control" id="mensagem" name="mensagem" autocomplete="off"
+                aria-label="Mensagem para o púlpito" placeholder="Mensagem para o púlpito (Enter envia)">
+        </div>
+        <div id="estadoTela" class="estado-tela nada" role="status" aria-live="polite">
+            <span class="quad" aria-hidden="true"></span><span class="estado-txt">Nada na tela</span>
+        </div>
+        <div class="barra-corpo">
+            <div class="barra-linha barra-passos d-none" id="barraPassos">
+                <button type="button" class="btn btn-barra d-none" id="btnAnterior" aria-label="Estrofe anterior" disabled>
+                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>Anterior
+                </button>
+                <button type="button" class="btn btn-barra btn-proxima d-none" id="btnProxima" aria-label="Próxima estrofe" disabled>
+                    Próxima<i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="barra-linha">
+                <button type="button" class="btn btn-barra btn-barra2" id="btnLimparTexto" onclick="limparTexto()"
+                    aria-label="Limpar as telas sem fechar as janelas bíblicas">
+                    <i class="fa-solid fa-eraser" aria-hidden="true"></i>Limpar
+                </button>
+                <button type="button" class="btn btn-barra btn-barra2" id="btnBiblia" onclick="abrirSeletorBiblico()"
+                    aria-label="Abrir a Bíblia: escolher versão, livro e capítulo">
+                    <i class="fa-solid fa-book-bible" aria-hidden="true"></i><span>Bíblia<span id="bibliaAtual"></span></span>
+                </button>
+                <button type="button" class="btn btn-barra btn-barra2" id="btnMensagem" aria-pressed="false"
+                    aria-label="Mensagem para o púlpito">
+                    <i class="fa-solid fa-comment-dots" aria-hidden="true"></i>Mensagem
+                </button>
+            </div>
         </div>
     </div>
 

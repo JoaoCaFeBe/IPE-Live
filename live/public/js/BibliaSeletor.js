@@ -17,12 +17,47 @@ const bsNormalizar = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '
     .toLowerCase().replace(/[\s.]/g, '');
 const bsSigla = arquivo => (String(arquivo).match(/- ([^-]+)\.sqlite$/) || [])[1] || arquivo;
 
-// Último livro usado (conveniência deste navegador); a versão sempre começa na ARA
+// Conveniências deste navegador: último livro, último capítulo por livro, leituras recentes por canal
+// e a versão por culto (data@evento). Tudo em localStorage; se falhar, o seletor funciona sem lembrar.
 function bsLembrar(chave, valor) {
     try {
         if (valor === undefined) return localStorage.getItem('bibliaSeletor.' + chave);
         localStorage.setItem('bibliaSeletor.' + chave, valor);
     } catch (_) { return null; }
+}
+
+/** Canal do Painel: o slug do evento (?evento=) ou "culto" (congregacional) */
+function bsCanal() { return (typeof EVENTO !== 'undefined' && EVENTO) || 'culto'; }
+const bsHoje = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+/** Data do culto aberto no Painel (AAAA-MM-DD) */
+function bsData() {
+    const v = $('#dataCulto').val() || new URLSearchParams(location.search).get('data') || '';
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : bsHoje();
+}
+const bsChaveVersao = () => `versao.${bsData()}@${bsCanal()}`;
+
+/** Versão deste culto: a última escolhida nele, se ainda existir; senão a padrão */
+function bsVersaoDoCulto() {
+    const guardada = bsLembrar(bsChaveVersao());
+    const versoes = (window.BIBLIA && window.BIBLIA.versoes) || [];
+    // Padrão da igreja: ARA (decisão do João, 28/09/2026); a troca vale até o fim deste culto
+    return versoes.includes(guardada) ? guardada : (versoes.find(a => / - ARA\.sqlite$/.test(a)) || window.BIBLIA.versaoAtual);
+}
+
+/** Descarta versões guardadas de datas anteriores a hoje (não acumula) */
+function bsLimparVersoesAntigas() {
+    try {
+        const hoje = bsHoje();
+        Object.keys(localStorage).forEach(k => {
+            const m = k.match(/^bibliaSeletor\.versao\.(\d{4}-\d{2}-\d{2})@/);
+            if (m && m[1] < hoje && m[1] !== bsData()) localStorage.removeItem(k);
+        });
+    } catch (_) { /* sem armazenamento: nada a limpar */ }
+}
+
+function bsRecentes() {
+    try { const l = JSON.parse(bsLembrar('recentes.' + bsCanal()) || '[]'); return Array.isArray(l) ? l : []; }
+    catch (_) { return []; }
 }
 
 function bsLivros() { return (window.BIBLIA && window.BIBLIA.livros) || []; }
@@ -71,19 +106,49 @@ function bsDesenharLivros(filtro = '') {
     $('#bsRotuloNT').toggle(!!$('#bsNT').children().length);
 }
 
+/** Hora da leitura; de outro dia, a data antes (o marcador não se passa por leitura de hoje) */
+function bsQuando(r) {
+    if (!r.data || r.data === bsHoje()) return r.hora || "";
+    const [, m, d] = r.data.split("-");
+    return `${d}/${m} ${r.hora || ""}`.trim();
+}
+
+function bsDesenharRecentes() {
+    const lista = bsRecentes().slice(0, 10);
+    $('#bsRecentes').toggle(lista.length > 0);
+    $('#bsRecentesQtd').text(lista.length);
+    $('#bsRecentesBtn').attr('aria-label', `Leituras recentes: ${lista.length}`);
+    $('#bsRecentesLista').empty().append($('<div class="bs-rotulo">').text('Leituras recentes'),
+        lista.map((r, i) => $('<button type="button" class="bs-recente" role="menuitem">')
+        .attr({ 'data-i': i, 'aria-label': `${r.nome} ${r.cap}:${r.ver}, ${bsSigla(r.versao)}, ${bsQuando(r)}` })
+        .append($('<i class="fa-solid fa-bookmark" aria-hidden="true"></i>'),
+            $('<span class="ref">').text(`${r.nome} ${r.cap}:${r.ver}`),
+            $('<span class="meta">').text(`${bsSigla(r.versao)} · ${bsQuando(r)}`))));
+}
+
+/** Passo 1 (versão, busca e livros) ou passo 2 (capítulos do livro escolhido) */
+function bsPasso(n) {
+    $('.bs').attr('data-passo', n);
+    $('.bs-passo').scrollTop(0);
+}
+
+/** Escolher o livro leva ao passo 2: a grade de capítulos 1..N */
 function bsEscolherLivro(livro) {
     bsLembrar('livro', livro.id);
     $('#bsLivros .bs-livro').removeClass('ativo').filter(`[data-id="${livro.id}"]`).addClass('ativo');
     $('#bsLivroTitulo').text(livro.name);
+    const capAtivo = Number(bsLembrar('cap.' + livro.id)) || 0;
     $('#bsCapitulos').empty().append(Array.from({ length: livro.capitulos }, (_, i) =>
-        $('<button type="button" class="bs-cap">').attr('data-cap', i + 1).text(i + 1)));
-    $('#bsDica').text('Escolha o capítulo — a lista de versículos abre na janela da Bíblia.');
+        $('<button type="button" class="bs-cap">').toggleClass('ativo', i + 1 === capAtivo).attr({ 'data-cap': i + 1, 'aria-label': `${livro.name}, capítulo ${i + 1}` }).text(i + 1)));
+    $('#bsDica').text('Escolha o capítulo: a lista de versículos abre na janela da Bíblia.');
+    bsPasso(2);
 }
 
 /** Abre a janela /Biblia no capítulo (e posiciona no versículo, sem projetar) */
 function bsAbrir(livro, capitulo, versiculo = null) {
     const versao = $('#bsVersao').val() || window.BIBLIA.versaoAtual;
     bsLembrar('livro', livro.id);
+    bsLembrar('cap.' + livro.id, capitulo);
     $('#bibliaAtual').text(`${livro.name} ${capitulo}${versiculo ? ':' + versiculo : ''} · ${bsSigla(versao)}`);
     bootbox.hideAll();
     listaVersiculos(livro.id, capitulo, versao, livro.name, versiculo);
@@ -98,7 +163,7 @@ function bsAplicarReferencia(texto) {
             $('#bsErro').text('');
             return;
         }
-        $('#bsErro').text(ref?.erro || 'Use: livro capítulo:versículo — ex.: Jo 3:16');
+        $('#bsErro').text(ref?.erro || 'Use: livro capítulo:versículo, por exemplo Jo 3:16');
         return;
     }
     bsAbrir(ref.livro, ref.capitulo, ref.versiculo);
@@ -106,31 +171,41 @@ function bsAplicarReferencia(texto) {
 
 function abrirSeletorBiblico() {
     const versoes = (window.BIBLIA && window.BIBLIA.versoes) || [];
-    // Padrão da igreja: sempre abre na ARA (decisão do João, 28/09/2026); trocar vale só para esta abertura
-    const versaoInicial = versoes.find(a => / - ARA\.sqlite$/.test(a)) || window.BIBLIA.versaoAtual;
+    // A versão acompanha o culto (data@evento): a última escolhida nele; sem escolha, a padrão
+    bsLimparVersoesAntigas();
+    const versaoInicial = bsVersaoDoCulto();
 
     const html = /* html */`
-<div class="bs">
-  <div class="input-group">
-    <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
-    <input type="text" id="bsRef" class="form-control" autocomplete="off"
-      placeholder="Referência (Jo 3:16, Sl 23) ou nome do livro">
-    <button class="btn btn-primary" type="button" id="bsIr">Ir</button>
-    <select id="bsVersao" class="form-select" title="Versão da Bíblia"></select>
+<div class="bs" data-passo="1">
+  <div class="bs-topo">
+    <div class="bs-versao-linha">
+      <select id="bsVersao" class="form-select" aria-label="Versão da Bíblia" title="Versão da Bíblia"></select>
+      <div class="bs-marcadores" id="bsRecentes" style="display:none">
+        <button type="button" class="btn bs-marcadores-btn" id="bsRecentesBtn" aria-haspopup="true" aria-expanded="false"
+          title="Leituras recentes (as 10 últimas)"><i class="fa-solid fa-bookmark" aria-hidden="true"></i><span class="qtd" id="bsRecentesQtd"></span></button>
+        <div class="bs-marcadores-menu" id="bsRecentesLista" role="menu" aria-label="Leituras recentes"></div>
+      </div>
+    </div>
+    <div class="input-group bs-busca">
+      <input type="text" id="bsRef" class="form-control" autocomplete="off" aria-label="Referência ou nome do livro"
+        placeholder="Referência (Jo 3:16, Sl 23) ou livro">
+      <button class="btn btn-primary" type="button" id="bsIr">Ir</button>
+    </div>
   </div>
-  <div id="bsErro" class="small text-danger"></div>
-  <div class="bs-corpo">
-    <div id="bsLivros" class="bs-livros-painel">
-      <div class="bs-rotulo" id="bsRotuloAT">Antigo Testamento</div>
-      <div class="bs-livros" id="bsAT"></div>
-      <div class="bs-rotulo" id="bsRotuloNT">Novo Testamento</div>
-      <div class="bs-livros" id="bsNT"></div>
-    </div>
-    <div class="bs-capitulos-painel">
+  <div id="bsErro" role="alert"></div>
+  <div class="bs-passo bs-passo-livros" id="bsLivros">
+    <div class="bs-rotulo" id="bsRotuloAT">Antigo Testamento</div>
+    <div class="bs-livros" id="bsAT"></div>
+    <div class="bs-rotulo" id="bsRotuloNT">Novo Testamento</div>
+    <div class="bs-livros" id="bsNT"></div>
+  </div>
+  <div class="bs-passo bs-passo-capitulos">
+    <div class="bs-cap-topo">
+      <button type="button" class="bs-voltar" id="bsVoltar" aria-label="Voltar para a lista de livros">&lsaquo; Livros</button>
       <strong id="bsLivroTitulo">Escolha um livro</strong>
-      <div class="bs-capitulos" id="bsCapitulos"></div>
-      <div class="bs-dica" id="bsDica">Escolha o livro à esquerda ou digite a referência acima.</div>
     </div>
+    <div class="bs-capitulos" id="bsCapitulos"></div>
+    <div class="bs-dica" id="bsDica"></div>
   </div>
 </div>`;
 
@@ -147,16 +222,31 @@ function abrirSeletorBiblico() {
         versoes.forEach(a => $('<option>').val(a).text(bsSigla(a)).attr('title', a.replace('.sqlite', ''))
             .prop('selected', a === versaoInicial).appendTo($v));
         bsDesenharLivros();
-        const ultimo = bsLivros().find(l => l.id === Number(bsLembrar('livro')));
-        if (ultimo) bsEscolherLivro(ultimo);
+        bsDesenharRecentes();
+        $v.on('change', () => bsLembrar(bsChaveVersao(), $v.val()));
 
-        $('#bsRef').trigger('focus')
-            .on('input', function () { bsDesenharLivros(this.value); $('#bsErro').text(''); })
+        // Teclado só abre sozinho com mouse/teclado físico; no toque o operador escolhe nos botões
+        const $ref = $('#bsRef');
+        if (window.matchMedia('(pointer: fine)').matches) $ref.trigger('focus');
+        $ref.on('input', function () { bsDesenharLivros(this.value); $('#bsErro').text(''); })
             .on('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); bsAplicarReferencia(this.value); } });
         $('#bsIr').on('click', () => bsAplicarReferencia($('#bsRef').val()));
         $('#bsLivros').on('click', '.bs-livro', function () {
             bsEscolherLivro(bsLivros().find(l => l.id === Number(this.dataset.id)));
         });
+        // Menu dos marcadores ao lado da versão: tocar no botão abre e fecha; fora dele, fecha
+        const $menuRec = $('#bsRecentesLista'), $btnRec = $('#bsRecentesBtn');
+        const abrirRec = (sim) => { $menuRec.toggleClass('show', sim); $btnRec.attr('aria-expanded', sim ? 'true' : 'false'); };
+        $btnRec.on('click', (e) => { e.stopPropagation(); abrirRec(!$menuRec.hasClass('show')); });
+        $('.bs-modal').on('click', (e) => { if (!$('#bsRecentes')[0].contains(e.target)) abrirRec(false); });
+        $('#bsRecentesLista').on('click', '.bs-recente', function () {
+            const r = bsRecentes()[Number(this.dataset.i)];
+            if (!r) return;
+            bootbox.hideAll();
+            $('#bibliaAtual').text(`${r.nome} ${r.cap}:${r.ver} · ${bsSigla(r.versao)}`);
+            listaVersiculos(r.livro, r.cap, r.versao, r.nome, r.ver);
+        });
+        $('#bsVoltar').on('click', () => bsPasso(1));
         $('#bsCapitulos').on('click', '.bs-cap', function () {
             const livro = bsLivros().find(l => l.id === Number(bsLembrar('livro')));
             if (livro) bsAbrir(livro, Number(this.dataset.cap));

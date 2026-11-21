@@ -1,259 +1,272 @@
+/* Painel do IPE Live: operação no celular primeiro. Tema escuro: fundo #212529, superfície #2b3035,
+   borda #495057, texto #f8f9fa, secundário #adb5bd. Alvo de toque >= 44 px, sem animação, nenhum
+   texto cortado em botão ou cartão (tudo quebra linha). Amarelo (#ffc107) = só "na tela". */
+
 html,
 body {
   width: 100%;
   height: 100%;
   padding: 0px;
-  /*padding-bottom: 50px;*/
   margin: 0px;
   overflow: hidden;
   background-color: black;
-  color: white;
+  color: #f8f9fa;
 }
 
-.btn-group-vertical > label {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-  white-space: normal !important;
-  word-wrap: break-word;
-}
+body { padding-bottom: var(--barra-h, 11rem) !important; overflow-x: hidden; }
 
-.btn-group-vertical > label .linha-truncate {
-  display: inline-block;
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap !important;
-  vertical-align: bottom;
-}
+.scrollJC { overflow-y: auto; }
 
-homens {
-  width: 50%;
-  float: left;
-  text-align: center;
-}
+.scrollJC::-webkit-scrollbar { display: initial; width: 5px; }
+.scrollJC::-webkit-scrollbar-thumb { background: currentColor; opacity: 0.5; backdrop-filter: invert(1); }
 
-mulheres {
-  text-align: center;
-}
-
-.scrollJC {
-  overflow-y: auto;
-}
-
-.scrollJC::-webkit-scrollbar {
-  display: initial;
-  width: 5px;
-}
-
-.scrollJC::-webkit-scrollbar-thumb {
-  background: currentColor;
-  opacity: 0.5;
-  backdrop-filter: invert(1);
-}
-
-/* Limpeza compacta ao lado do seletor bíblico, sem estourar telas estreitas. */
-.painel-projecao > .btn {
-  min-height: 44px;
-}
-
-#btnLimparTexto {
-  flex: 0 0 auto;
-}
-
-#btnBiblia {
-  min-width: 0;
-}
-
-/*.scrollJC:hover::-webkit-scrollbar {
-    display: initial;
-}*/
+/* Sem animação em tela de operação */
+.collapsing { transition: none !important; }
+.accordion-button, .accordion-button::after, .btn { transition: none !important; }
 
 input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ---- Topo: uma linha de 44 px (data + culto/evento) ---- */
+.topo-painel { background: #212529; border-bottom: 1px solid #495057; z-index: 1050; }
+.topo-linha { min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; column-gap: .75rem; padding: 0 .75rem; }
+.data-culto { position: relative; flex: none; display: flex; align-items: center; gap: .5rem; min-height: 44px; margin: 0; font-size: 1.0625rem; font-weight: 700; color: #f8f9fa; cursor: pointer; }
+.data-culto input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.seletor-culto { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; padding-left: .75rem; border-left: 1px solid #495057; }
+.descricao-culto { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; max-width: 100%; padding: 0; background: none; border: 0; text-align: left; color: #e9ecef; font-weight: 600; font-size: 1rem; overflow-wrap: anywhere; }
+.descricao-culto:disabled { opacity: 1; cursor: default; color: #e9ecef; }
+.descricao-culto:not(:disabled) { cursor: pointer; }
+.descricao-culto:not(:disabled):hover .txt { text-decoration: underline; text-underline-offset: 3px; }
+.descricao-culto .txt { min-width: 0; }
+.descricao-culto .ico, .descricao-culto .seta { flex: none; }
+.descricao-culto.evento, .descricao-culto.evento:disabled { color: #f08cc4; }
+
+/* Escolha do culto/evento (o Live não tem o Popper: o menu é próprio) */
+#seletorEventoPainel .dropdown-menu { display: none; background: #2b3035; border: 1px solid #495057; border-radius: .4rem; padding: .25rem 0; min-width: 15rem; max-width: calc(100vw - 1.5rem); }
+#seletorEventoPainel .dropdown-menu.show { display: block; position: absolute; top: 100%; left: .75rem; right: auto; margin-top: 2px; z-index: 1060; }
+#seletorEventoPainel .dropdown-item { min-height: 44px; display: flex; align-items: center; gap: .5rem; white-space: normal; overflow-wrap: anywhere; color: #f8f9fa; }
+#seletorEventoPainel .dropdown-item:hover { background: #343a40; color: #fff; }
+#seletorEventoPainel .dropdown-item.active { background: #9d1d6b; color: #fff; }
+
+/* ---- Lista de itens: acordeão por tipo, cabeçalho >= 52 px com faixa de 4 px na cor do tipo ---- */
+.accordion { --tipo: #5b2d99; --tipo-esc: #3d1f6d; --tipo-txt: #e0d0ff; }
+#hinos { --tipo: #5b2d99; --tipo-esc: #3d1f6d; --tipo-txt: #e0d0ff; }
+#louvores { --tipo: #23784a; --tipo-esc: #1a5632; --tipo-txt: #c8f0d4; }
+#corais { --tipo: #7e4600; --tipo-esc: #5c3200; --tipo-txt: #ffe5c8; }
+#passagens { --tipo: #1a6d96; --tipo-esc: #14506e; --tipo-txt: #c4e3f5; }
+
+.grupo-rotulo { padding: .85rem .75rem .35rem; font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #adb5bd; }
+.accordion-flush .accordion-item { background-color: transparent; border: 0; }
+.accordion-item .accordion-header { position: sticky; top: var(--topo-h, 89px); z-index: 1030; margin: 0; }
+.accordion-button { min-height: 52px; padding: .6rem .75rem; gap: .6rem; align-items: center; text-align: left; white-space: normal; overflow-wrap: anywhere; font-size: 1.05rem; font-weight: 600; border-radius: 0 !important; border-left: 4px solid var(--tipo); border-bottom: 1px solid #495057; background-color: var(--tipo-esc); color: var(--tipo-txt); box-shadow: none; }
+.accordion-button:not(.collapsed) { background-color: var(--tipo); color: #fff; box-shadow: none; padding-right: 3.5rem; }
+.accordion-button .item-nome { min-width: 0; flex: 1; }
+.accordion-button > i { flex: none; width: 1.25rem; text-align: center; }
+.accordion-button::after { filter: invert(1); flex: none; margin-left: auto; }
+.accordion-button:not(.collapsed)::after { display: none; }
+.item-fechar { display: none; position: absolute; z-index: 4; top: 0; right: 0; bottom: 0; width: 3.5rem; align-items: center; justify-content: center; border: 0; background: transparent; color: #fff; font-size: 1.25rem; }
+.accordion-button:not(.collapsed) ~ .item-fechar { display: flex; }
+.accordion-body { padding: .5rem; background: #212529; }
+
+/* ---- Estrofes: cartão de largura total, texto inteiro ---- */
+.btn-check { position: fixed !important; pointer-events: none !important; }
+.btn-group-vertical { display: flex; flex-direction: column; align-items: stretch; gap: .5rem; }
+.btn-group-vertical > .btn { margin: 0 !important; border-radius: .5rem !important; width: 100%; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-wrap: break-word; }
+
+.titulo-btn { min-height: 52px; display: flex; align-items: center; justify-content: center; background: transparent; border: 2px solid #adb5bd; color: #f8f9fa; font-weight: 700; font-size: 1.05rem; }
+.btn-check:checked + .titulo-btn { background: #ffc107; border-color: #ffc107; color: #212529; }
+.btn-check:checked + .titulo-btn::after { content: " · na tela"; white-space: pre; }
+.btn-group-vertical > label.titulo-btn.proximo { outline: 3px dashed #ffc107; outline-offset: 2px; }
+.btn-group-vertical > label.titulo-btn.proximo::after { content: " · toque para mostrar"; white-space: pre; font-weight: 600; opacity: .8; }
+
+.estrofe { display: flex !important; align-items: flex-start; gap: .75rem; min-height: 56px; padding: .75rem; text-align: left; background: #2b3035; border: 2px solid #495057; color: #f8f9fa; font-size: 1.05rem; line-height: 1.35; scroll-margin-top: calc(var(--topo-h, 89px) + 64px); scroll-margin-bottom: calc(var(--barra-h, 170px) + 8px); }
+.estrofe:hover { background: #343a40; color: #f8f9fa; border-color: #6c757d; }
+.estrofe .selo-num { flex: none; min-width: 2.25rem; height: 2.25rem; padding: 0 .4rem; display: inline-flex; align-items: center; justify-content: center; border-radius: .4rem; background: #495057; color: #f8f9fa; font-weight: 700; }
+.estrofe-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .25rem; }
+.estrofe-texto { display: block; min-width: 0; }
+.estrofe .linha { display: block; overflow-wrap: anywhere; }
+.estrofe-verso { display: block !important; }
+.estrofe-tags { display: none; justify-content: space-between; align-items: center; gap: .5rem; }
+.btn-check:checked + .estrofe:not(.refrao) .estrofe-tags { display: contents; }
+.estrofe.refrao .estrofe-tags { display: flex; }
+.tag-refrao, .selo-no-ar { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .5rem; border-radius: .3rem; font-size: .8rem; font-weight: 700; }
+.tag-refrao { background: var(--tipo); color: #fff; }
+/* "Na tela" pousa na borda de cima do cartão: aparece sem mover nem cobrir o texto (João, 21/11/2026) */
+.estrofe { position: relative; }
+.selo-no-ar { display: none; position: absolute; top: -.7rem; right: .75rem; z-index: 1; background: #212529; color: #ffc107; border: 1px solid #ffc107; }
+.btn-check:checked + label .selo-no-ar { display: inline-flex; }
+.estrofe.refrao { border-color: var(--tipo); }
+.estrofe.refrao .selo-num { background: var(--tipo); color: #fff; }
+
+/* Estrofe no ar: fundo amarelo e texto escuro; "Na tela" no canto, sem cobrir o texto */
+.btn-check:checked + label.estrofe { background: #ffc107; border-color: #ffc107; color: #212529; }
+.btn-check:checked + label.estrofe .selo-num { background: #212529; color: #ffc107; }
+.btn-check:checked + label.estrofe .voz-nome { color: #212529; }
+.btn-check:checked + label.estrofe .coluna-voz + .coluna-voz, .btn-check:checked + label.estrofe .vozes-alinhadas > .coluna-voz + .coluna-voz > * { border-left-color: rgba(33, 37, 41, .5); }
+
+/* Duas vozes: um cartão seleciona o par; cada coluna quebra linha */
+.painel-dueto .conteudo-vozes { gap: .5rem; color: inherit; }
+.painel-dueto .coluna-voz + .coluna-voz { padding-left: .5rem; }
+.painel-dueto .vozes-alinhadas > .coluna-voz + .coluna-voz > * { padding-left: .5rem; }
+.painel-dueto .voz-nome { font-size: .8rem; color: #adb5bd; text-transform: none; margin-bottom: .25rem; }
+.painel-dueto .coluna-voz + .coluna-voz, .painel-dueto .vozes-alinhadas > .coluna-voz + .coluna-voz > * { border-left-color: rgba(248, 249, 250, .45); }
+
+/* ---- Barra de operação fixa ---- */
+.barra-operacao { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1040; background: #2b3035; border-top: 1px solid #495057; padding: .5rem .75rem calc(.5rem + env(safe-area-inset-bottom, 0px)); }
+.painel-mensagem { margin-bottom: .5rem; }
+.painel-mensagem .form-control { min-height: 48px; background: #212529; border: 1px solid #adb5bd; color: #f8f9fa; }
+.painel-mensagem .form-control::placeholder { color: #adb5bd; }
+.estado-tela { display: flex; align-items: flex-start; gap: .5rem; min-height: 28px; margin-bottom: .4rem; font-size: .95rem; font-weight: 700; line-height: 1.3; color: #ffc107; overflow-wrap: anywhere; }
+.estado-tela.nada { color: #adb5bd; font-weight: 600; }
+.estado-tela .quad { flex: none; width: 10px; height: 10px; margin-top: .35rem; border-radius: 2px; background: currentColor; }
+.estado-tela .estado-txt { min-width: 0; }
+.barra-corpo { display: flex; flex-direction: column; gap: .5rem; }
+.barra-linha { display: flex; gap: .5rem; }
+.btn-barra { flex: 1 1 0; min-width: 0; min-height: 56px; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .4rem .5rem; background: #343a40; border: 2px solid #6c757d; border-radius: .5rem; color: #f8f9fa; font-weight: 700; font-size: 1rem; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; text-align: center; }
+.btn-barra:hover:not(:disabled) { background: #3d444b; color: #fff; }
+.btn-barra:disabled { opacity: .5; color: #f8f9fa; }
+.btn-proxima { background: #6c757d; border-color: #adb5bd; }
+.btn-proxima:hover:not(:disabled) { background: #7b848c; }
+.btn-limpar { flex: 0 0 6.5rem; }
+.btn-barra2 { min-height: 48px; }
+.btn-barra2 > span { display: flex; flex-direction: column; min-width: 0; }
+#bibliaAtual { display: block; font-size: .8rem; font-weight: 600; color: #ced4da; }
+#bibliaAtual:empty { display: none; }
+.btn-barra[aria-pressed="true"] { border-color: #f8f9fa; background: #495057; }
+
+@media (min-width: 768px) {
+  .barra-corpo { flex-direction: row; align-items: stretch; }
+  .barra-linha { flex: 1 1 0; }
+  .barra-corpo { justify-content: flex-end; }
+  .barra-linha + .barra-linha, .barra-passos.d-none + .barra-linha { flex: 0 1 27rem; }
+  #hinos, #louvores, #corais, #passagens, .estado-vazio { max-width: 52rem; margin-left: auto; margin-right: auto; }
+  .estado-vazio { margin-top: 2.5rem; }
 }
 
-/* ---- Cores por tipo de seção ---- */
-.accordion-flush .accordion-item {
-  background-color: transparent;
-}
-
-.accordion-flush .accordion-item:last-of-type .accordion-button.collapsed {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-#hinos .accordion-button {
-  background-color: #3d1f6d;
-  color: #e0d0ff;
-}
-
-#hinos .accordion-button:not(.collapsed) {
-  background-color: #5b2d99;
-  color: #fff;
-}
-
-#louvores .accordion-button {
-  background-color: #1a5632;
-  color: #c8f0d4;
-}
-
-#louvores .accordion-button:not(.collapsed) {
-  background-color: #23784a;
-  color: #fff;
-}
-
-#corais .accordion-button {
-  background-color: #5c3200;
-  color: #ffe5c8;
-}
-
-#corais .accordion-button:not(.collapsed) {
-  background-color: #7e4600;
-  color: #fff;
-}
-
-#passagens .accordion-button {
-  background-color: #14506e;
-  color: #c4e3f5;
-}
-
-#passagens .accordion-button:not(.collapsed) {
-  background-color: #1a6d96;
-  color: #fff;
-}
-
-#passagens .btn-group-vertical > label.btn,
-#passagens .btn-group-vertical > .btn,
-.accordion-item[tipo="passagem"] .btn-group-vertical > label.btn {
-  text-align: left !important;
-  justify-content: flex-start;
-}
-
-#mensagens .accordion-button {
-  background-color: #7a2517;
-  color: #fdd8d2;
-}
-
-#mensagens .accordion-button:not(.collapsed) {
-  background-color: #a43220;
-  color: #fff;
-}
-
-.accordion-button::after {
-  filter: invert(1);
-}
-
-/* Evita salto de scroll ao focar o input invisível do btn-check */
-.btn-check {
-  position: fixed !important;
-  pointer-events: none !important;
-}
-
-.tag-estrofe {
-  position: absolute;
-  right: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.75rem;
-  box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
-}
-
-/* ── Seletor bíblico (js/BibliaSeletor.js) ─────────────────────────────── */
-
-.bs-modal .modal-content { color: #212529; }
-.bs-modal .modal-body { padding: .75rem; }
-.bs { display: flex; flex-direction: column; gap: .5rem; height: 70vh; }
-.bs #bsVersao { max-width: 7rem; }
+/* ---- Janela da Bíblia (BibliaSeletor.js): dois passos. Passo 1: versão, busca e livros. Passo 2: capítulos ---- */
+.bs-modal .modal-content { background: #212529; color: #f8f9fa; border: 1px solid #495057; }
+.bs-modal .modal-header { border-bottom: 1px solid #495057; }
+.bs-modal .btn-close { filter: invert(1); min-width: 44px; min-height: 44px; }
+.bs-modal .modal-body { padding: .75rem; display: flex; flex-direction: column; min-height: 0; }
+.bs { display: flex; flex-direction: column; gap: .6rem; height: 70vh; min-height: 0; }
+.bs-topo { display: flex; flex-wrap: wrap; gap: .5rem; }
+.bs-topo .bs-busca { flex: 1 1 12rem; min-width: 0; }
+.bs-topo .form-control, .bs-topo .form-select, .bs-topo .btn { min-height: 48px; }
+.bs-topo .form-control, .bs-topo .form-select { background-color: #2b3035; border: 1px solid #6c757d; color: #f8f9fa; }
+.bs-topo .form-control::placeholder { color: #adb5bd; }
+.bs #bsVersao { flex: 1 1 auto; width: auto; min-width: 0; max-width: 100%; }
 .bs #bsErro:empty { display: none; }
-.bs-corpo { display: grid; grid-template-columns: minmax(14rem, 45%) 1fr; gap: .75rem; flex: 1; min-height: 0; }
-.bs-livros-painel { overflow-y: auto; border-right: 1px solid #dee2e6; padding-right: .5rem; }
-.bs-rotulo { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; margin: .25rem 0; }
-.bs-livros { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: .25rem; margin-bottom: .5rem; }
-.bs-livro { display: flex; align-items: baseline; gap: .35rem; border: 1px solid #d0dde6; background: #f4f8fb; border-radius: .3rem; padding: .3rem .4rem; text-align: left; font-size: .8rem; line-height: 1.2; min-width: 0; }
-.bs-livro .abrev { font-weight: 700; color: #14506e; min-width: 1.9rem; }
-.bs-livro .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
-.bs-livro.ativo { background: #14506e; border-color: #14506e; }
+.bs #bsErro { color: #ff8c8c; font-size: .9rem; }
+.bs-passo { flex: 1; min-height: 0; overflow-y: auto; }
+.bs[data-passo="1"] .bs-passo-capitulos { display: none; }
+.bs[data-passo="2"] .bs-passo-livros, .bs[data-passo="2"] .bs-topo, .bs[data-passo="2"] #bsErro { display: none; }
+.bs-rotulo { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #adb5bd; margin: .5rem 0 .35rem; }
+.bs-livros { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .4rem; margin-bottom: .5rem; }
+.bs-livro { display: flex; align-items: center; gap: .5rem; min-height: 44px; border: 1px solid #495057; background: #2b3035; color: #f8f9fa; border-radius: .4rem; padding: .35rem .6rem; text-align: left; font-size: .95rem; line-height: 1.2; min-width: 0; white-space: normal; overflow-wrap: break-word; hyphens: auto; }
+.bs-livro .abrev { font-weight: 700; color: #9ed3ee; min-width: 2rem; flex: none; }
+.bs-livro .nome { min-width: 0; color: #f8f9fa; }
+.bs-livro.ativo { background: #1a6d96; border-color: #1a6d96; }
 .bs-livro.ativo .abrev, .bs-livro.ativo .nome { color: #fff; }
-.bs-capitulos-painel { display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
-.bs-capitulos-painel > strong { font-size: 1.1rem; }
-.bs-capitulos { display: grid; grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr)); gap: .3rem; overflow-y: auto; align-content: start; }
-.bs-cap { padding: .55rem 0; font-size: .95rem; font-weight: 600; border: 1px solid #d0dde6; background: #fff; border-radius: .3rem; }
-.bs-cap:hover { background: #14506e; border-color: #14506e; color: #fff; }
-.bs-dica { font-size: .8rem; color: #6c757d; margin-top: auto; }
+.bs-cap-topo { display: flex; align-items: center; gap: .75rem; margin-bottom: .6rem; }
+.bs-cap-topo strong { font-size: 1.2rem; min-width: 0; overflow-wrap: anywhere; }
+.bs-voltar { min-height: 48px; padding: 0 1rem; background: #343a40; border: 1px solid #6c757d; border-radius: .4rem; color: #f8f9fa; font-weight: 700; white-space: normal; }
+.bs-capitulos { display: grid; grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr)); gap: .4rem; align-content: start; }
+.bs-cap { min-height: 48px; padding: .4rem 0; font-size: 1.05rem; font-weight: 700; border: 1px solid #495057; background: #2b3035; color: #f8f9fa; border-radius: .4rem; }
+.bs-cap:hover, .bs-livro:hover { background: #1a6d96; border-color: #1a6d96; color: #fff; }
+.bs-dica { font-size: .85rem; color: #adb5bd; margin-top: .6rem; }
+.bs-cap.ativo { background: #1a6d96; border-color: #1a6d96; color: #fff; }
+.bs-sub { font-weight: 400; text-transform: none; letter-spacing: 0; font-size: .75rem; margin-left: .4rem; }
+.bs-recentes { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .5rem; }
+.bs-recente { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 48px; padding: .4rem .75rem; background: #2b3035; border: 1px solid #495057; border-radius: .4rem; color: #f8f9fa; text-align: left; white-space: normal; }
+.bs-recente .fa-bookmark { color: #9ed3ee; flex: none; }
+.bs-recente .ref { font-weight: 700; font-size: 1.05rem; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.bs-recente .meta { font-size: .85rem; color: #adb5bd; flex: none; }
+.bs-recente:hover { background: #1a6d96; border-color: #1a6d96; }
 
-@media (max-width: 768px) {
-  .bs { height: 80vh; }
-  .bs-corpo { grid-template-columns: 1fr; grid-template-rows: 45% 1fr; }
-  .bs-livros-painel { border-right: 0; border-bottom: 1px solid #dee2e6; }
+@media (max-width: 576px) {
+  .bs-modal .modal-dialog { margin: 0; width: 100%; max-width: none; height: 100%; }
+  .bs-modal .modal-content { height: 100%; border-radius: 0; border: 0; }
+  .bs-modal .modal-body { flex: 1; overflow: hidden; }
+  .bs { height: 100%; }
+  .bs-modal .modal-title { font-size: 1.15rem; }
 }
 
 /* Janela da Bíblia: versículo pedido pelo seletor (?ir=), ainda não projetado */
 label.proximo { outline: 3px dashed #ffc107; outline-offset: -3px; }
-/* Painel: Título do item recém-aberto, pronto e ainda fora da tela (o botão já é amarelo). */
-.btn-group-vertical > label.btn-warning.proximo { outline: 2px dashed #000; outline-offset: -5px; }
-.btn-group-vertical > label.btn-warning.proximo::after {
-  content: "Clique para mostrar"; position: absolute; right: .75rem; top: 50%; transform: translateY(-50%);
-  font-size: .75rem; font-weight: 600; opacity: .7;
+
+/* ---- Estado vazio e página de erro do Live: aviso neutro no escuro, com o próximo passo ---- */
+.estado-vazio { margin: 2.5rem 1.5rem; display: flex; flex-direction: column; align-items: center; gap: .75rem; text-align: center; color: #fff; }
+.estado-erro { min-height: 100vh; margin: 0 auto; padding: 1.5rem; box-sizing: border-box; justify-content: center; max-width: 30rem; }
+.estado-icone { color: #adb5bd; }
+.estado-titulo { margin: 0; font-size: 1.125rem; font-weight: 600; }
+.estado-texto { margin: 0; color: #adb5bd; }
+.estado-dica { font-size: .875rem; }
+.estado-acao { min-height: 44px; padding: .5rem 1.25rem; font-weight: 600; }
+
+/* Já projetada (até fechar o item): azul claro e selo azul; o amarelo continua só "na tela" */
+.estrofe.ja-projetada, .titulo-btn.ja-projetada { color: #9ec5fe; }
+.estrofe.ja-projetada .selo-num { background: #1a6d96; color: #fff; }
+
+/* ---- Detalhe do item aberto (só em tela larga; no celular e no tablet não aparece) ---- */
+.detalhe-cab, .detalhe-vazio { display: none; }
+
+/* ---- Tela larga: duas colunas. Esquerda: a lista (rola sozinha). Direita: o item aberto (rola sozinho).
+   O próprio .accordion-collapse.show é posicionado na coluna da direita: o acordeão do Bootstrap, seus
+   eventos e a ordem do DOM ficam como estão. ---- */
+@media (min-width: 1200px) {
+  :root { --col-lista: 420px; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  .topo-painel { flex: none; }
+  #itens { flex: 1 1 0; min-height: 0; width: var(--col-lista); overflow-y: auto; border-right: 1px solid #495057; background: #212529; }
+  #itens::-webkit-scrollbar { width: 8px; }
+  body:not(:has(.accordion-item)) #itens { width: 100%; border-right: 0; background: transparent; }
+  #hinos, #louvores, #corais, #passagens { max-width: none; margin: 0; }
+  .estado-vazio { max-width: 40rem; }
+
+  .accordion-item .accordion-header { position: static; }
+  .accordion-button::after { display: none; }
+  .accordion-button:not(.collapsed) { background-color: #343a40; color: #fff; padding-right: .75rem; }
+  .item-fechar, .accordion-button:not(.collapsed) ~ .item-fechar { display: none; }
+
+  /* Coluna da direita: entre o topo e a barra de operação */
+  .accordion-collapse.show,
+  .accordion-collapse.collapsing[style*="height"] { position: fixed; z-index: 1020; top: var(--topo-h, 89px); bottom: var(--barra-h, 170px); left: var(--col-lista); right: 0; height: auto !important; overflow-y: auto; background: #212529; }
+  /* Sem piscar ao trocar de item: nos milissegundos em que o Bootstrap marca "collapsing", o que entra
+     (com altura inline) já ocupa a coluna da direita e o que sai some, em vez de cair na lista. */
+  .accordion-collapse.collapsing:not([style*="height"]) { display: none; }
+  body:has(.accordion-collapse.collapsing) .detalhe-vazio { display: none !important; }
+  .detalhe-vazio { position: fixed; z-index: 1010; top: var(--topo-h, 89px); bottom: var(--barra-h, 170px); left: var(--col-lista); right: 0; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; color: #adb5bd; font-size: 1.125rem; text-align: center; padding: 1.5rem; }
+  body:has(.accordion-item) .detalhe-vazio { display: flex; }
+  body:has(.accordion-collapse.show) .detalhe-vazio { display: none; }
+
+  .detalhe-cab { display: flex; position: sticky; top: 0; z-index: 5; min-height: 52px; align-items: center; gap: .6rem; padding: .6rem .75rem; background: var(--tipo-esc); color: var(--tipo-txt); border-left: 4px solid var(--tipo); border-bottom: 1px solid #495057; font-size: 1.05rem; font-weight: 600; }
+  .detalhe-cab > i { flex: none; width: 1.25rem; text-align: center; }
+  .detalhe-cab .item-nome { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .detalhe-fechar { flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #fff; font-size: 1.25rem; }
+  .detalhe-fechar:hover { background: rgba(255, 255, 255, .12); }
+
+  .accordion-body { padding: .75rem; }
+  .btn-group-vertical { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+  .btn-group-vertical > label.titulo-btn { grid-column: 1 / -1; }
+  .estrofe { scroll-margin-top: 64px; scroll-margin-bottom: 8px; }
 }
 
-/* Um botão seleciona o par inteiro; cada coluna mantém seus versos legíveis. */
-.btn-group-vertical > label.painel-dueto { padding-top:2rem !important; padding-right:.75rem !important; }
-.painel-dueto .badge { top:.5rem !important; transform:none !important; }
-.painel-dueto .conteudo-vozes { gap:.5rem; }
-.painel-dueto .coluna-voz + .coluna-voz { padding-left:.5rem; }
-.painel-dueto .vozes-alinhadas > .coluna-voz + .coluna-voz > * { padding-left:.5rem; }
-.painel-dueto .voz-nome { font-size:.75rem; color:white; text-transform:none; margin-bottom:.25rem; }
-.btn-group-vertical > label.painel-dueto .linha-truncate { white-space:normal !important; overflow:visible; text-overflow:clip; }
-/* Refrão em ciano precisa de texto escuro, inclusive quando selecionado. */
-.btn-group-vertical > label.btn-info { color:#10222a !important; }
-.painel-dueto .conteudo-vozes { color:#fff; }
-.painel-dueto.btn-info .conteudo-vozes { color:#10222a; }
-.painel-dueto .voz-nome { color:inherit; }
-.btn-group-vertical > label.btn-secondary { color:#fff !important; }
-
-/* Estrofe no ar (o que está na tela agora): fundo amarelo do botão Título, texto preto e o selo
-   "Na tela". Vence a cor amarela de "já projetada" que o Painel.js põe no texto da estrofe. */
-.btn-group-vertical > .btn-check:checked + label.btn-secondary,
-.btn-group-vertical > .btn-check:checked + label.btn-info {
-  background-color:#ffc107 !important; border-color:#ffc107 !important; color:#000 !important; font-weight:600;
+/* Celular: a escolha do culto/evento abre encostada à direita, sem sair da tela */
+@media (max-width: 575.98px) {
+  #seletorEventoPainel .dropdown-menu.show { left: auto; right: 0; }
 }
-.btn-group-vertical > .btn-check:checked + label.position-relative:not(.painel-dueto) { padding-right:7.5rem !important; }
-.btn-group-vertical > .btn-check:checked + label.painel-dueto .conteudo-vozes { color:#000; }
-.selos-estrofe { display:flex; gap:.35rem; align-items:center; }
-.selos-estrofe .badge { font-size:.75rem; box-shadow:0 0 3px rgba(0, 0, 0, 0.5); }
-.painel-dueto .selos-estrofe { top:.5rem !important; transform:none !important; }
-.selo-no-ar { display:none !important; background:#000; color:#ffc107; }
-.btn-check:checked + label .selo-no-ar { display:inline-flex !important; gap:.25rem; align-items:center; }
-.selo-roxo { background:#6f42c1; color:#fff; }
 
-/* Estado vazio e página de erro do Live: aviso neutro no escuro, com o próximo passo. */
-.estado-vazio { margin:2.5rem 1.5rem; display:flex; flex-direction:column; align-items:center; gap:.75rem; text-align:center; color:#fff; }
-.estado-erro { min-height:100vh; margin:0 auto; padding:1.5rem; box-sizing:border-box; justify-content:center; max-width:30rem; }
-.estado-icone { color:#adb5bd; }
-.estado-titulo { margin:0; font-size:1.125rem; font-weight:600; }
-.estado-texto { margin:0; color:#adb5bd; }
-.estado-dica { font-size:.875rem; }
-.estado-acao { min-height:44px; padding:.5rem 1.25rem; font-weight:600; }
+/* Seletor bíblico: versão e marcadores (leituras recentes) na mesma linha; o menu abre por baixo */
+.bs-topo .bs-versao-linha { flex: 1 1 14rem; min-width: 0; display: flex; gap: .5rem; }
+.bs-versao-linha .form-select { flex: 1 1 auto; min-width: 0; }
+.bs-marcadores { position: relative; display: flex; flex: none; }
+.bs-marcadores-btn { min-width: 56px; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; background: #2b3035; border: 1px solid #6c757d; color: #9ed3ee; font-weight: 700; }
+.bs-marcadores-btn:hover, .bs-marcadores-btn[aria-expanded="true"] { background: #1a6d96; border-color: #1a6d96; color: #fff; }
+.bs-marcadores-btn .qtd { color: #f8f9fa; }
+.bs-marcadores-menu { display: none; position: absolute; top: calc(100% + 4px); right: 0; z-index: 1070; width: min(22rem, calc(100vw - 1.5rem)); max-height: min(60vh, 34rem); overflow-y: auto; padding: .5rem; background: #212529; border: 1px solid #6c757d; border-radius: .5rem; box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .5); flex-direction: column; gap: .4rem; }
+.bs-marcadores-menu.show { display: flex; }
+.bs-marcadores-menu .bs-rotulo { margin: 0 0 .1rem; }
 
-
-/* Faixa do evento (Painel aberto com ?evento=…): este Painel só mexe nas telas do evento.
-   Magenta, a mesma cor do selo de evento na Liturgia; fora do amarelo "na tela". */
-
-/* Seletor do culto/evento ao lado da data (mesmo desenho do seletor da Liturgia) e a descrição
-   do que este Painel apresenta: "Culto congregacional" ou o nome do evento */
-.linha-culto .seletor-evento { border:1px solid #9d1d6b; border-radius:0; background:#fff; color:#9d1d6b; font-weight:700; font-size:.8rem; padding:0 .5rem; }
-.linha-culto .seletor-evento:hover, .linha-culto .seletor-evento[aria-expanded="true"] { background:#9d1d6b; color:#fff; }
-.linha-culto .dropdown-menu { font-size:.9rem; }
-.linha-culto .dropdown-item.active { background:#9d1d6b; }
-.descricao-culto { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
-.descricao-culto.evento { background:#9d1d6b; color:#fff; border-color:#9d1d6b; }
-.descricao-culto .txt { overflow:hidden; text-overflow:ellipsis; }
-.linha-culto .dropdown-menu.show { position:absolute; top:100%; left:0; margin-top:2px; z-index:1060; }
-/* Rodapé fixo da mensagem para o púlpito: a lista ganha folga embaixo para o último item não ficar atrás dele */
-.rodape-mensagem { z-index:1040; box-shadow:0 -4px 6px -6px #222; }
-body:has(.rodape-mensagem) { padding-bottom:2.6rem; }
+/* Celular: a lista de livros rola dentro da tela cheia (a cadeia flex precisa chegar até .bs-passo) */
+.bs-modal .bootbox-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.bs { display: flex; flex-direction: column; flex: 1; min-height: 0; }
