@@ -40,11 +40,30 @@
             // Livros (com nº de capítulos) e versões para o seletor bíblico (js/BibliaSeletor.js)
             window.BIBLIA = <%- JSON.stringify({ livros, versoes: arquivos, versaoAtual: currentBiblia }).replace(/</g, '\\u003c') %>;
         </script>
-        <div class="input-group input-group-sm">
+        <!-- Data e o que este Painel apresenta: o culto congregacional ou o evento (seletor ao lado
+             da data quando o dia tem evento; trocar recarrega no canal do escolhido) -->
+        <div class="input-group input-group-sm linha-culto">
             <span class="input-group-text" title="Data do culto"><i class="fa-solid fa-calendar-day"></i></span>
             <input type="date" class="form-control" id="dataCulto" style="max-width: 16ch;"
                 onchange="trocarData(this.value)">
-            <input type="text" class="form-control" id='mensagem' name='mensagem' placeholder="Mensagem para o púlpito">
+            <div class="dropdown position-relative d-none" id="seletorEventoPainel">
+                <button type="button" class="btn seletor-evento h-100" aria-haspopup="true" aria-expanded="false"
+                    title="Escolher o que este Painel apresenta nesta data" aria-label="Culto ou evento desta data">
+                    <i class="fa-solid fa-people-roof"></i>&nbsp;<span class="qtd"></span>
+                </button>
+                <ul class="dropdown-menu"></ul>
+            </div>
+            <span class="input-group-text descricao-culto flex-grow-1" id="descricaoCulto">
+                <span class="ico"><i class="fa-solid fa-church"></i></span>&nbsp;<span class="txt">Culto congregacional</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Mensagem para o púlpito: rodapé fixo no fim da janela (pedido do João, 21/11/2026) -->
+    <div class="rodape-mensagem fixed-bottom bg-dark px-1 py-1">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text" title="Mensagem para o púlpito (Enter envia)"><i class="fa-solid fa-comment-dots"></i></span>
+            <input type="text" class="form-control" id='mensagem' name='mensagem' placeholder="Mensagem para o púlpito (Enter envia)">
         </div>
     </div>
 

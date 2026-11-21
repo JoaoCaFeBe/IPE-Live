@@ -39,9 +39,78 @@ var query = document.querySelector.bind(document),
     ? dataEscolhida
     : new Date(Date.now() - tzoffset).toISOString().split("T")[0],
   // Evento (?evento=slug, validado no servidor em EVENTO): liturgia "AAAA-MM-DD@slug" e canal próprio.
-  // Sem evento, a liturgia é a da data: o culto da igreja.
+  // Sem evento, a liturgia é a da data: o culto congregacional.
   chaveLiturgia = (data) => (EVENTO ? `${data}@${EVENTO}` : data),
   nomeDoEvento = EVENTO ? (EVENTO.charAt(0).toUpperCase() + EVENTO.slice(1)).replace(/-/g, " ") : "";
+
+/**
+ * Ao lado da data: o que este Painel apresenta ("Culto congregacional" ou o nome do evento) e, se o
+ * dia tem evento, o seletor para trocar. Trocar recarrega o Painel no canal do escolhido (cada evento
+ * tem canal próprio no Socket), mantendo a data. Trocar só a data mantém o evento: nunca muda de canal
+ * sozinho no meio de uma apresentação.
+ */
+const montarSeletorEvento = () => {
+  const nomeDe = (slug, nomes) => (nomes && nomes[slug]) || (slug.charAt(0).toUpperCase() + slug.slice(1)).replace(/-/g, " ");
+  const descrever = (nomes) => {
+    const $d = $("#descricaoCulto");
+    $d.toggleClass("evento", !!EVENTO);
+    // O Font Awesome troca <i> por <svg>: o ícone se refaz inteiro
+    $d.find(".ico").html(`<i class="fa-solid ${EVENTO ? "fa-people-roof" : "fa-church"}"></i>`);
+    $d.find(".txt").text(EVENTO ? nomeDe(EVENTO, nomes) : "Culto congregacional");
+    if (EVENTO) {
+      nomeDoEvento = nomeDe(EVENTO, nomes);
+      document.title = `Painel — ${nomeDoEvento}`;
+      $(".faixa-evento span").text(`Evento: ${nomeDoEvento} — telas separadas do culto congregacional`);
+    }
+  };
+  descrever({});
+  $.when(
+    $.getJSON("/api/eventos").then((r) => r, () => $.Deferred().resolve({})),
+    $.getJSON("/api/cultos").then((r) => r, () => $.Deferred().resolve([])),
+  ).done((ev, lista) => {
+    const nomes = (ev && ev.nomes) || {};
+    descrever(nomes);
+    // Eventos do dia: os que têm liturgia nesta data e os cujo período cadastrado a inclui
+    const slugs = new Set();
+    (Array.isArray(lista) ? lista : []).forEach((f) => {
+      const m = /^(\d{4}-\d{2}-\d{2})@([a-z0-9-]+)\.json$/.exec(String(f));
+      if (m && m[1] === arquivo) slugs.add(m[2]);
+    });
+    ((ev && ev.eventos) || []).forEach((e) => { if (e.inicio <= arquivo && arquivo <= e.fim) slugs.add(e.slug); });
+    if (EVENTO) slugs.add(EVENTO); // o evento aberto aparece sempre, para voltar a ele
+    if (!slugs.size) return;
+    const opcoes = [["", "Culto congregacional", "fa-church"]]
+      .concat([...slugs].sort((a, b) => nomeDe(a, nomes).localeCompare(nomeDe(b, nomes), "pt-BR"))
+        .map((s) => [s, nomeDe(s, nomes), "fa-people-roof"]));
+    const $sel = $("#seletorEventoPainel").removeClass("d-none");
+    $sel.find(".qtd").text(slugs.size);
+    $sel.find(".dropdown-menu").html(opcoes.map(([slug, nome, icone]) =>
+      `<li><a class="dropdown-item${slug === EVENTO ? " active" : ""}" href="#" data-evento="${slug}">
+        <i class="fa-solid ${icone}"></i>&nbsp;${escAttr(nome)}</a></li>`).join(""));
+    $sel.on("click", "[data-evento]", function (e) {
+      e.preventDefault();
+      const slug = this.getAttribute("data-evento");
+      if (slug === EVENTO) return;
+      const params = new URLSearchParams(location.search);
+      if (slug) params.set("evento", slug); else params.delete("evento");
+      params.set("data", arquivo);
+      location.search = params.toString();
+    });
+    // Menu próprio: o Live carrega o Bootstrap sem o Popper, que o dropdown dele exige.
+    // Com mouse abre ao passar por cima (como na Liturgia); no toque, o clique abre e fecha.
+    const $botao = $sel.find(".seletor-evento"), $menu = $sel.find(".dropdown-menu");
+    const abrir = (sim) => { $menu.toggleClass("show", sim); $botao.attr("aria-expanded", sim ? "true" : "false"); };
+    const comMouse = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    $botao.on("click", (e) => { e.stopPropagation(); abrir(comMouse ? true : !$menu.hasClass("show")); });
+    $(document).on("click", (e) => { if (!$sel[0].contains(e.target)) abrir(false); });
+    $(document).on("keydown", (e) => { if (e.key === "Escape") abrir(false); });
+    if (comMouse) {
+      let fechar;
+      $sel.on("mouseenter", () => { clearTimeout(fechar); abrir(true); })
+        .on("mouseleave", () => { fechar = setTimeout(() => abrir(false), 250); });
+    }
+  });
+};
 
 const trocarData = (data) => {
   const params = new URLSearchParams(location.search);
@@ -201,18 +270,11 @@ const inicio = () => {
     faixa.className = "faixa-evento";
     faixa.setAttribute("role", "status");
     faixa.innerHTML = `<i class="fa-solid fa-people-roof" aria-hidden="true"></i> <span></span>`;
-    faixa.querySelector("span").textContent = `Evento: ${nomeDoEvento} — telas separadas do culto da igreja`;
+    faixa.querySelector("span").textContent = `Evento: ${nomeDoEvento} — telas separadas do culto congregacional`;
     faixa.title = `Projetor e TV deste evento abrem com ?evento=${EVENTO} no endereço`;
     document.querySelector(".sticky-top").prepend(faixa);
-    // Nome como foi digitado na Liturgia ("ECC 2027"); sem resposta, fica o slug legível
-    $.getJSON("/api/eventos").done((r) => {
-      const nome = r && r.nomes && r.nomes[EVENTO];
-      if (!nome) return;
-      nomeDoEvento = nome;
-      document.title = `Painel — ${nome}`;
-      faixa.querySelector("span").textContent = `Evento: ${nome} — telas separadas do culto da igreja`;
-    });
   }
+  montarSeletorEvento();
 
   $.getJSON(`${cultosUrl}/${encodeURIComponent(chaveLiturgia(arquivo))}.json?vozes=1`)
     .done((definicoes) => {
@@ -456,7 +518,7 @@ const inicio = () => {
       $.getJSON(cultosUrl).done((lista) => {
         const proximo = (Array.isArray(lista) ? lista : [])
           .map((f) => String(f).replace(".json", ""))
-          // Só liturgias do mesmo contexto: o culto da igreja não oferece evento, e vice-versa
+          // Só liturgias do mesmo contexto: o culto congregacional não oferece evento, e vice-versa
           .filter((k) => /^\d{4}-\d{2}-\d{2}(@|$)/.test(k) && k === chaveLiturgia(k.slice(0, 10)))
           .map((k) => k.slice(0, 10))
           .filter((d) => d > arquivo)

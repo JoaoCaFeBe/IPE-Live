@@ -35,14 +35,14 @@ function inicio() {
     // Data de hoje no fuso da igreja: dia passado abre só para consulta
     $.getJSON('/dados/hoje').done(r => { HOJE = r.hoje; });
 
-    // Uma linha por data. Clique na data: o culto da igreja. Seletor ao lado: os eventos da data.
+    // Uma linha por data. Clique na data: o culto congregacional. Seletor ao lado: os eventos da data.
     // Duplo clique renomeia (troca a data) da liturgia aberta na linha.
     $('#listaLiturgias')
         .on('click', 'li[data-data]', function (e) {
             if ($(e.target).closest('.seletor-evento, .dropdown-menu').length) return;
             const culto = arquivoDe($(this).attr('data-data'), '');
             if ($(this).attr('data-culto') === '1') return abrirNaLista(culto);
-            // Data sem culto da igreja: um evento só abre direto; mais de um, a lista para escolher
+            // Data sem culto congregacional: um evento só abre direto; mais de um, a lista para escolher
             // (no próximo ciclo, senão o próprio clique fecha o menu ao chegar no documento)
             const $opcoes = $(this).find('.dropdown-menu [data-arquivo]');
             if ($opcoes.length === 1) return abrirNaLista($opcoes.attr('data-arquivo'));
@@ -84,7 +84,7 @@ function inicio() {
 
 /* ── LISTA DE LITURGIAS: UMA LINHA POR DATA ─────────────────────────────────
  * Pedido do João (21/11/2026): com vários eventos, datas repetidas dificultam a leitura.
- * Cada data é uma linha; o clique nela abre o culto da igreja (o padrão). Se a data tem
+ * Cada data é uma linha; o clique nela abre o culto congregacional (o padrão). Se a data tem
  * eventos, o seletor magenta ao lado (com a quantidade) lista o culto e os eventos dela.
  * A linha guarda em `arquivo` a liturgia aberta nela, e o selo embaixo mostra o evento. */
 
@@ -114,7 +114,7 @@ function linhaDaData(data, { culto, eventos }) {
         <span class="rotulo-data"><i class='fas fa-folder'></i>&nbsp;${dataBR(data)}</span></li>`);
     if (!eventos.length) return $li;
     eventos.sort((a, b) => nomeEvento(a).localeCompare(nomeEvento(b), 'pt-BR'));
-    const opcoes = (culto ? [['', 'Culto da igreja', 'fa-church']] : [])
+    const opcoes = (culto ? [['', 'Culto congregacional', 'fa-church']] : [])
         .concat(eventos.map(ev => [ev, nomeEvento(ev), 'fa-people-roof']));
     $li.append(`<span class="dropdown d-inline-block">
         <button type="button" class="seletor-evento" data-bs-toggle="dropdown" aria-expanded="false"
@@ -169,7 +169,7 @@ function baixarInstaladorLive() {
 const dataBR = d => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
 
 /* ── EVENTOS ────────────────────────────────────────────────────────────────
- * Evento (retiro, conferência…) tem liturgia e projeção separadas do culto da igreja,
+ * Evento (retiro, conferência…) tem liturgia e projeção separadas do culto congregacional,
  * que continua o padrão. A chave é a data com o evento: "2026-11-22@retiro-de-casais".
  * No Live, o Painel e as telas do evento abrem com ?evento=retiro-de-casais. */
 const RE_ARQUIVO = /^\d{4}-\d{2}-\d{2}(?:@[a-z0-9]+(?:-[a-z0-9]+)*)?\.json$/;
@@ -193,9 +193,9 @@ const nomeEvento = slug => !slug ? '' : NOMES_EVENTOS[slug] || (slug.charAt(0).t
 const arquivoDe = (data, evento) => `${data}${evento ? '@' + evento : ''}.json`;
 
 /**
- * Pede a data e, se houver evento cadastrado naquela data, para qual liturgia: o culto da igreja
+ * Pede a data e, se houver evento cadastrado naquela data, para qual liturgia: o culto congregacional
  * ou o evento. Eventos se criam no botão "Criar evento" da barra de cima; aqui só se escolhe.
- * cb({ data, evento, nome }): evento em slug ('' = culto da igreja).
+ * cb({ data, evento, nome }): evento em slug ('' = culto congregacional).
  */
 function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
     const min = HOJE || hojeLocal();
@@ -208,7 +208,7 @@ function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
             <select class="form-select" id="campoEvento" name="evento"></select>
             <div class="form-text">O evento tem liturgia e projeção separadas do culto.</div>
         </div>
-        <div class="form-text sem-evento mt-2"><i class="fas fa-church"></i>&nbsp;Liturgia do culto da igreja.
+        <div class="form-text sem-evento mt-2"><i class="fas fa-church"></i>&nbsp;Liturgia do culto congregacional.
             Para um retiro ou conferência, use <b>Criar evento</b> na barra de cima.</div>
     </form>`);
     // A lista acompanha a data: só os eventos cujo período inclui o dia escolhido
@@ -217,7 +217,7 @@ function pedirDataEvento({ titulo, data, evento = '', mensagem = '' }, cb) {
         const $sel = $form.find('[name=evento]');
         const atual = $sel.val() ?? evento;
         const lista = d ? eventosNaData(d) : [];
-        $sel.html(`<option value="">Culto da igreja</option>` +
+        $sel.html(`<option value="">Culto congregacional</option>` +
             lista.map(ev => `<option value="${ev.slug}">${escHtml(nomeEvento(ev.slug))}</option>`).join(''));
         $sel.val(lista.some(ev => ev.slug === atual) ? atual : '');
         $form.find('.grupo-evento').toggleClass('d-none', !lista.length);
@@ -349,7 +349,7 @@ function mostrarLinksEvento() {
         ['TV', 'fa-tv', `${base}/Televisao?evento=${slug}`],
     ];
     const $corpo = $(`<div class="links-evento">
-        <p class="mb-3">Mande estes links a quem vai apresentar. Cada tela só mostra o que o Painel do evento projetar; o culto da igreja não é afetado.</p>
+        <p class="mb-3">Mande estes links a quem vai apresentar. Cada tela só mostra o que o Painel do evento projetar; o culto congregacional não é afetado.</p>
         ${telas.map(([nome, icone, url]) => `
         <label class="form-label mb-1"><i class="fas ${icone}"></i>&nbsp;${nome}</label>
         <div class="input-group mb-3">

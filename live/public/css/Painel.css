@@ -245,3 +245,17 @@ label.proximo { outline: 3px dashed #ffc107; outline-offset: -3px; }
    Magenta, a mesma cor do selo de evento na Liturgia; fora do amarelo "na tela". */
 .faixa-evento { display:flex; align-items:center; gap:.5rem; margin-bottom:.25rem; padding:.375rem .75rem; border-radius:.375rem; background:#9d1d6b; color:#fff; font-weight:600; font-size:.875rem; }
 .faixa-evento span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Seletor do culto/evento ao lado da data (mesmo desenho do seletor da Liturgia) e a descrição
+   do que este Painel apresenta: "Culto congregacional" ou o nome do evento */
+.linha-culto .seletor-evento { border:1px solid #9d1d6b; border-radius:0; background:#fff; color:#9d1d6b; font-weight:700; font-size:.8rem; padding:0 .5rem; }
+.linha-culto .seletor-evento:hover, .linha-culto .seletor-evento[aria-expanded="true"] { background:#9d1d6b; color:#fff; }
+.linha-culto .dropdown-menu { font-size:.9rem; }
+.linha-culto .dropdown-item.active { background:#9d1d6b; }
+.descricao-culto { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+.descricao-culto.evento { background:#9d1d6b; color:#fff; border-color:#9d1d6b; }
+.descricao-culto .txt { overflow:hidden; text-overflow:ellipsis; }
+.linha-culto .dropdown-menu.show { position:absolute; top:100%; left:0; margin-top:2px; z-index:1060; }
+/* Rodapé fixo da mensagem para o púlpito: a lista ganha folga embaixo para o último item não ficar atrás dele */
+.rodape-mensagem { z-index:1040; box-shadow:0 -4px 6px -6px #222; }
+body:has(.rodape-mensagem) { padding-bottom:2.6rem; }
